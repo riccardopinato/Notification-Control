@@ -37,9 +37,11 @@ fun NotificationControlApp(
     requestOverlayPermission: () -> Unit,
     requestNotificationAccess: () -> Unit,
     requestPostNotifications: () -> Unit,
-    requestVaultUnlock: () -> Unit
+    requestVaultUnlock: () -> Unit,
+    purchasePremiumOffer: (String) -> Unit
 ) {
     val settings by viewModel.settingsState.collectAsStateWithLifecycle()
+    val billingState by viewModel.billingState.collectAsStateWithLifecycle()
     val apps by viewModel.installedApps.collectAsStateWithLifecycle()
     val notifications by viewModel.notifications.collectAsStateWithLifecycle()
     val count by viewModel.notificationCount.collectAsStateWithLifecycle()
@@ -213,11 +215,14 @@ fun NotificationControlApp(
                 modifier = Modifier,
                 contentPadding = padding,
                 state = settings,
+                billingState = billingState,
                 storageStats = storageStats,
                 onConfigureApps = { showPicker = true },
                 onVaultLockChanged = viewModel::setVaultLockEnabled,
                 onVaultTimeoutChanged = viewModel::setVaultLockTimeoutMinutes,
                 onDeleteAll = viewModel::deleteAllVault,
+                onPurchasePremium = purchasePremiumOffer,
+                onRestorePurchases = viewModel::restorePurchases,
                 requestNotificationAccess = requestNotificationAccess,
                 requestCameraPermission = requestCameraPermission,
                 requestOverlayPermission = requestOverlayPermission

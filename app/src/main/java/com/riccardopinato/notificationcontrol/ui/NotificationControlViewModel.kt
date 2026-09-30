@@ -6,6 +6,8 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.riccardopinato.notificationcontrol.automation.AutomationRepository
+import com.riccardopinato.notificationcontrol.billing.BillingUiState
+import com.riccardopinato.notificationcontrol.billing.PlayBillingManager
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
@@ -70,11 +72,14 @@ data class SettingsUiState(
 
 class NotificationControlViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = AppSettings(application)
+    private val billingManager = PlayBillingManager.get(application)
     private val database = NotificationDatabase.get(application)
     private val dao = database.notificationDao()
     private val automationDao = database.automationDao()
     private val automationRepository = AutomationRepository(application, settings, automationDao)
     private val storageRepository = StorageStatsRepository(application)
+
+    val billingState: StateFlow<BillingUiState> = billingManager.state
 
     private val _settingsState = MutableStateFlow(readSettings())
     val settingsState: StateFlow<SettingsUiState> = _settingsState.asStateFlow()
@@ -158,9 +163,18 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     init {
         loadInstalledApps()
         refreshStorageStats()
+        viewModelScope.launch {
+            billingManager.state.collect {
+                _settingsState.value = readSettings()
+            }
+        }
         viewModelScope.launch(Dispatchers.IO) {
             automationRepository.cleanupPickupCodes()
         }
+    }
+
+    fun restorePurchases() {
+        billingManager.refresh()
     }
 
     fun completeOnboarding() {
@@ -238,7 +252,8 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     }
 
     fun setRetentionDays(days: Int) {
-        settings.retentionDays = if (settings.isPremium) days else ProductLimits.FREE_RETENTION_DAYS
+        settings.retentionDays =
+            if (settings.isPremium) days else ProductLimits.FREE_RETENTION_DAYS
         refresh()
     }
 

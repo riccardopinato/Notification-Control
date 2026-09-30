@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import com.riccardopinato.notificationcontrol.billing.PlayBillingManager
 import com.riccardopinato.notificationcontrol.security.VaultSecurityManager
 import com.riccardopinato.notificationcontrol.ui.NotificationControlApp
 import com.riccardopinato.notificationcontrol.ui.NotificationControlViewModel
@@ -25,6 +26,7 @@ import com.riccardopinato.notificationcontrol.ui.theme.NotificationControlTheme
 class MainActivity : FragmentActivity() {
     private val viewModel by viewModels<NotificationControlViewModel>()
     private val vaultSecurity by lazy { VaultSecurityManager(this) }
+    private val billingManager by lazy { PlayBillingManager.get(this) }
 
     private var permissionEpoch by mutableIntStateOf(0)
     private var vaultUnlockEpoch by mutableIntStateOf(0)
@@ -70,7 +72,10 @@ class MainActivity : FragmentActivity() {
                             permissionEpoch++
                         }
                     },
-                    requestVaultUnlock = ::requestVaultUnlock
+                    requestVaultUnlock = ::requestVaultUnlock,
+                    purchasePremiumOffer = { offerKey ->
+                        billingManager.launchPurchase(this, offerKey)
+                    }
                 )
             }
         }
@@ -80,6 +85,7 @@ class MainActivity : FragmentActivity() {
         super.onResume()
         permissionEpoch++
         viewModel.refresh()
+        billingManager.refresh()
     }
 
     private fun requestVaultUnlock() {
