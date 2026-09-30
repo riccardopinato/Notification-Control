@@ -1,0 +1,41 @@
+NOTIFICATION CONTROL — PERMANENT PROJECT RULES
+
+PRODUCT
+- One product, not disconnected micro-apps.
+- Luminous Infinite Circle is the visual-alert donor/module.
+- Core modules: Vault/Undo, Rules, Critical Alert, Follow Up, Pausa Ping, Pickup Code, Luminous.
+- Free must be useful. Premium unlocks automation/control, not relief from artificial frustration.
+
+DATA & PRIVACY
+- Local-only by default; no cloud required for core use.
+- Notification content must never be uploaded silently.
+- Android automatic cloud backup is disabled until an explicit encrypted backup design exists.
+- Google Sign-In is optional and must not gate local value.
+- Account identity and local Vault protection are separate concerns.
+
+CAPTURE ARCHITECTURE
+- Single Capture: one NotificationListenerService.
+- Single Vault: one canonical local persistence layer.
+- Multiple Consumers: rules/Luminous/follow-up/etc. react to the same event.
+- Notification removal is not proof that a sender deleted a message; store factual lifecycle/reason only.
+- Reconcile active notifications when the listener reconnects.
+
+FREE / PREMIUM BASELINE
+- Free monitored apps: max 3.
+- Premium monitored apps: unlimited.
+- Free history retention: 7 days.
+- Premium retention: 1 / 3 / 7 / 30 days / forever.
+- Protected items are excluded from automatic cleanup.
+- Base accessibility/visual-alert capability must not be crippled solely to create a paywall.
+
+UX
+- Material 3: calm, minimal, comfortable utility aesthetic.
+- Device language by default; EN/IT/ES/FR/PT baseline, fallback EN.
+- Progressive permissions only when needed.
+- Profile is the administrative center for account, security, language, storage, retention, privacy and permission health.
+
+ENGINEERING
+- Native Android Kotlin + Compose because core value depends on Android notification, overlay, camera/flash and sensor APIs.
+- Minimal dependencies; no unrelated AI/network stack.
+- Database changes require migrations once schema v1 is released.
+- Performance, battery use and app size are product features.

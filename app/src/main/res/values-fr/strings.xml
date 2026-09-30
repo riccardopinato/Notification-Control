@@ -1,0 +1,13 @@
+<resources>
+    <string name="tab_profile">Profil</string>
+    <string name="welcome_title">Vos notifications. Sous votre contrôle.</string>
+    <string name="start">Commencer</string>
+    <string name="continue_label">Continuer</string>
+    <string name="done">Terminé</string>
+    <string name="tab_vault">Vault</string>
+    <string name="tab_luminous">Luminous</string>
+    <string name="choose_apps_title">Choisissez les applications à surveiller</string>
+    <string name="profile_title">Profil et centre de contrôle</string>
+    <string name="language_title">Langue</string>
+    <string name="privacy_title">Confidentialité</string>
+</resources>
