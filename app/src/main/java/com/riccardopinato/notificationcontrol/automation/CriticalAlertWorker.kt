@@ -1,6 +1,7 @@
 package com.riccardopinato.notificationcontrol.automation
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -35,31 +36,7 @@ class CriticalAlertWorker(
 
         ensureChannel()
         if (notificationsAllowed()) {
-            val intent = Intent(applicationContext, MainActivity::class.java)
-            val pendingIntent = PendingIntent.getActivity(
-                applicationContext,
-                (CRITICAL_NOTIFICATION_BASE + (id % 100_000)).toInt(),
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val notification = NotificationCompat.Builder(
-                applicationContext,
-                CHANNEL_ID
-            )
-                .setSmallIcon(R.drawable.ic_notification_control)
-                .setContentTitle(
-                    applicationContext.getString(R.string.critical_escalation_notification)
-                )
-                .setContentText(entity.sourceLabel)
-                .setAutoCancel(true)
-                .setContentIntent(pendingIntent)
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setCategory(NotificationCompat.CATEGORY_ALARM)
-                .build()
-            NotificationManagerCompat.from(applicationContext).notify(
-                (CRITICAL_NOTIFICATION_BASE + (id % 100_000)).toInt(),
-                notification
-            )
+            postEscalationNotification(id, entity.sourceLabel)
         }
 
         val nextStep = entity.escalationStep + 1
@@ -77,6 +54,38 @@ class CriticalAlertWorker(
         )
         CriticalAlertScheduler.schedule(applicationContext, id, nextAt)
         return Result.success()
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun postEscalationNotification(id: Long, sourceLabel: String) {
+        val intent = Intent(applicationContext, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            applicationContext,
+            (CRITICAL_NOTIFICATION_BASE + (id % 100_000)).toInt(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val notification = NotificationCompat.Builder(
+            applicationContext,
+            CHANNEL_ID
+        )
+            .setSmallIcon(R.drawable.ic_notification_control)
+            .setContentTitle(
+                applicationContext.getString(R.string.critical_escalation_notification)
+            )
+            .setContentText(sourceLabel)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .build()
+
+        runCatching {
+            NotificationManagerCompat.from(applicationContext).notify(
+                (CRITICAL_NOTIFICATION_BASE + (id % 100_000)).toInt(),
+                notification
+            )
+        }
     }
 
     private fun notificationsAllowed(): Boolean =
