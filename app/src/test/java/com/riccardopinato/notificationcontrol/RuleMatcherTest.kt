@@ -6,6 +6,7 @@ import com.riccardopinato.notificationcontrol.data.RuleActionEntity
 import com.riccardopinato.notificationcontrol.data.RuleEntity
 import com.riccardopinato.notificationcontrol.data.RuleWithActions
 import com.riccardopinato.notificationcontrol.domain.RuleMatcher
+import com.riccardopinato.notificationcontrol.domain.RuleRuntimeState
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -80,6 +81,63 @@ class RuleMatcherTest {
             RuleMatcher.matches(
                 rule,
                 event("com.example.chat", "Anna", "hello")
+            )
+        )
+    }
+
+    @Test
+    fun timeWindowAcrossMidnightMatchesOnlyInsideWindow() {
+        val rule = RuleWithActions(
+            rule = RuleEntity(
+                id = 4,
+                name = "Night",
+                packageName = "com.example.chat",
+                timeStartMinutes = 22 * 60,
+                timeEndMinutes = 7 * 60
+            ),
+            actions = emptyList()
+        )
+
+        assertTrue(
+            RuleMatcher.matches(
+                rule,
+                event("com.example.chat", "Anna", "hello"),
+                RuleRuntimeState(23 * 60, screenInteractive = false)
+            )
+        )
+        assertFalse(
+            RuleMatcher.matches(
+                rule,
+                event("com.example.chat", "Anna", "hello"),
+                RuleRuntimeState(12 * 60, screenInteractive = false)
+            )
+        )
+    }
+
+    @Test
+    fun screenOffConditionUsesRuntimeState() {
+        val rule = RuleWithActions(
+            rule = RuleEntity(
+                id = 5,
+                name = "Screen off",
+                packageName = "com.example.chat",
+                screenState = "SCREEN_OFF"
+            ),
+            actions = emptyList()
+        )
+
+        assertTrue(
+            RuleMatcher.matches(
+                rule,
+                event("com.example.chat", "Anna", "hello"),
+                RuleRuntimeState(12 * 60, screenInteractive = false)
+            )
+        )
+        assertFalse(
+            RuleMatcher.matches(
+                rule,
+                event("com.example.chat", "Anna", "hello"),
+                RuleRuntimeState(12 * 60, screenInteractive = true)
             )
         )
     }

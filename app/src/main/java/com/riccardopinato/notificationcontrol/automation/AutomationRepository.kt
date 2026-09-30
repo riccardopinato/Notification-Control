@@ -26,6 +26,9 @@ class AutomationRepository(
         senderQuery: String?,
         textQuery: String?,
         matchMode: String,
+        timeStartMinutes: Int?,
+        timeEndMinutes: Int?,
+        screenState: String,
         actions: List<Pair<String, String?>>
     ): Boolean {
         if (actions.isEmpty()) return false
@@ -35,7 +38,22 @@ class AutomationRepository(
             packageName = packageName?.takeIf { it.isNotBlank() },
             senderQuery = senderQuery?.trim()?.takeIf { it.isNotBlank() },
             textQuery = textQuery?.trim()?.takeIf { it.isNotBlank() },
-            matchMode = if (matchMode == "ANY") "ANY" else "ALL"
+            matchMode = if (matchMode == "ANY") "ANY" else "ALL",
+            timeStartMinutes = if (settings.isPremium) {
+                timeStartMinutes?.coerceIn(0, 1439)
+            } else {
+                null
+            },
+            timeEndMinutes = if (settings.isPremium) {
+                timeEndMinutes?.coerceIn(0, 1439)
+            } else {
+                null
+            },
+            screenState = if (settings.isPremium) {
+                normalizeScreenState(screenState)
+            } else {
+                "ANY"
+            }
         )
         dao.createRule(rule, actions)
         return true
@@ -48,6 +66,9 @@ class AutomationRepository(
         senderQuery: String?,
         textQuery: String?,
         matchMode: String,
+        timeStartMinutes: Int?,
+        timeEndMinutes: Int?,
+        screenState: String,
         actions: List<Pair<String, String?>>
     ): Boolean {
         if (id <= 0L || actions.isEmpty()) return false
@@ -58,7 +79,22 @@ class AutomationRepository(
                 packageName = packageName?.trim()?.takeIf { it.isNotBlank() },
                 senderQuery = senderQuery?.trim()?.takeIf { it.isNotBlank() },
                 textQuery = textQuery?.trim()?.takeIf { it.isNotBlank() },
-                matchMode = if (matchMode == "ANY") "ANY" else "ALL"
+                matchMode = if (matchMode == "ANY") "ANY" else "ALL",
+                timeStartMinutes = if (settings.isPremium) {
+                    timeStartMinutes?.coerceIn(0, 1439)
+                } else {
+                    null
+                },
+                timeEndMinutes = if (settings.isPremium) {
+                    timeEndMinutes?.coerceIn(0, 1439)
+                } else {
+                    null
+                },
+                screenState = if (settings.isPremium) {
+                    normalizeScreenState(screenState)
+                } else {
+                    "ANY"
+                }
             ),
             actions
         )
@@ -204,6 +240,12 @@ class AutomationRepository(
     suspend fun cleanupPickupCodes() {
         dao.cleanupPickupCodes(System.currentTimeMillis())
     }
+
+    private fun normalizeScreenState(value: String): String =
+        when (value) {
+            "SCREEN_ON", "SCREEN_OFF" -> value
+            else -> "ANY"
+        }
 
     private suspend fun canCreateFollowUp(): Boolean =
         settings.isPremium || dao.activeFollowUpCount() < ProductLimits.FREE_ACTIVE_FOLLOW_UPS

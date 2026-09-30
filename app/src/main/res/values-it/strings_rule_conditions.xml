@@ -1,0 +1,12 @@
+<resources>
+    <string name="rule_advanced_conditions">Condizioni avanzate</string>
+    <string name="rule_advanced_premium">Le condizioni su orario e stato schermo sono disponibili con Premium.</string>
+    <string name="rule_time_window">Limita a una fascia oraria</string>
+    <string name="rule_time_start">Dalle %1$s</string>
+    <string name="rule_time_end">Alle %1$s</string>
+    <string name="rule_screen_state">Stato schermo</string>
+    <string name="rule_screen_any">Qualsiasi</string>
+    <string name="rule_screen_on">Schermo acceso</string>
+    <string name="rule_screen_off">Schermo spento</string>
+    <string name="rule_summary_time">%1$s–%2$s</string>
+</resources>

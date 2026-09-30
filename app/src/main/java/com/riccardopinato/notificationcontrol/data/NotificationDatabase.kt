@@ -21,7 +21,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PickupCodeEntity::class,
         LuminousProfileEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = true
 )
 abstract class NotificationDatabase : RoomDatabase() {
@@ -272,6 +272,20 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE rules ADD COLUMN timeStartMinutes INTEGER"
+                )
+                db.execSQL(
+                    "ALTER TABLE rules ADD COLUMN timeEndMinutes INTEGER"
+                )
+                db.execSQL(
+                    "ALTER TABLE rules ADD COLUMN screenState TEXT NOT NULL DEFAULT 'ANY'"
+                )
+            }
+        }
+
         fun get(context: Context): NotificationDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -284,7 +298,8 @@ abstract class NotificationDatabase : RoomDatabase() {
                     MIGRATION_3_4,
                     MIGRATION_4_5,
                     MIGRATION_5_6,
-                    MIGRATION_6_7
+                    MIGRATION_6_7,
+                    MIGRATION_7_8
                 )
                 .build()
                 .also { instance = it }

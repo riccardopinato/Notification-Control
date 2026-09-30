@@ -395,6 +395,9 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         senderQuery: String?,
         textQuery: String?,
         matchMode: String,
+        timeStartMinutes: Int?,
+        timeEndMinutes: Int?,
+        screenState: String,
         actions: List<Pair<String, String?>>
     ) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -405,6 +408,9 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
                     senderQuery,
                     textQuery,
                     matchMode,
+                    timeStartMinutes,
+                    timeEndMinutes,
+                    screenState,
                     actions
                 )
             ) {
@@ -420,6 +426,9 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         senderQuery: String?,
         textQuery: String?,
         matchMode: String,
+        timeStartMinutes: Int?,
+        timeEndMinutes: Int?,
+        screenState: String,
         actions: List<Pair<String, String?>>
     ) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -430,6 +439,9 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
                 senderQuery = senderQuery,
                 textQuery = textQuery,
                 matchMode = matchMode,
+                timeStartMinutes = timeStartMinutes,
+                timeEndMinutes = timeEndMinutes,
+                screenState = screenState,
                 actions = actions
             )
         }

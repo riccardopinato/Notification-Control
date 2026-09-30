@@ -10,6 +10,7 @@ import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.domain.CriticalMatcher
 import com.riccardopinato.notificationcontrol.domain.PausePingController
 import com.riccardopinato.notificationcontrol.domain.RuleEngine
+import com.riccardopinato.notificationcontrol.domain.RuleRuntimeStateProvider
 import com.riccardopinato.notificationcontrol.domain.SuppressionPolicy
 import com.riccardopinato.notificationcontrol.hardware.DevicePostureMonitor
 import com.riccardopinato.notificationcontrol.hardware.FlashCoordinator
@@ -67,7 +68,13 @@ class NotificationCaptureService : NotificationListenerService() {
         processor = NotificationEventProcessor(
             vaultRepository = vaultRepository,
             consumers = listOf(
-                RulesConsumer(RuleEngine(database.automationDao())),
+                RulesConsumer(
+                    ruleEngine = RuleEngine(
+                        dao = database.automationDao(),
+                        premiumProvider = { settings.isPremium }
+                    ),
+                    runtimeStateProvider = RuleRuntimeStateProvider(this)
+                ),
                 CriticalConsumer(
                     matcher = CriticalMatcher(database.automationDao()),
                     automationRepository = automationRepository

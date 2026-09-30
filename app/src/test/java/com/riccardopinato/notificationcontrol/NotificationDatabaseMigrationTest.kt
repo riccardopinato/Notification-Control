@@ -194,6 +194,92 @@ class NotificationDatabaseMigrationTest {
         context.deleteDatabase(databaseName)
     }
 
+    @Test
+    fun migration7To8AddsAdvancedRuleConditionsWithSafeDefaults() {
+        val context = RuntimeEnvironment.getApplication()
+        val databaseName = "notification-control-migration-7-8.db"
+        context.deleteDatabase(databaseName)
+
+        val v7 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(7) {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            db.execSQL(
+                                """
+                                CREATE TABLE rules (
+                                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                                    name TEXT NOT NULL,
+                                    enabled INTEGER NOT NULL,
+                                    packageName TEXT,
+                                    senderQuery TEXT,
+                                    textQuery TEXT,
+                                    matchMode TEXT NOT NULL,
+                                    priority INTEGER NOT NULL,
+                                    createdAt INTEGER NOT NULL
+                                )
+                                """.trimIndent()
+                            )
+                        }
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) = Unit
+                    }
+                )
+                .build()
+        )
+        v7.writableDatabase.execSQL(
+            """
+            INSERT INTO rules(
+                name, enabled, packageName, senderQuery, textQuery,
+                matchMode, priority, createdAt
+            ) VALUES(
+                'Legacy rule', 1, 'com.example', NULL, 'urgent',
+                'ALL', 0, 100
+            )
+            """.trimIndent()
+        )
+        v7.close()
+
+        val v8 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(8) {
+                        override fun onCreate(db: SupportSQLiteDatabase) = Unit
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) {
+                            assertEquals(7, oldVersion)
+                            assertEquals(8, newVersion)
+                            NotificationDatabase.MIGRATION_7_8.migrate(db)
+                        }
+                    }
+                )
+                .build()
+        )
+
+        v8.writableDatabase.query(
+            "SELECT timeStartMinutes, timeEndMinutes, screenState " +
+                "FROM rules WHERE name='Legacy rule'"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertTrue(cursor.isNull(0))
+            assertTrue(cursor.isNull(1))
+            assertEquals("ANY", cursor.getString(2))
+        }
+
+        v8.close()
+        context.deleteDatabase(databaseName)
+    }
+
     private fun createNotificationsV5(db: SupportSQLiteDatabase) {
         db.execSQL(
             """

@@ -59,6 +59,9 @@ fun RulesScreen(
         String?,
         String?,
         String,
+        Int?,
+        Int?,
+        String,
         List<Pair<String, String?>>
     ) -> Unit,
     onUpdateRule: (
@@ -67,6 +70,9 @@ fun RulesScreen(
         String?,
         String?,
         String?,
+        String,
+        Int?,
+        Int?,
         String,
         List<Pair<String, String?>>
     ) -> Unit,
@@ -399,14 +405,20 @@ fun RulesScreen(
         AddRuleDialog(
             apps = apps,
             existing = null,
+            premium = state.isPremium,
             onDismiss = { addRule = false },
-            onSave = { _, name, appPackage, sender, text, matchMode, actions ->
+            onSave = {
+                    _, name, appPackage, sender, text, matchMode,
+                    timeStart, timeEnd, screenState, actions ->
                 onCreateRule(
                     name,
                     appPackage,
                     sender,
                     text,
                     matchMode,
+                    timeStart,
+                    timeEnd,
+                    screenState,
                     actions
                 )
                 addRule = false
@@ -418,8 +430,11 @@ fun RulesScreen(
         AddRuleDialog(
             apps = apps,
             existing = existing,
+            premium = state.isPremium,
             onDismiss = { editingRule = null },
-            onSave = { id, name, appPackage, sender, text, matchMode, actions ->
+            onSave = {
+                    id, name, appPackage, sender, text, matchMode,
+                    timeStart, timeEnd, screenState, actions ->
                 if (id != null) {
                     onUpdateRule(
                         id,
@@ -428,6 +443,9 @@ fun RulesScreen(
                         sender,
                         text,
                         matchMode,
+                        timeStart,
+                        timeEnd,
+                        screenState,
                         actions
                     )
                 }
@@ -441,6 +459,7 @@ fun RulesScreen(
 private fun AddRuleDialog(
     apps: List<InstalledApp>,
     existing: RuleWithActions?,
+    premium: Boolean,
     onDismiss: () -> Unit,
     onSave: (
         Long?,
@@ -448,6 +467,9 @@ private fun AddRuleDialog(
         String?,
         String?,
         String?,
+        String,
+        Int?,
+        Int?,
         String,
         List<Pair<String, String?>>
     ) -> Unit
@@ -472,6 +494,21 @@ private fun AddRuleDialog(
     }
     var matchMode by remember(existing?.rule?.id) {
         mutableStateOf(existing?.rule?.matchMode ?: "ALL")
+    }
+    var timeEnabled by remember(existing?.rule?.id) {
+        mutableStateOf(
+            existing?.rule?.timeStartMinutes != null &&
+                existing.rule.timeEndMinutes != null
+        )
+    }
+    var timeStart by remember(existing?.rule?.id) {
+        mutableStateOf((existing?.rule?.timeStartMinutes ?: 22 * 60).toFloat())
+    }
+    var timeEnd by remember(existing?.rule?.id) {
+        mutableStateOf((existing?.rule?.timeEndMinutes ?: 7 * 60).toFloat())
+    }
+    var screenState by remember(existing?.rule?.id) {
+        mutableStateOf(existing?.rule?.screenState ?: "ANY")
     }
     var flash by remember(existing?.rule?.id) {
         mutableStateOf(existingActions.any { it.actionType == RuleActionType.FLASH })
@@ -561,6 +598,77 @@ private fun AddRuleDialog(
                     }
                 }
                 item {
+                    Text(
+                        stringResource(R.string.rule_advanced_conditions),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (!premium) {
+                        Text(
+                            stringResource(R.string.rule_advanced_premium),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        ActionToggle(
+                            stringResource(R.string.rule_time_window),
+                            timeEnabled
+                        ) { timeEnabled = it }
+
+                        if (timeEnabled) {
+                            Text(
+                                stringResource(
+                                    R.string.rule_time_start,
+                                    formatRuleMinutes(timeStart.toInt())
+                                )
+                            )
+                            Slider(
+                                value = timeStart,
+                                onValueChange = {
+                                    timeStart = ((it.toInt() / 30) * 30)
+                                        .coerceIn(0, 1410)
+                                        .toFloat()
+                                },
+                                valueRange = 0f..1410f,
+                                steps = 46
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.rule_time_end,
+                                    formatRuleMinutes(timeEnd.toInt())
+                                )
+                            )
+                            Slider(
+                                value = timeEnd,
+                                onValueChange = {
+                                    timeEnd = ((it.toInt() / 30) * 30)
+                                        .coerceIn(0, 1410)
+                                        .toFloat()
+                                },
+                                valueRange = 0f..1410f,
+                                steps = 46
+                            )
+                        }
+
+                        Text(
+                            stringResource(R.string.rule_screen_state),
+                            modifier = Modifier.padding(top = 6.dp)
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(
+                                "ANY" to R.string.rule_screen_any,
+                                "SCREEN_ON" to R.string.rule_screen_on,
+                                "SCREEN_OFF" to R.string.rule_screen_off
+                            ).forEach { (value, labelRes) ->
+                                FilterChip(
+                                    selected = screenState == value,
+                                    onClick = { screenState = value },
+                                    label = { Text(stringResource(labelRes)) }
+                                )
+                            }
+                        }
+                    }
+                }
+                item {
                     ActionToggle(stringResource(R.string.rule_action_flash), flash) {
                         flash = it
                     }
@@ -612,11 +720,20 @@ private fun AddRuleDialog(
                         sender,
                         keyword,
                         matchMode,
+                        if (premium && timeEnabled) timeStart.toInt() else null,
+                        if (premium && timeEnabled) timeEnd.toInt() else null,
+                        if (premium) screenState else "ANY",
                         actions
                     )
                 },
                 enabled =
-                    (selectedApp != null || sender.isNotBlank() || keyword.isNotBlank()) &&
+                    (
+                        selectedApp != null ||
+                            sender.isNotBlank() ||
+                            keyword.isNotBlank() ||
+                            (premium && timeEnabled) ||
+                            (premium && screenState != "ANY")
+                        ) &&
                         (flash || overlay || critical || followUp)
             ) {
                 Text(
@@ -705,11 +822,26 @@ private fun AppPatternPicker(
 
 @Composable
 private fun ruleSummary(rule: RuleWithActions): String {
-    val conditions = listOfNotNull(
-        rule.rule.packageName,
-        rule.rule.senderQuery,
-        rule.rule.textQuery
-    ).joinToString(" · ")
+    val conditions = buildList {
+        rule.rule.packageName?.let(::add)
+        rule.rule.senderQuery?.let(::add)
+        rule.rule.textQuery?.let(::add)
+        val start = rule.rule.timeStartMinutes
+        val end = rule.rule.timeEndMinutes
+        if (start != null && end != null) {
+            add(
+                stringResource(
+                    R.string.rule_summary_time,
+                    formatRuleMinutes(start),
+                    formatRuleMinutes(end)
+                )
+            )
+        }
+        when (rule.rule.screenState) {
+            "SCREEN_ON" -> add(stringResource(R.string.rule_screen_on))
+            "SCREEN_OFF" -> add(stringResource(R.string.rule_screen_off))
+        }
+    }.joinToString(" · ")
     val flashLabel = stringResource(R.string.rule_action_flash)
     val overlayLabel = stringResource(R.string.rule_action_overlay)
     val criticalLabel = stringResource(R.string.rule_action_critical)
@@ -729,4 +861,10 @@ private fun ruleSummary(rule: RuleWithActions): String {
         stringResource(R.string.rule_match_all)
     }
     return mode + " · " + conditions + " → " + actions
+}
+
+
+private fun formatRuleMinutes(minutes: Int): String {
+    val safe = minutes.coerceIn(0, 1439)
+    return String.format("%02d:%02d", safe / 60, safe % 60)
 }

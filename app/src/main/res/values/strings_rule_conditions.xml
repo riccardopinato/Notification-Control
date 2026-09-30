@@ -1,0 +1,12 @@
+<resources>
+    <string name="rule_advanced_conditions">Advanced conditions</string>
+    <string name="rule_advanced_premium">Time and screen-state conditions are available with Premium.</string>
+    <string name="rule_time_window">Limit to a time window</string>
+    <string name="rule_time_start">From %1$s</string>
+    <string name="rule_time_end">Until %1$s</string>
+    <string name="rule_screen_state">Screen state</string>
+    <string name="rule_screen_any">Any</string>
+    <string name="rule_screen_on">Screen on</string>
+    <string name="rule_screen_off">Screen off</string>
+    <string name="rule_summary_time">%1$s–%2$s</string>
+</resources>

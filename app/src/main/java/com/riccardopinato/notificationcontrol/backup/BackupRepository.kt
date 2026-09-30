@@ -302,6 +302,9 @@ class BackupRepository(context: Context) {
                     senderQuery = o.stringOrNull("senderQuery"),
                     textQuery = o.stringOrNull("textQuery"),
                     matchMode = o.getString("matchMode"),
+                    timeStartMinutes = o.intOrNull("timeStartMinutes"),
+                    timeEndMinutes = o.intOrNull("timeEndMinutes"),
+                    screenState = o.optString("screenState", "ANY"),
                     priority = o.getInt("priority"),
                     createdAt = o.getLong("createdAt")
                 )
@@ -526,6 +529,9 @@ class BackupRepository(context: Context) {
         "senderQuery" to r.senderQuery,
         "textQuery" to r.textQuery,
         "matchMode" to r.matchMode,
+        "timeStartMinutes" to r.timeStartMinutes,
+        "timeEndMinutes" to r.timeEndMinutes,
+        "screenState" to r.screenState,
         "priority" to r.priority,
         "createdAt" to r.createdAt
     ))
