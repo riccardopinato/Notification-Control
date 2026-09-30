@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.util.Base64
 import androidx.room.withTransaction
+import com.riccardopinato.notificationcontrol.automation.CriticalAlertScheduler
+import com.riccardopinato.notificationcontrol.automation.FollowUpScheduler
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
@@ -203,6 +205,15 @@ class BackupRepository(context: Context) {
         previousMedia.filterNot { it in restoredMedia }.forEach(mediaStore::delete)
         mediaStore.cleanupOrphans(restoredMedia)
         settingsObject?.let(::restoreSettings)
+
+        FollowUpScheduler.cancelAll(appContext)
+        followUps.filter { it.status == "ACTIVE" }.forEach {
+            FollowUpScheduler.schedule(appContext, it.id, it.dueAt)
+        }
+        CriticalAlertScheduler.cancelAll(appContext)
+        criticalAlerts.filter { it.status == "ACTIVE" }.forEach {
+            CriticalAlertScheduler.schedule(appContext, it.id, it.nextAt)
+        }
 
         BackupSummary(
             notifications = notificationsWithMedia.size,
@@ -595,6 +606,7 @@ class BackupRepository(context: Context) {
     private fun settingsJson() = JSONObject()
         .put("monitoredPackages", JSONArray(settings.monitoredPackages.toList()))
         .put("retentionDays", settings.retentionDays)
+        .put("vaultMaxBytes", settings.vaultMaxBytes)
         .put("flashEnabled", settings.flashEnabled)
         .put("overlayEnabled", settings.overlayEnabled)
         .put("batteryGuardEnabled", settings.batteryGuardEnabled)
@@ -609,8 +621,17 @@ class BackupRepository(context: Context) {
         .put("circleThickness", settings.circleThickness.toDouble())
         .put("circleGlow", settings.circleGlow.toDouble())
         .put("pulseSpeedMs", settings.pulseSpeedMs)
+        .put("sensitiveProtectionEnabled", settings.sensitiveProtectionEnabled)
         .put("pausePingEnabled", settings.pausePingEnabled)
         .put("pausePingCooldownSeconds", settings.pausePingCooldownSeconds)
+        .put(
+            "pausePingPerAppCooldowns",
+            JSONObject().apply {
+                settings.pausePingPerAppCooldowns.forEach { (packageName, seconds) ->
+                    put(packageName, seconds)
+                }
+            }
+        )
         .put("criticalBypassQuietHours", settings.criticalBypassQuietHours)
 
     private fun restoreSettings(o: JSONObject) {
@@ -630,6 +651,10 @@ class BackupRepository(context: Context) {
             o.optInt("retentionDays", settings.retentionDays)
         } else {
             ProductLimits.FREE_RETENTION_DAYS
+        }
+        if (settings.isPremium) {
+            settings.vaultMaxBytes =
+                o.optLong("vaultMaxBytes", settings.vaultMaxBytes)
         }
         settings.flashEnabled = o.optBoolean("flashEnabled", settings.flashEnabled)
         settings.overlayEnabled = o.optBoolean("overlayEnabled", settings.overlayEnabled)
@@ -652,10 +677,28 @@ class BackupRepository(context: Context) {
         settings.circleGlow =
             o.optDouble("circleGlow", settings.circleGlow.toDouble()).toFloat()
         settings.pulseSpeedMs = o.optLong("pulseSpeedMs", settings.pulseSpeedMs)
+        settings.sensitiveProtectionEnabled =
+            o.optBoolean(
+                "sensitiveProtectionEnabled",
+                settings.sensitiveProtectionEnabled
+            )
         settings.pausePingEnabled =
             o.optBoolean("pausePingEnabled", settings.pausePingEnabled)
         settings.pausePingCooldownSeconds =
             o.optInt("pausePingCooldownSeconds", settings.pausePingCooldownSeconds)
+        if (settings.isPremium) {
+            val perApp = o.optJSONObject("pausePingPerAppCooldowns")
+            if (perApp != null) {
+                val restored = buildMap<String, Int> {
+                    val keys = perApp.keys()
+                    while (keys.hasNext()) {
+                        val packageName = keys.next()
+                        put(packageName, perApp.optInt(packageName, 0))
+                    }
+                }
+                settings.pausePingPerAppCooldowns = restored
+            }
+        }
         settings.criticalBypassQuietHours =
             o.optBoolean("criticalBypassQuietHours", settings.criticalBypassQuietHours)
     }

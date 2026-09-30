@@ -1,0 +1,6 @@
+<resources>
+    <string name="vault_budget_title">Budget Smart Cleanup</string>
+    <string name="vault_budget_body">Premium supprime le contenu non protégé le plus ancien lorsque le contenu géré du Vault dépasse cette limite.</string>
+    <string name="vault_budget_unlimited">Aucune limite</string>
+    <string name="vault_budget_mb">%1$d Mo</string>
+</resources>

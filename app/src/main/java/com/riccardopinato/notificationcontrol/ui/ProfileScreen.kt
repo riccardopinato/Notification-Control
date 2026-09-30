@@ -62,6 +62,7 @@ fun ProfileScreen(
     onVaultTimeoutChanged: (Int) -> Unit,
     onSensitiveProtectionChanged: (Boolean) -> Unit,
     onRetentionDaysChanged: (Int) -> Unit,
+    onVaultMaxBytesChanged: (Long) -> Unit,
     onBatteryGuardThresholdChanged: (Int) -> Unit,
     onQuietStartChanged: (Int) -> Unit,
     onQuietEndChanged: (Int) -> Unit,
@@ -122,7 +123,8 @@ fun ProfileScreen(
             StorageCard(
                 storageStats = storageStats,
                 state = state,
-                onRetentionDaysChanged = onRetentionDaysChanged
+                onRetentionDaysChanged = onRetentionDaysChanged,
+                onVaultMaxBytesChanged = onVaultMaxBytesChanged
             )
         }
         item {
@@ -396,7 +398,8 @@ private fun SecurityCard(
 private fun StorageCard(
     storageStats: StorageStats,
     state: SettingsUiState,
-    onRetentionDaysChanged: (Int) -> Unit
+    onRetentionDaysChanged: (Int) -> Unit,
+    onVaultMaxBytesChanged: (Long) -> Unit
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -436,6 +439,38 @@ private fun StorageCard(
                     ),
                     style = MaterialTheme.typography.bodySmall
                 )
+            }
+
+            if (state.isPremium) {
+                Text(
+                    stringResource(R.string.vault_budget_title),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+                Text(
+                    stringResource(R.string.vault_budget_body),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(ProductLimits.PREMIUM_VAULT_MAX_BYTES_OPTIONS) { bytes ->
+                        FilterChip(
+                            selected = state.vaultMaxBytes == bytes,
+                            onClick = { onVaultMaxBytesChanged(bytes) },
+                            label = {
+                                Text(
+                                    if (bytes == Long.MAX_VALUE) {
+                                        stringResource(R.string.vault_budget_unlimited)
+                                    } else {
+                                        stringResource(
+                                            R.string.vault_budget_mb,
+                                            bytes / (1024L * 1024L)
+                                        )
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
             }
         }
     }

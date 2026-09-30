@@ -259,6 +259,7 @@ fun NotificationControlApp(
                 onVaultTimeoutChanged = viewModel::setVaultLockTimeoutMinutes,
                 onSensitiveProtectionChanged = viewModel::setSensitiveProtectionEnabled,
                 onRetentionDaysChanged = viewModel::setRetentionDays,
+                onVaultMaxBytesChanged = viewModel::setVaultMaxBytes,
                 onBatteryGuardThresholdChanged = viewModel::setBatteryGuardThreshold,
                 onQuietStartChanged = viewModel::setQuietStartMinutes,
                 onQuietEndChanged = viewModel::setQuietEndMinutes,
