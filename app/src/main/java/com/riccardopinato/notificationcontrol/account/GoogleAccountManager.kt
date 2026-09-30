@@ -7,6 +7,8 @@ import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.riccardopinato.notificationcontrol.R
@@ -58,7 +60,7 @@ class GoogleAccountManager private constructor(context: Context) {
             errorMessage = null
         )
 
-        runCatching {
+        try {
             val credentialManager = CredentialManager.create(activity)
             val option = GetSignInWithGoogleOption.Builder(clientId).build()
             val request = GetCredentialRequest.Builder()
@@ -75,23 +77,34 @@ class GoogleAccountManager private constructor(context: Context) {
                     GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
             )
             val google = GoogleIdTokenCredential.createFrom(credential.data)
-            GoogleAccountProfile(
+            val profile = GoogleAccountProfile(
                 uniqueId = google.id,
                 email = google.id,
                 displayName = google.displayName,
                 profilePictureUri = google.profilePictureUri?.toString()
             )
-        }.onSuccess { profile ->
             cacheProfile(profile)
             _state.value = AccountUiState(
                 profile = profile,
                 loading = false,
                 configured = true
             )
-        }.onFailure { error ->
+        } catch (_: NoCredentialException) {
+            _state.value = _state.value.copy(
+                loading = false,
+                errorMessage = appContext.getString(R.string.google_no_credential)
+            )
+        } catch (error: GetCredentialException) {
             _state.value = _state.value.copy(
                 loading = false,
                 errorMessage = error.message
+                    ?: appContext.getString(R.string.google_sign_in_failed)
+            )
+        } catch (error: Throwable) {
+            _state.value = _state.value.copy(
+                loading = false,
+                errorMessage = error.message
+                    ?: appContext.getString(R.string.google_sign_in_failed)
             )
         }
     }
