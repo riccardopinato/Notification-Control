@@ -3,8 +3,9 @@ package com.riccardopinato.notificationcontrol.ui
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Archive
-import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -25,7 +26,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.security.VaultSecurityManager
 
-private enum class MainTab { HOME, VAULT, LUMINOUS, PROFILE }
+private enum class MainTab { HOME, VAULT, FOLLOW_UP, RULES, PROFILE }
 
 @Composable
 fun NotificationControlApp(
@@ -35,6 +36,7 @@ fun NotificationControlApp(
     requestCameraPermission: () -> Unit,
     requestOverlayPermission: () -> Unit,
     requestNotificationAccess: () -> Unit,
+    requestPostNotifications: () -> Unit,
     requestVaultUnlock: () -> Unit
 ) {
     val settings by viewModel.settingsState.collectAsStateWithLifecycle()
@@ -46,6 +48,10 @@ fun NotificationControlApp(
     val vaultLimit by viewModel.vaultLimit.collectAsStateWithLifecycle()
     val appFilters by viewModel.vaultAppFilters.collectAsStateWithLifecycle()
     val storageStats by viewModel.storageStats.collectAsStateWithLifecycle()
+    val rules by viewModel.rules.collectAsStateWithLifecycle()
+    val criticalPatterns by viewModel.criticalPatterns.collectAsStateWithLifecycle()
+    val followUps by viewModel.followUps.collectAsStateWithLifecycle()
+    val pickupCodes by viewModel.pickupCodes.collectAsStateWithLifecycle()
 
     permissionEpoch.hashCode()
     vaultUnlockEpoch.hashCode()
@@ -71,13 +77,19 @@ fun NotificationControlApp(
     val security = remember { VaultSecurityManager(context) }
     val snackbar = remember { SnackbarHostState() }
     val protectedLimitMessage = stringResource(R.string.protected_limit_reached)
+    val ruleLimitMessage = stringResource(R.string.rule_limit_reached)
+    val criticalLimitMessage = stringResource(R.string.critical_limit_reached)
+    val followUpLimitMessage = stringResource(R.string.follow_up_limit_reached)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
-            when (event) {
-                NotificationControlUiEvent.ProtectedLimitReached ->
-                    snackbar.showSnackbar(protectedLimitMessage)
+            val message = when (event) {
+                NotificationControlUiEvent.ProtectedLimitReached -> protectedLimitMessage
+                NotificationControlUiEvent.RuleLimitReached -> ruleLimitMessage
+                NotificationControlUiEvent.CriticalLimitReached -> criticalLimitMessage
+                NotificationControlUiEvent.FollowUpLimitReached -> followUpLimitMessage
             }
+            snackbar.showSnackbar(message)
         }
     }
 
@@ -101,10 +113,16 @@ fun NotificationControlApp(
                     label = { Text(stringResource(R.string.tab_vault)) }
                 )
                 NavigationBarItem(
-                    tab == MainTab.LUMINOUS,
-                    { tab = MainTab.LUMINOUS },
-                    { Icon(Icons.Default.Bolt, null) },
-                    label = { Text(stringResource(R.string.tab_luminous)) }
+                    tab == MainTab.FOLLOW_UP,
+                    { tab = MainTab.FOLLOW_UP },
+                    { Icon(Icons.Default.TaskAlt, null) },
+                    label = { Text(stringResource(R.string.tab_follow_up)) }
+                )
+                NavigationBarItem(
+                    tab == MainTab.RULES,
+                    { tab = MainTab.RULES },
+                    { Icon(Icons.Default.Tune, null) },
+                    label = { Text(stringResource(R.string.tab_rules)) }
                 )
                 NavigationBarItem(
                     tab == MainTab.PROFILE,
@@ -117,11 +135,13 @@ fun NotificationControlApp(
     ) { padding ->
         when (tab) {
             MainTab.HOME -> HomeScreen(
-                Modifier,
-                padding,
-                settings,
-                count,
-                requestNotificationAccess
+                modifier = Modifier,
+                contentPadding = padding,
+                settings = settings,
+                count = count,
+                pickupCodes = pickupCodes,
+                requestNotificationAccess = requestNotificationAccess,
+                onDismissPickup = viewModel::dismissPickupCode
             ) { showPicker = true }
 
             MainTab.VAULT -> {
@@ -144,26 +164,49 @@ fun NotificationControlApp(
                         onSearchChange = viewModel::setVaultSearch,
                         onPackageFilterChange = viewModel::setVaultPackageFilter,
                         onLoadMore = viewModel::loadMoreVault,
-                        onProtect = viewModel::setProtected
+                        onProtect = viewModel::setProtected,
+                        onFollowUp = {
+                            requestPostNotifications()
+                            viewModel.createFollowUp(it, 60)
+                        }
                     )
                 }
             }
 
-            MainTab.LUMINOUS -> LuminousScreen(
-                Modifier,
-                padding,
-                settings,
-                requestCameraPermission,
-                requestOverlayPermission,
-                viewModel::setFlashEnabled,
-                viewModel::setOverlayEnabled,
-                viewModel::setScreenOffOnly,
-                viewModel::setBatteryGuardEnabled,
-                viewModel::setQuietHoursEnabled,
-                viewModel::setStrobeCycles,
-                viewModel::setStrobeSpeed,
-                viewModel::setCircleThickness,
-                viewModel::setCircleGlow
+            MainTab.FOLLOW_UP -> FollowUpScreen(
+                modifier = Modifier,
+                contentPadding = padding,
+                followUps = followUps,
+                requestPostNotifications = requestPostNotifications,
+                onComplete = viewModel::completeFollowUp,
+                onSnooze = viewModel::snoozeFollowUp
+            )
+
+            MainTab.RULES -> RulesScreen(
+                modifier = Modifier,
+                contentPadding = padding,
+                state = settings,
+                apps = apps,
+                rules = rules,
+                criticalPatterns = criticalPatterns,
+                requestCameraPermission = requestCameraPermission,
+                requestOverlayPermission = requestOverlayPermission,
+                onCreateRule = viewModel::createRule,
+                onRuleEnabled = viewModel::setRuleEnabled,
+                onDeleteRule = viewModel::deleteRule,
+                onAddCriticalPattern = viewModel::addCriticalPattern,
+                onDeleteCriticalPattern = viewModel::deleteCriticalPattern,
+                onPausePingEnabled = viewModel::setPausePingEnabled,
+                onPausePingCooldown = viewModel::setPausePingCooldownSeconds,
+                setFlash = viewModel::setFlashEnabled,
+                setOverlay = viewModel::setOverlayEnabled,
+                setScreenOffOnly = viewModel::setScreenOffOnly,
+                setBatteryGuard = viewModel::setBatteryGuardEnabled,
+                setQuietHours = viewModel::setQuietHoursEnabled,
+                setCycles = viewModel::setStrobeCycles,
+                setSpeed = viewModel::setStrobeSpeed,
+                setThickness = viewModel::setCircleThickness,
+                setGlow = viewModel::setCircleGlow
             )
 
             MainTab.PROFILE -> ProfileScreen(

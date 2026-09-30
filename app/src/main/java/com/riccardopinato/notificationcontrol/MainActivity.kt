@@ -3,6 +3,7 @@ package com.riccardopinato.notificationcontrol
 import android.Manifest
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.compose.setContent
@@ -33,6 +34,11 @@ class MainActivity : FragmentActivity() {
             permissionEpoch++
         }
 
+    private val notificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+            permissionEpoch++
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -56,6 +62,13 @@ class MainActivity : FragmentActivity() {
                     },
                     requestNotificationAccess = {
                         startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+                    },
+                    requestPostNotifications = {
+                        if (Build.VERSION.SDK_INT >= 33) {
+                            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            permissionEpoch++
+                        }
                     },
                     requestVaultUnlock = ::requestVaultUnlock
                 )
