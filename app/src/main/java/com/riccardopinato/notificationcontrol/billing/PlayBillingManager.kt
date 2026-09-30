@@ -264,7 +264,7 @@ class PlayBillingManager private constructor(context: Context) : PurchasesUpdate
                                 planLabel = offer.purchaseOptionId.orEmpty(),
                                 isLifetime = true
                             )
-                            launchData[key] = LaunchData(details, offer.offerToken)
+                            launchData[key] = LaunchData(details, offer.offerToken.orEmpty())
                         }
                     }
                 }
