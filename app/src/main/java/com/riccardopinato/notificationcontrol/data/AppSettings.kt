@@ -24,6 +24,12 @@ class AppSettings(context: Context) {
         get() = prefs.getInt(KEY_RETENTION_DAYS, 7)
         set(value) = prefs.edit { putInt(KEY_RETENTION_DAYS, value) }
 
+    var vaultMaxBytes: Long
+        get() = prefs.getLong(KEY_VAULT_MAX_BYTES, 100L * 1024L * 1024L)
+        set(value) = prefs.edit {
+            putLong(KEY_VAULT_MAX_BYTES, value.coerceAtLeast(10L * 1024L * 1024L))
+        }
+
     var flashEnabled: Boolean
         get() = prefs.getBoolean(KEY_FLASH_ENABLED, true)
         set(value) = prefs.edit { putBoolean(KEY_FLASH_ENABLED, value) }
@@ -136,6 +142,7 @@ class AppSettings(context: Context) {
         private const val KEY_ONBOARDING = "onboarding_completed"
         private const val KEY_MONITORED_PACKAGES = "monitored_packages"
         private const val KEY_RETENTION_DAYS = "retention_days"
+        private const val KEY_VAULT_MAX_BYTES = "vault_max_bytes"
         private const val KEY_BATTERY_GUARD = "battery_guard_enabled"
         private const val KEY_BATTERY_THRESHOLD = "battery_guard_threshold"
         private const val KEY_QUIET_ENABLED = "quiet_hours_enabled"

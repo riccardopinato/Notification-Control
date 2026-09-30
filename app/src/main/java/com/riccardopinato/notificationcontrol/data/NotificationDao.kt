@@ -176,6 +176,64 @@ interface NotificationDao {
 
     @Query(
         """
+        SELECT COALESCE(SUM(
+            LENGTH(COALESCE(title, '')) +
+            LENGTH(COALESCE(text, '')) +
+            LENGTH(COALESCE(bigText, '')) +
+            LENGTH(COALESCE(subText, '')) +
+            LENGTH(COALESCE(conversationTitle, ''))
+        ), 0)
+        FROM notifications
+        """
+    )
+    suspend fun approximateNotificationTextBytes(): Long
+
+    @Query(
+        "SELECT COALESCE(SUM(LENGTH(text) + LENGTH(COALESCE(sender, ''))), 0) " +
+            "FROM messages"
+    )
+    suspend fun approximateMessageBytes(): Long
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(
+            LENGTH(COALESCE(title, '')) +
+            LENGTH(COALESCE(text, '')) +
+            LENGTH(COALESCE(bigText, '')) +
+            LENGTH(COALESCE(subText, '')) +
+            LENGTH(COALESCE(conversationTitle, ''))
+        ), 0)
+        FROM notification_revisions
+        """
+    )
+    suspend fun approximateRevisionBytes(): Long
+
+    @Query(
+        "SELECT sbnKey FROM notifications " +
+            "WHERE protected = 0 ORDER BY postedAt ASC LIMIT :limit"
+    )
+    suspend fun oldestUnprotectedKeys(limit: Int): List<String>
+
+    @Query("SELECT thumbnailPath FROM notifications WHERE sbnKey IN (:keys) AND thumbnailPath IS NOT NULL")
+    suspend fun thumbnailPathsForKeys(keys: List<String>): List<String>
+
+    @Query("DELETE FROM notification_fts WHERE sbnKey IN (:keys)")
+    suspend fun deleteFtsByKeys(keys: List<String>)
+
+    @Query("DELETE FROM notifications WHERE sbnKey IN (:keys)")
+    suspend fun deleteNotificationsByKeys(keys: List<String>)
+
+    @Transaction
+    suspend fun deleteByKeysAndReturnMedia(keys: List<String>): List<String> {
+        if (keys.isEmpty()) return emptyList()
+        val media = thumbnailPathsForKeys(keys)
+        deleteFtsByKeys(keys)
+        deleteNotificationsByKeys(keys)
+        return media
+    }
+
+    @Query(
+        """
         DELETE FROM notification_fts
         WHERE sbnKey IN (
             SELECT sbnKey FROM notifications

@@ -69,6 +69,7 @@ data class SettingsUiState(
     val monitoredPackages: Set<String> = emptySet(),
     val isPremium: Boolean = false,
     val retentionDays: Int = 7,
+    val vaultMaxBytes: Long = 100L * 1024L * 1024L,
     val flashEnabled: Boolean = true,
     val overlayEnabled: Boolean = false,
     val screenOffOnly: Boolean = true,
@@ -330,6 +331,12 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     fun setRetentionDays(days: Int) {
         settings.retentionDays =
             if (settings.isPremium) days else ProductLimits.FREE_RETENTION_DAYS
+        refresh()
+    }
+
+    fun setVaultMaxBytes(bytes: Long) {
+        if (!settings.isPremium) return
+        settings.vaultMaxBytes = bytes
         refresh()
     }
 
@@ -623,6 +630,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         monitoredPackages = settings.monitoredPackages,
         isPremium = settings.isPremium,
         retentionDays = settings.retentionDays,
+        vaultMaxBytes = settings.vaultMaxBytes,
         flashEnabled = settings.flashEnabled,
         overlayEnabled = settings.overlayEnabled,
         screenOffOnly = settings.screenOffOnly,

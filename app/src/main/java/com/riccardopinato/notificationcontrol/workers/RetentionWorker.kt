@@ -10,6 +10,7 @@ import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.domain.RetentionPolicy
+import com.riccardopinato.notificationcontrol.storage.StorageStatsRepository
 import java.util.concurrent.TimeUnit
 
 class RetentionWorker(
@@ -25,16 +26,47 @@ class RetentionWorker(
             settings.retentionDays
         )
 
+        val dao = database.notificationDao()
+        val mediaStore = NotificationMediaStore(applicationContext)
+
         if (cutoff != Long.MIN_VALUE) {
-            val dao = database.notificationDao()
-            val mediaStore = NotificationMediaStore(applicationContext)
             val mediaToDelete = dao.deleteExpiredAndReturnMedia(cutoff)
             mediaToDelete.forEach(mediaStore::delete)
             mediaStore.cleanupOrphans(dao.allThumbnailPaths())
         }
 
+        if (settings.isPremium && settings.vaultMaxBytes != Long.MAX_VALUE) {
+            enforceVaultBudget(
+                settings.vaultMaxBytes,
+                dao,
+                mediaStore
+            )
+        }
+
         database.automationDao().cleanupPickupCodes(System.currentTimeMillis())
         return Result.success()
+    }
+
+    private suspend fun enforceVaultBudget(
+        maxBytes: Long,
+        dao: com.riccardopinato.notificationcontrol.data.NotificationDao,
+        mediaStore: NotificationMediaStore
+    ) {
+        repeat(40) {
+            val managedBytes =
+                dao.approximateNotificationTextBytes() +
+                    dao.approximateMessageBytes() +
+                    dao.approximateRevisionBytes() +
+                    StorageStatsRepository(applicationContext).read().mediaBytes
+
+            if (managedBytes <= maxBytes) return
+
+            val keys = dao.oldestUnprotectedKeys(50)
+            if (keys.isEmpty()) return
+
+            dao.deleteByKeysAndReturnMedia(keys).forEach(mediaStore::delete)
+        }
+        mediaStore.cleanupOrphans(dao.allThumbnailPaths())
     }
 
     companion object {
