@@ -12,18 +12,20 @@ class LuminousConsumer(
     private val flash: FlashCoordinator,
     private val overlay: LuminousCircleOverlay
 ) : NotificationEventConsumer {
-    override suspend fun consume(event: CapturedNotification, mode: ProcessingMode) {
-        if (mode != ProcessingMode.POSTED) return
-        if (!settings.flashEnabled && !settings.overlayEnabled) return
-        if (suppressionPolicy.evaluate().suppressed) return
+    override suspend fun consume(event: CapturedNotification, context: ProcessingContext) {
+        if (context.mode != ProcessingMode.POSTED) return
 
-        if (settings.flashEnabled) {
-            flash.startStrobe(
-                settings.strobeCycles,
-                settings.strobeSpeedMs,
-                settings.strobeSpeedMs
-            )
+        val flashEnabled = settings.flashEnabled || context.forceFlash
+        val overlayEnabled = settings.overlayEnabled || context.forceOverlay
+        if (!flashEnabled && !overlayEnabled) return
+        if (context.suppressLuminous && !context.critical) return
+        if (suppressionPolicy.evaluate(context.critical).suppressed) return
+
+        if (flashEnabled) {
+            val cycles = if (context.critical) maxOf(8, settings.strobeCycles) else settings.strobeCycles
+            val speed = if (context.critical) minOf(100L, settings.strobeSpeedMs) else settings.strobeSpeedMs
+            flash.startStrobe(cycles, speed, speed)
         }
-        if (settings.overlayEnabled) overlay.show(event.appLabel)
+        if (overlayEnabled) overlay.show(event.appLabel)
     }
 }

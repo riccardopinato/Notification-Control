@@ -3,15 +3,24 @@ package com.riccardopinato.notificationcontrol.capture
 import android.content.ComponentName
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import com.riccardopinato.notificationcontrol.automation.AutomationRepository
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
+import com.riccardopinato.notificationcontrol.domain.CriticalMatcher
+import com.riccardopinato.notificationcontrol.domain.PausePingController
+import com.riccardopinato.notificationcontrol.domain.RuleEngine
 import com.riccardopinato.notificationcontrol.domain.SuppressionPolicy
 import com.riccardopinato.notificationcontrol.hardware.DevicePostureMonitor
 import com.riccardopinato.notificationcontrol.hardware.FlashCoordinator
+import com.riccardopinato.notificationcontrol.processing.CriticalConsumer
+import com.riccardopinato.notificationcontrol.processing.FollowUpConsumer
 import com.riccardopinato.notificationcontrol.processing.LuminousConsumer
 import com.riccardopinato.notificationcontrol.processing.NotificationEventProcessor
 import com.riccardopinato.notificationcontrol.processing.NotificationVaultRepository
+import com.riccardopinato.notificationcontrol.processing.PausePingConsumer
+import com.riccardopinato.notificationcontrol.processing.PickupCodeConsumer
 import com.riccardopinato.notificationcontrol.processing.ProcessingMode
+import com.riccardopinato.notificationcontrol.processing.RulesConsumer
 import com.riccardopinato.notificationcontrol.processing.VaultConsumer
 import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
 import kotlinx.coroutines.CoroutineScope
@@ -43,6 +52,11 @@ class NotificationCaptureService : NotificationListenerService() {
             database = database,
             mediaStore = mediaStore
         )
+        val automationRepository = AutomationRepository(
+            context = this,
+            settings = settings,
+            dao = database.automationDao()
+        )
         val suppressionPolicy = SuppressionPolicy(this, settings, posture)
         val flash = FlashCoordinator.get(this)
         overlay = LuminousCircleOverlay(this)
@@ -51,6 +65,11 @@ class NotificationCaptureService : NotificationListenerService() {
             vaultRepository = vaultRepository,
             consumers = listOf(
                 VaultConsumer(vaultRepository),
+                RulesConsumer(RuleEngine(database.automationDao())),
+                CriticalConsumer(CriticalMatcher(database.automationDao())),
+                PausePingConsumer(PausePingController(settings)),
+                FollowUpConsumer(automationRepository),
+                PickupCodeConsumer(vaultRepository, automationRepository),
                 LuminousConsumer(
                     settings = settings,
                     suppressionPolicy = suppressionPolicy,

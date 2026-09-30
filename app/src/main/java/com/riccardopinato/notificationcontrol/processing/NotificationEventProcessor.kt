@@ -10,7 +10,8 @@ class NotificationEventProcessor(
         vaultRepository.shouldCaptureThumbnail(packageName)
 
     suspend fun process(event: CapturedNotification, mode: ProcessingMode) {
-        consumers.forEach { it.consume(event, mode) }
+        val context = ProcessingContext(mode)
+        consumers.forEach { it.consume(event, context) }
     }
 
     suspend fun markRemoved(key: String, reason: Int?) {
