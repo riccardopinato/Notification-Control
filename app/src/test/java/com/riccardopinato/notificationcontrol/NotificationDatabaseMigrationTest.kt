@@ -1,5 +1,6 @@
 package com.riccardopinato.notificationcontrol
 
+import android.app.Application
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
@@ -10,8 +11,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
+@Config(application = Application::class)
 class NotificationDatabaseMigrationTest {
     @Test
     fun migration5To6BackfillsPlatformKeyWithoutLosingHistory() {
