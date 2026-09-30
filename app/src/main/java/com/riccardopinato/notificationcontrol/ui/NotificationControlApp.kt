@@ -223,6 +223,7 @@ fun NotificationControlApp(
                 onDeleteAll = viewModel::deleteAllVault,
                 onPurchasePremium = purchasePremiumOffer,
                 onRestorePurchases = viewModel::restorePurchases,
+                onBackupRestored = viewModel::refresh,
                 requestNotificationAccess = requestNotificationAccess,
                 requestCameraPermission = requestCameraPermission,
                 requestOverlayPermission = requestOverlayPermission

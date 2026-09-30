@@ -16,6 +16,7 @@ import com.riccardopinato.notificationcontrol.data.NotificationRevisionEntity
 import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
 import com.riccardopinato.notificationcontrol.data.RuleActionEntity
 import com.riccardopinato.notificationcontrol.data.RuleEntity
+import com.riccardopinato.notificationcontrol.domain.ProductLimits
 import java.io.ByteArrayOutputStream
 import org.json.JSONArray
 import org.json.JSONObject
@@ -109,7 +110,7 @@ class BackupRepository(context: Context) {
         require(root.getInt("format") == FORMAT_VERSION) { "Unsupported backup version" }
 
         val mediaPayloads = parseMedia(root.getJSONArray("media"))
-        val notifications = parseNotifications(root.getJSONArray("notifications"), mediaPayloads)
+        val notifications = parseNotifications(root.getJSONArray("notifications"))
         val messages = parseMessages(root.getJSONArray("messages"))
         val revisions = parseRevisions(root.getJSONArray("revisions"))
         val rules = parseRules(root.getJSONArray("rules"))
@@ -122,44 +123,57 @@ class BackupRepository(context: Context) {
         validateReferences(notifications, messages, revisions, rules, actions)
 
         val previousMedia = notificationDao.allThumbnailPaths().toSet()
-        val restoredMedia = notifications.mapNotNull { it.thumbnailPath }.toSet()
+        val notificationsWithMedia = notifications.map { notification ->
+            notification.copy(
+                thumbnailPath = mediaPayloads[notification.sbnKey]
+                    ?.let { mediaStore.restorePicture(notification.sbnKey, it) }
+            )
+        }
+        val restoredMedia = notificationsWithMedia.mapNotNull { it.thumbnailPath }.toSet()
 
-        database.withTransaction {
-            backupDao.deletePickupCodes()
-            backupDao.deleteFollowUps()
-            backupDao.deleteCriticalPatterns()
-            backupDao.deleteRuleActions()
-            backupDao.deleteRules()
-            backupDao.deleteFts()
-            backupDao.deleteRevisions()
-            backupDao.deleteMessages()
-            backupDao.deleteNotifications()
+        try {
+            database.withTransaction {
+                backupDao.deletePickupCodes()
+                backupDao.deleteFollowUps()
+                backupDao.deleteCriticalPatterns()
+                backupDao.deleteRuleActions()
+                backupDao.deleteRules()
+                backupDao.deleteFts()
+                backupDao.deleteRevisions()
+                backupDao.deleteMessages()
+                backupDao.deleteNotifications()
 
-            if (notifications.isNotEmpty()) backupDao.insertNotifications(notifications)
-            if (messages.isNotEmpty()) backupDao.insertMessages(messages)
-            if (revisions.isNotEmpty()) backupDao.insertRevisions(revisions)
-            if (rules.isNotEmpty()) backupDao.insertRules(rules)
-            if (actions.isNotEmpty()) backupDao.insertRuleActions(actions)
-            if (critical.isNotEmpty()) backupDao.insertCriticalPatterns(critical)
-            if (followUps.isNotEmpty()) backupDao.insertFollowUps(followUps)
-            if (pickupCodes.isNotEmpty()) backupDao.insertPickupCodes(pickupCodes)
+                if (notificationsWithMedia.isNotEmpty()) {
+                    backupDao.insertNotifications(notificationsWithMedia)
+                }
+                if (messages.isNotEmpty()) backupDao.insertMessages(messages)
+                if (revisions.isNotEmpty()) backupDao.insertRevisions(revisions)
+                if (rules.isNotEmpty()) backupDao.insertRules(rules)
+                if (actions.isNotEmpty()) backupDao.insertRuleActions(actions)
+                if (critical.isNotEmpty()) backupDao.insertCriticalPatterns(critical)
+                if (followUps.isNotEmpty()) backupDao.insertFollowUps(followUps)
+                if (pickupCodes.isNotEmpty()) backupDao.insertPickupCodes(pickupCodes)
 
-            val messagesByNotification = messages.groupBy { it.notificationKey }
-            notifications.forEach { notification ->
-                notificationDao.insertFts(
-                    NotificationFtsEntity(
-                        sbnKey = notification.sbnKey,
-                        appLabel = notification.appLabel,
-                        title = notification.title,
-                        text = notification.text,
-                        bigText = notification.bigText,
-                        conversationTitle = notification.conversationTitle,
-                        messagesText = messagesByNotification[notification.sbnKey]
-                            .orEmpty()
-                            .joinToString(" ") { "${it.sender.orEmpty()} ${it.text}" }
+                val messagesByNotification = messages.groupBy { it.notificationKey }
+                notificationsWithMedia.forEach { notification ->
+                    notificationDao.insertFts(
+                        NotificationFtsEntity(
+                            sbnKey = notification.sbnKey,
+                            appLabel = notification.appLabel,
+                            title = notification.title,
+                            text = notification.text,
+                            bigText = notification.bigText,
+                            conversationTitle = notification.conversationTitle,
+                            messagesText = messagesByNotification[notification.sbnKey]
+                                .orEmpty()
+                                .joinToString(" ") { "${it.sender.orEmpty()} ${it.text}" }
+                        )
                     )
-                )
+                }
             }
+        } catch (error: Throwable) {
+            restoredMedia.filterNot { it in previousMedia }.forEach(mediaStore::delete)
+            throw error
         }
 
         previousMedia.filterNot { it in restoredMedia }.forEach(mediaStore::delete)
@@ -167,23 +181,18 @@ class BackupRepository(context: Context) {
         settingsObject?.let(::restoreSettings)
 
         BackupSummary(
-            notifications = notifications.size,
+            notifications = notificationsWithMedia.size,
             rules = rules.size,
             followUps = followUps.size
         )
     }
 
-    private fun parseNotifications(
-        array: JSONArray,
-        media: Map<String, ByteArray>
-    ): List<NotificationEntity> = buildList {
+    private fun parseNotifications(array: JSONArray): List<NotificationEntity> = buildList {
         for (index in 0 until array.length()) {
             val o = array.getJSONObject(index)
-            val key = o.getString("sbnKey")
-            val thumbnail = media[key]?.let { mediaStore.restorePicture(key, it) }
             add(
                 NotificationEntity(
-                    sbnKey = key,
+                    sbnKey = o.getString("sbnKey"),
                     packageName = o.getString("packageName"),
                     appLabel = o.getString("appLabel"),
                     notificationId = o.getInt("notificationId"),
@@ -196,7 +205,7 @@ class BackupRepository(context: Context) {
                     bigText = o.stringOrNull("bigText"),
                     subText = o.stringOrNull("subText"),
                     conversationTitle = o.stringOrNull("conversationTitle"),
-                    thumbnailPath = thumbnail,
+                    thumbnailPath = null,
                     postedAt = o.getLong("postedAt"),
                     updatedAt = o.getLong("updatedAt"),
                     removedAt = o.longOrNull("removedAt"),
@@ -501,11 +510,21 @@ class BackupRepository(context: Context) {
     private fun restoreSettings(o: JSONObject) {
         val packages = o.optJSONArray("monitoredPackages")
         if (packages != null) {
-            settings.monitoredPackages = buildSet {
+            val restored = buildList {
                 for (i in 0 until packages.length()) add(packages.getString(i))
             }
+            settings.monitoredPackages = if (settings.isPremium) {
+                restored.toSet()
+            } else {
+                restored.take(ProductLimits.FREE_MONITORED_APPS).toSet()
+            }
         }
-        settings.retentionDays = o.optInt("retentionDays", settings.retentionDays)
+
+        settings.retentionDays = if (settings.isPremium) {
+            o.optInt("retentionDays", settings.retentionDays)
+        } else {
+            ProductLimits.FREE_RETENTION_DAYS
+        }
         settings.flashEnabled = o.optBoolean("flashEnabled", settings.flashEnabled)
         settings.overlayEnabled = o.optBoolean("overlayEnabled", settings.overlayEnabled)
         settings.batteryGuardEnabled =

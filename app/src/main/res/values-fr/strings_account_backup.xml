@@ -1,0 +1,24 @@
+<resources>
+    <string name="google_profile_title">Profil Google · facultatif</string>
+    <string name="google_profile_body">Choisissez un profil Google pour la continuité d’identité. Notification Control fonctionne entièrement sans compte.</string>
+    <string name="google_profile_security_note">Ce profil ne déverrouille jamais le Vault et n’accorde jamais Premium. La sécurité locale reste liée à l’identifiant appareil/biométrie.</string>
+    <string name="google_sign_in">Se connecter avec Google</string>
+    <string name="google_signing_in">Connexion…</string>
+    <string name="google_sign_out">Se déconnecter</string>
+    <string name="google_sign_in_error">La connexion Google n’a pas abouti.</string>
+    <string name="google_sign_in_not_configured">Google Sign-In est prêt dans l’app mais nécessite l’ID client OAuth Web dans google_web_client_id.</string>
+    <string name="backup_title">Sauvegarde chiffrée</string>
+    <string name="backup_body">Exportez ou restaurez le Vault local, les règles et rappels dans un fichier AES-GCM chiffré. Android vous laisse choisir l’emplacement, y compris les fournisseurs cloud compatibles.</string>
+    <string name="backup_export">Exporter</string>
+    <string name="backup_restore">Restaurer</string>
+    <string name="backup_password">Mot de passe de sauvegarde</string>
+    <string name="backup_password_confirm">Confirmer le mot de passe</string>
+    <string name="backup_password_minimum">Utilisez au moins 8 caractères.</string>
+    <string name="backup_password_mismatch">Les mots de passe ne correspondent pas.</string>
+    <string name="backup_password_warning">Notification Control ne stocke pas ce mot de passe et ne peut pas le récupérer.</string>
+    <string name="backup_export_dialog_body">Créez une sauvegarde chiffrée. Le mot de passe sera requis pour la restauration.</string>
+    <string name="backup_restore_dialog_body">La restauration remplace le Vault local et les automatisations après déchiffrement et validation de la sauvegarde.</string>
+    <string name="backup_export_success">Sauvegarde créée : %1$d notifications, %2$d règles, %3$d Follow Ups.</string>
+    <string name="backup_restore_success">Sauvegarde restaurée : %1$d notifications, %2$d règles, %3$d Follow Ups.</string>
+    <string name="backup_operation_failed">Échec de l’opération. Vérifiez le fichier et le mot de passe.</string>
+</resources>

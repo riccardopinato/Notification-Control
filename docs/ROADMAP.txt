@@ -1,137 +1,68 @@
-NOTIFICATION CONTROL — ROADMAP v0.4
+NOTIFICATION CONTROL — ROADMAP v0.6
 Date: 2026-09-30
 Status: IN ESECUZIONE
 
-==================================================
 PHASE 0 — DONOR AUDIT & BASELINE
-==================================================
 COMPLETED
-- donor Luminous audited
-- baseline architecture established
-- CI green on main
 
-==================================================
 MAXI STEP 0C — CORE CORRECTNESS HARDENING
-==================================================
 COMPLETED
-- immutable notification revisions preserve meaningful content changes
-- Luminous separated from the 3-app Vault limit
-- overlay work marshalled to Android main thread
-- listener health stale-state reset
-- face-down/proximity hysteresis
-- retention based on original postedAt
 
-==================================================
 MAXI STEP 0D — VAULT INTEGRITY & SECURITY BASELINE
-==================================================
 COMPLETED
-- Room v2 migration
-- crash-safer media cleanup
-- orphan media cleanup
-- protected-item Free limit centralized
-- explicit automatic backup exclusions
-- local security architecture prepared
 
-==================================================
 STEP 1 — VAULT UX PRO
-==================================================
-IMPLEMENTED ON CURRENT DEVELOPMENT BRANCH
-- Room FTS4 search index
-- live text search
-- per-app filter
-- incremental loading
-- thumbnail rendering
-- storage dashboard
-- protected-limit feedback
+COMPLETED / MERGED
 
-==================================================
 STEP 2 — ONBOARDING + PROFILE COMPLETE
-==================================================
-IMPLEMENTED ON CURRENT DEVELOPMENT BRANCH
-- four-stage onboarding + final visual test
-- progressive Notification Access / Camera / Overlay
-- biometric/device-credential Vault gate
-- Permission Health
-- device-language default + manual EN/IT/ES/FR/PT override
-- storage/security/profile controls
+COMPLETED / MERGED
 
-==================================================
 STEP 3 — NOTIFICATION PROCESSING ENGINE
-==================================================
-IMPLEMENTED ON CURRENT DEVELOPMENT BRANCH
-- NotificationEventProcessor
-- NotificationEventConsumer contract
-- VaultConsumer
-- LuminousConsumer
-- reconciliation mode separated from posted mode
-- CaptureService reduced to capture/lifecycle orchestration
+COMPLETED / MERGED
 
-==================================================
 STEP 4 — RULES ENGINE V1
-==================================================
-NEXT
-- normalized rule conditions/actions
-- 2 Free rules / Premium unlimited
-- deterministic priority resolver
-- Rules UI
+IMPLEMENTED / VALIDATION
 
-==================================================
 STEP 5 — CRITICAL ALERT + PAUSA PING
-==================================================
-- critical apps/sender patterns/keywords
-- Free limits centralized
-- escalation and controlled bypass
-- burst/cooldown suppression
+IMPLEMENTED / VALIDATION
 
-==================================================
 STEP 6 — FOLLOW UP
-==================================================
-- 3 active Free
-- unlimited Premium
-- snooze presets
-- Da gestire
-- WorkManager reminders
-- repeat-until-handled Premium
+IMPLEMENTED / VALIDATION
 
-==================================================
 STEP 7 — PICKUP CODE
-==================================================
-- code candidate extraction
-- one-tap copy
-- active code card
-- expiry
-- no guarantee for Android-redacted OTP content
+IMPLEMENTED / VALIDATION
 
-==================================================
 STEP 8 — PREMIUM ENGINE
-==================================================
-- centralized entitlement provider
-- supported Google Play Billing
+IMPLEMENTED / VALIDATION
+- centralized entitlement source
+- Google Play Billing
+- subscription + lifetime products
 - restore purchases
-- no release bypass
-- offline entitlement tolerance
-- contextual paywall
+- offline entitlement grace
+- contextual Profile Premium surface
 
-==================================================
 STEP 9 — GOOGLE PROFILE + BACKUP
-==================================================
-- optional Google Sign-In
-- identity separate from Vault security
-- encrypted local backup/export
-- restore validation
-- cloud backup only if explicitly configured
+IMPLEMENTED / VALIDATION
+- optional Credential Manager Sign in with Google
+- stable Credential Manager 1.6.0 + Google ID 1.2.1
+- Google identity does not unlock Vault or grant Premium
+- OAuth Web client ID remains external configuration
+- manual encrypted backup/export and restore
+- AES-GCM + password-derived key
+- pre-restore validation and Room transaction
+- Vault, messages, revisions, rules, Critical, Follow Up, Pickup Code and media previews
+- selected non-sensitive settings
+- Android Storage Access Framework supports local or user-chosen compatible cloud document providers
+- automatic Android cloud backup remains disabled
 
-==================================================
 STEP 10 — LUMINOUS PRO
-==================================================
+NEXT
 - per-app / sender profiles
 - colors/patterns/timing
 - Critical integration
 - OEM/battery hardening
 
-==================================================
 STEP 11 — RELEASE & DEPLOY PIPELINE
-==================================================
 - release APK
 - release AAB
 - signing hooks
@@ -140,16 +71,19 @@ STEP 11 — RELEASE & DEPLOY PIPELINE
 - GitHub Release
 - Play Internal Testing hook where credentials exist
 
-==================================================
 STEP 12 — CERTIFIED QA
-==================================================
 - parser/lifecycle/database/migration tests
-- rules/critical/follow-up/pickup tests
+- rules/critical/follow-up/pickup/billing/backup tests
 - release QA
 - device validation
 - privacy/accessibility/performance/store readiness
 
-IMMEDIATE NEXT ACTION:
-Validate Steps 1–3 in CI, merge, then continue directly with Steps 4–7.
+EXTERNAL CONFIGURATION STILL REQUIRED:
+- Google OAuth Web client ID for live Sign in with Google
+- Google Play product configuration for live Premium purchase flows
+- Play signing/service credentials for automatic Internal Testing publication
 
-END ROADMAP v0.4
+IMMEDIATE NEXT ACTION:
+Close CI in order, merge stable steps, then implement Luminous Pro, release pipeline and Certified QA.
+
+END ROADMAP v0.6
