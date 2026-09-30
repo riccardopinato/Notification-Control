@@ -224,7 +224,7 @@ private fun AddLuminousProfileDialog(
                                     appMenu = false
                                 }
                             )
-                            apps.take(60).forEach { app ->
+                            apps.forEach { app ->
                                 DropdownMenuItem(
                                     text = { Text(app.label) },
                                     onClick = {

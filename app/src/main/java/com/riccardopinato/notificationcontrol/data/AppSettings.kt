@@ -25,7 +25,7 @@ class AppSettings(context: Context) {
         set(value) = prefs.edit { putInt(KEY_RETENTION_DAYS, value) }
 
     var flashEnabled: Boolean
-        get() = prefs.getBoolean(KEY_FLASH_ENABLED, true)
+        get() = prefs.getBoolean(KEY_FLASH_ENABLED, false)
         set(value) = prefs.edit { putBoolean(KEY_FLASH_ENABLED, value) }
 
     var overlayEnabled: Boolean

@@ -1,0 +1,5 @@
+<resources>
+    <string name="rule_match_all">Todas as condições</string>
+    <string name="rule_match_any">Qualquer condição</string>
+    <string name="rule_follow_up_delay">Follow Up após %1$d min</string>
+</resources>

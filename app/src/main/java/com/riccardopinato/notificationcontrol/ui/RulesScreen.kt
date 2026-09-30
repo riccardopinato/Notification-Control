@@ -58,6 +58,7 @@ fun RulesScreen(
         String?,
         String?,
         String?,
+        String,
         List<Pair<String, String?>>
     ) -> Unit,
     onRuleEnabled: (Long, Boolean) -> Unit,
@@ -289,8 +290,8 @@ fun RulesScreen(
         AddRuleDialog(
             apps = apps,
             onDismiss = { addRule = false },
-            onCreate = { name, app, sender, text, actions ->
-                onCreateRule(name, app, sender, text, actions)
+            onCreate = { name, app, sender, text, matchMode, actions ->
+                onCreateRule(name, app, sender, text, matchMode, actions)
                 addRule = false
             }
         )
@@ -306,6 +307,7 @@ private fun AddRuleDialog(
         String?,
         String?,
         String?,
+        String,
         List<Pair<String, String?>>
     ) -> Unit
 ) {
@@ -318,6 +320,8 @@ private fun AddRuleDialog(
     var overlay by remember { mutableStateOf(false) }
     var critical by remember { mutableStateOf(false) }
     var followUp by remember { mutableStateOf(false) }
+    var matchMode by remember { mutableStateOf("ALL") }
+    var followUpDelay by remember { mutableStateOf(60f) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -357,7 +361,7 @@ private fun AddRuleDialog(
                                     appMenu = false
                                 }
                             )
-                            apps.take(40).forEach { app ->
+                            apps.forEach { app ->
                                 DropdownMenuItem(
                                     text = { Text(app.label) },
                                     onClick = {
@@ -376,6 +380,20 @@ private fun AddRuleDialog(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.rule_sender_contains)) }
                     )
+                }
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = matchMode == "ALL",
+                            onClick = { matchMode = "ALL" },
+                            label = { Text(stringResource(R.string.rule_match_all)) }
+                        )
+                        FilterChip(
+                            selected = matchMode == "ANY",
+                            onClick = { matchMode = "ANY" },
+                            label = { Text(stringResource(R.string.rule_match_any)) }
+                        )
+                    }
                 }
                 item {
                     OutlinedTextField(
@@ -398,6 +416,19 @@ private fun AddRuleDialog(
                     ActionToggle(stringResource(R.string.rule_action_follow_up), followUp) {
                         followUp = it
                     }
+                    if (followUp) {
+                        Text(
+                            stringResource(
+                                R.string.rule_follow_up_delay,
+                                followUpDelay.toInt()
+                            )
+                        )
+                        Slider(
+                            value = followUpDelay,
+                            onValueChange = { followUpDelay = it },
+                            valueRange = 5f..1_440f
+                        )
+                    }
                 }
             }
         },
@@ -408,13 +439,19 @@ private fun AddRuleDialog(
                         if (flash) add(RuleActionType.FLASH to null)
                         if (overlay) add(RuleActionType.OVERLAY to null)
                         if (critical) add(RuleActionType.CRITICAL to null)
-                        if (followUp) add(RuleActionType.FOLLOW_UP to "60")
+                        if (followUp) {
+                            add(
+                                RuleActionType.FOLLOW_UP to
+                                    followUpDelay.toInt().toString()
+                            )
+                        }
                     }
                     onCreate(
                         name,
                         selectedApp?.packageName,
                         sender,
                         keyword,
+                        matchMode,
                         actions
                     )
                 },
@@ -499,7 +536,7 @@ private fun AppPatternPicker(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                apps.take(40).forEach { app ->
+                apps.forEach { app ->
                     DropdownMenuItem(
                         text = { Text(app.label) },
                         onClick = {

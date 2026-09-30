@@ -40,6 +40,15 @@ class NotificationParser(
                 }
         }.getOrDefault(emptyList())
 
+        val textLines = extras
+            ?.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
+            ?.map { it.toString() }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+        val fallbackBigText = textLines
+            .takeIf { it.isNotEmpty() }
+            ?.joinToString("\n")
+
         return CapturedNotification(
             sbnKey = sbn.key,
             packageName = sbn.packageName,
@@ -50,8 +59,10 @@ class NotificationParser(
             category = notification.category,
             channelId = if (android.os.Build.VERSION.SDK_INT >= 26) notification.channelId else null,
             title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
-            text = extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
-            bigText = extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString(),
+            text = extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+                ?: structuredMessages.lastOrNull()?.text,
+            bigText = extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
+                ?: fallbackBigText,
             subText = extras?.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString(),
             conversationTitle = extras?.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString(),
             thumbnailPath = if (captureThumbnail) mediaStore.savePicture(notification, sbn.key) else null,

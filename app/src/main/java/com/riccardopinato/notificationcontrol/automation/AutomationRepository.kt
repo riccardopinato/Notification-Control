@@ -23,6 +23,7 @@ class AutomationRepository(
         packageName: String?,
         senderQuery: String?,
         textQuery: String?,
+        matchMode: String = "ALL",
         actions: List<Pair<String, String?>>
     ): Boolean {
         if (actions.isEmpty()) return false
@@ -31,7 +32,8 @@ class AutomationRepository(
             name = name.trim().ifBlank { "Rule" },
             packageName = packageName?.takeIf { it.isNotBlank() },
             senderQuery = senderQuery?.trim()?.takeIf { it.isNotBlank() },
-            textQuery = textQuery?.trim()?.takeIf { it.isNotBlank() }
+            textQuery = textQuery?.trim()?.takeIf { it.isNotBlank() },
+            matchMode = if (matchMode == "ANY") "ANY" else "ALL"
         )
         dao.createRule(rule, actions)
         return true

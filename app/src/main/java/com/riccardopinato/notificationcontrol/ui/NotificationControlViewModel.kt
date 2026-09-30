@@ -60,7 +60,7 @@ data class SettingsUiState(
     val monitoredPackages: Set<String> = emptySet(),
     val isPremium: Boolean = false,
     val retentionDays: Int = 7,
-    val flashEnabled: Boolean = true,
+    val flashEnabled: Boolean = false,
     val overlayEnabled: Boolean = false,
     val screenOffOnly: Boolean = true,
     val strobeSpeedMs: Long = 150L,
@@ -361,6 +361,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         packageName: String?,
         senderQuery: String?,
         textQuery: String?,
+        matchMode: String,
         actions: List<Pair<String, String?>>
     ) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -370,6 +371,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
                     packageName,
                     senderQuery,
                     textQuery,
+                    matchMode,
                     actions
                 )
             ) {
