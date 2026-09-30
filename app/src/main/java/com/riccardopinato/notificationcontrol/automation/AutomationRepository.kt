@@ -23,6 +23,7 @@ class AutomationRepository(
         packageName: String?,
         senderQuery: String?,
         textQuery: String?,
+        matchMode: String,
         actions: List<Pair<String, String?>>
     ): Boolean {
         if (actions.isEmpty()) return false
@@ -31,9 +32,34 @@ class AutomationRepository(
             name = name.trim().ifBlank { "Rule" },
             packageName = packageName?.takeIf { it.isNotBlank() },
             senderQuery = senderQuery?.trim()?.takeIf { it.isNotBlank() },
-            textQuery = textQuery?.trim()?.takeIf { it.isNotBlank() }
+            textQuery = textQuery?.trim()?.takeIf { it.isNotBlank() },
+            matchMode = if (matchMode == "ANY") "ANY" else "ALL"
         )
         dao.createRule(rule, actions)
+        return true
+    }
+
+    suspend fun updateRule(
+        id: Long,
+        name: String,
+        packageName: String?,
+        senderQuery: String?,
+        textQuery: String?,
+        matchMode: String,
+        actions: List<Pair<String, String?>>
+    ): Boolean {
+        if (id <= 0L || actions.isEmpty()) return false
+        val current = dao.ruleById(id) ?: return false
+        dao.replaceRule(
+            current.copy(
+                name = name.trim().ifBlank { "Rule" },
+                packageName = packageName?.trim()?.takeIf { it.isNotBlank() },
+                senderQuery = senderQuery?.trim()?.takeIf { it.isNotBlank() },
+                textQuery = textQuery?.trim()?.takeIf { it.isNotBlank() },
+                matchMode = if (matchMode == "ANY") "ANY" else "ALL"
+            ),
+            actions
+        )
         return true
     }
 

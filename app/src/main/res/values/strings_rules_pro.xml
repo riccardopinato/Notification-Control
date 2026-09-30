@@ -1,0 +1,10 @@
+<resources>
+    <string name="edit">Edit</string>
+    <string name="edit_rule">Edit rule</string>
+    <string name="save">Save</string>
+    <string name="rule_match_mode">Condition matching</string>
+    <string name="rule_match_all">All conditions</string>
+    <string name="rule_match_any">Any condition</string>
+    <string name="rule_follow_up_delay">Follow Up delay: %1$d min</string>
+    <string name="choose_app">Choose app</string>
+</resources>

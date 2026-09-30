@@ -220,6 +220,7 @@ fun NotificationControlApp(
                 requestCameraPermission = requestCameraPermission,
                 requestOverlayPermission = requestOverlayPermission,
                 onCreateRule = viewModel::createRule,
+                onUpdateRule = viewModel::updateRule,
                 onRuleEnabled = viewModel::setRuleEnabled,
                 onDeleteRule = viewModel::deleteRule,
                 onAddCriticalPattern = viewModel::addCriticalPattern,

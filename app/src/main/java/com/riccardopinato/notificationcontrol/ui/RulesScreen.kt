@@ -58,6 +58,16 @@ fun RulesScreen(
         String?,
         String?,
         String?,
+        String,
+        List<Pair<String, String?>>
+    ) -> Unit,
+    onUpdateRule: (
+        Long,
+        String,
+        String?,
+        String?,
+        String?,
+        String,
         List<Pair<String, String?>>
     ) -> Unit,
     onRuleEnabled: (Long, Boolean) -> Unit,
@@ -93,6 +103,7 @@ fun RulesScreen(
     setGlow: (Float) -> Unit
 ) {
     var addRule by remember { mutableStateOf(false) }
+    var editingRule by remember { mutableStateOf<RuleWithActions?>(null) }
     var showLuminous by remember { mutableStateOf(false) }
     var criticalKeyword by remember { mutableStateOf("") }
     var criticalSender by remember { mutableStateOf("") }
@@ -162,8 +173,13 @@ fun RulesScreen(
                             onCheckedChange = { onRuleEnabled(item.rule.id, it) }
                         )
                     }
-                    TextButton(onClick = { onDeleteRule(item.rule.id) }) {
-                        Text(stringResource(R.string.delete))
+                    Row {
+                        TextButton(onClick = { editingRule = item }) {
+                            Text(stringResource(R.string.edit))
+                        }
+                        TextButton(onClick = { onDeleteRule(item.rule.id) }) {
+                            Text(stringResource(R.string.delete))
+                        }
                     }
                 }
             }
@@ -288,10 +304,40 @@ fun RulesScreen(
     if (addRule) {
         AddRuleDialog(
             apps = apps,
+            existing = null,
             onDismiss = { addRule = false },
-            onCreate = { name, app, sender, text, actions ->
-                onCreateRule(name, app, sender, text, actions)
+            onSave = { _, name, appPackage, sender, text, matchMode, actions ->
+                onCreateRule(
+                    name,
+                    appPackage,
+                    sender,
+                    text,
+                    matchMode,
+                    actions
+                )
                 addRule = false
+            }
+        )
+    }
+
+    editingRule?.let { existing ->
+        AddRuleDialog(
+            apps = apps,
+            existing = existing,
+            onDismiss = { editingRule = null },
+            onSave = { id, name, appPackage, sender, text, matchMode, actions ->
+                if (id != null) {
+                    onUpdateRule(
+                        id,
+                        name,
+                        appPackage,
+                        sender,
+                        text,
+                        matchMode,
+                        actions
+                    )
+                }
+                editingRule = null
             }
         )
     }
@@ -300,31 +346,73 @@ fun RulesScreen(
 @Composable
 private fun AddRuleDialog(
     apps: List<InstalledApp>,
+    existing: RuleWithActions?,
     onDismiss: () -> Unit,
-    onCreate: (
+    onSave: (
+        Long?,
         String,
         String?,
         String?,
         String?,
+        String,
         List<Pair<String, String?>>
     ) -> Unit
 ) {
-    var name by remember { mutableStateOf("") }
-    var keyword by remember { mutableStateOf("") }
-    var sender by remember { mutableStateOf("") }
-    var selectedApp by remember { mutableStateOf<InstalledApp?>(null) }
-    var appMenu by remember { mutableStateOf(false) }
-    var flash by remember { mutableStateOf(false) }
-    var overlay by remember { mutableStateOf(false) }
-    var critical by remember { mutableStateOf(false) }
-    var followUp by remember { mutableStateOf(false) }
+    val existingActions = existing?.actions.orEmpty()
+    var name by remember(existing?.rule?.id) {
+        mutableStateOf(existing?.rule?.name.orEmpty())
+    }
+    var keyword by remember(existing?.rule?.id) {
+        mutableStateOf(existing?.rule?.textQuery.orEmpty())
+    }
+    var sender by remember(existing?.rule?.id) {
+        mutableStateOf(existing?.rule?.senderQuery.orEmpty())
+    }
+    var selectedApp by remember(existing?.rule?.id) {
+        mutableStateOf(
+            existing?.rule?.packageName?.let { packageName ->
+                apps.firstOrNull { it.packageName == packageName }
+                    ?: InstalledApp(packageName, packageName)
+            }
+        )
+    }
+    var matchMode by remember(existing?.rule?.id) {
+        mutableStateOf(existing?.rule?.matchMode ?: "ALL")
+    }
+    var flash by remember(existing?.rule?.id) {
+        mutableStateOf(existingActions.any { it.actionType == RuleActionType.FLASH })
+    }
+    var overlay by remember(existing?.rule?.id) {
+        mutableStateOf(existingActions.any { it.actionType == RuleActionType.OVERLAY })
+    }
+    var critical by remember(existing?.rule?.id) {
+        mutableStateOf(existingActions.any { it.actionType == RuleActionType.CRITICAL })
+    }
+    var followUp by remember(existing?.rule?.id) {
+        mutableStateOf(existingActions.any { it.actionType == RuleActionType.FOLLOW_UP })
+    }
+    var followUpMinutes by remember(existing?.rule?.id) {
+        mutableStateOf(
+            existingActions.firstOrNull {
+                it.actionType == RuleActionType.FOLLOW_UP
+            }?.actionValue?.toIntOrNull()?.coerceIn(15, 1_440) ?: 60
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.add_rule)) },
+        title = {
+            Text(
+                if (existing == null) {
+                    stringResource(R.string.add_rule)
+                } else {
+                    stringResource(R.string.edit_rule)
+                }
+            )
+        },
         text = {
             LazyColumn(
-                Modifier.heightIn(max = 520.dp),
+                Modifier.heightIn(max = 560.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
@@ -336,38 +424,13 @@ private fun AddRuleDialog(
                     )
                 }
                 item {
-                    Box {
-                        OutlinedButton(
-                            onClick = { appMenu = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                selectedApp?.label
-                                    ?: stringResource(R.string.rule_any_app)
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = appMenu,
-                            onDismissRequest = { appMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.rule_any_app)) },
-                                onClick = {
-                                    selectedApp = null
-                                    appMenu = false
-                                }
-                            )
-                            apps.take(40).forEach { app ->
-                                DropdownMenuItem(
-                                    text = { Text(app.label) },
-                                    onClick = {
-                                        selectedApp = app
-                                        appMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    SearchableAppPickerButton(
+                        apps = apps,
+                        selected = selectedApp,
+                        placeholder = stringResource(R.string.rule_any_app),
+                        allowNone = true,
+                        onSelected = { selectedApp = it }
+                    )
                 }
                 item {
                     OutlinedTextField(
@@ -386,6 +449,24 @@ private fun AddRuleDialog(
                     )
                 }
                 item {
+                    Text(
+                        stringResource(R.string.rule_match_mode),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = matchMode == "ALL",
+                            onClick = { matchMode = "ALL" },
+                            label = { Text(stringResource(R.string.rule_match_all)) }
+                        )
+                        FilterChip(
+                            selected = matchMode == "ANY",
+                            onClick = { matchMode = "ANY" },
+                            label = { Text(stringResource(R.string.rule_match_any)) }
+                        )
+                    }
+                }
+                item {
                     ActionToggle(stringResource(R.string.rule_action_flash), flash) {
                         flash = it
                     }
@@ -398,6 +479,21 @@ private fun AddRuleDialog(
                     ActionToggle(stringResource(R.string.rule_action_follow_up), followUp) {
                         followUp = it
                     }
+                    if (followUp) {
+                        Text(
+                            stringResource(
+                                R.string.rule_follow_up_delay,
+                                followUpMinutes
+                            )
+                        )
+                        Slider(
+                            value = followUpMinutes.toFloat(),
+                            onValueChange = {
+                                followUpMinutes = it.toInt().coerceIn(15, 1_440)
+                            },
+                            valueRange = 15f..1_440f
+                        )
+                    }
                 }
             }
         },
@@ -408,13 +504,20 @@ private fun AddRuleDialog(
                         if (flash) add(RuleActionType.FLASH to null)
                         if (overlay) add(RuleActionType.OVERLAY to null)
                         if (critical) add(RuleActionType.CRITICAL to null)
-                        if (followUp) add(RuleActionType.FOLLOW_UP to "60")
+                        if (followUp) {
+                            add(
+                                RuleActionType.FOLLOW_UP to
+                                    followUpMinutes.toString()
+                            )
+                        }
                     }
-                    onCreate(
+                    onSave(
+                        existing?.rule?.id,
                         name,
                         selectedApp?.packageName,
                         sender,
                         keyword,
+                        matchMode,
                         actions
                     )
                 },
@@ -422,7 +525,13 @@ private fun AddRuleDialog(
                     (selectedApp != null || sender.isNotBlank() || keyword.isNotBlank()) &&
                         (flash || overlay || critical || followUp)
             ) {
-                Text(stringResource(R.string.create))
+                Text(
+                    if (existing == null) {
+                        stringResource(R.string.create)
+                    } else {
+                        stringResource(R.string.save)
+                    }
+                )
             }
         },
         dismissButton = {
@@ -480,35 +589,19 @@ private fun AppPatternPicker(
     onSelected: (InstalledApp?) -> Unit,
     onAdd: () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Box(Modifier.weight(1f)) {
-            OutlinedButton(
-                onClick = { expanded = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    selected?.label ?: stringResource(R.string.critical_app)
-                )
-            }
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = { expanded = false }
-            ) {
-                apps.take(40).forEach { app ->
-                    DropdownMenuItem(
-                        text = { Text(app.label) },
-                        onClick = {
-                            onSelected(app)
-                            expanded = false
-                        }
-                    )
-                }
-            }
+        Column(Modifier.weight(1f)) {
+            SearchableAppPickerButton(
+                apps = apps,
+                selected = selected,
+                placeholder = stringResource(R.string.critical_app),
+                allowNone = false,
+                onSelected = onSelected
+            )
         }
         Button(onClick = onAdd, enabled = selected != null) {
             Text("+")
@@ -516,12 +609,26 @@ private fun AppPatternPicker(
     }
 }
 
+@Composable
 private fun ruleSummary(rule: RuleWithActions): String {
     val conditions = listOfNotNull(
         rule.rule.packageName,
         rule.rule.senderQuery,
         rule.rule.textQuery
     ).joinToString(" · ")
-    val actions = rule.actions.joinToString(", ") { it.actionType }
-    return conditions + " → " + actions
+    val actions = rule.actions.joinToString(", ") {
+        when (it.actionType) {
+            RuleActionType.FLASH -> stringResource(R.string.rule_action_flash)
+            RuleActionType.OVERLAY -> stringResource(R.string.rule_action_overlay)
+            RuleActionType.CRITICAL -> stringResource(R.string.rule_action_critical)
+            RuleActionType.FOLLOW_UP -> stringResource(R.string.rule_action_follow_up)
+            else -> it.actionType
+        }
+    }
+    val mode = if (rule.rule.matchMode == "ANY") {
+        stringResource(R.string.rule_match_any)
+    } else {
+        stringResource(R.string.rule_match_all)
+    }
+    return mode + " · " + conditions + " → " + actions
 }

@@ -21,6 +21,9 @@ interface AutomationDao {
     @Query("SELECT COUNT(*) FROM rules")
     suspend fun ruleCount(): Int
 
+    @Query("SELECT * FROM rules WHERE id = :id LIMIT 1")
+    suspend fun ruleById(id: Long): RuleEntity?
+
     @Insert
     suspend fun insertRule(rule: RuleEntity): Long
 
@@ -38,6 +41,32 @@ interface AutomationDao {
             )
         }
         return id
+    }
+
+    @Update
+    suspend fun updateRule(rule: RuleEntity)
+
+    @Query("DELETE FROM rule_actions WHERE ruleId = :ruleId")
+    suspend fun deleteRuleActions(ruleId: Long)
+
+    @Transaction
+    suspend fun replaceRule(
+        rule: RuleEntity,
+        actionTypes: List<Pair<String, String?>>
+    ) {
+        updateRule(rule)
+        deleteRuleActions(rule.id)
+        if (actionTypes.isNotEmpty()) {
+            insertRuleActions(
+                actionTypes.map { (type, value) ->
+                    RuleActionEntity(
+                        ruleId = rule.id,
+                        actionType = type,
+                        actionValue = value
+                    )
+                }
+            )
+        }
     }
 
     @Query("UPDATE rules SET enabled = :enabled WHERE id = :id")

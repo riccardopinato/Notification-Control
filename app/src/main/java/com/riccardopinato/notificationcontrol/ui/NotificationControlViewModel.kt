@@ -355,6 +355,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         packageName: String?,
         senderQuery: String?,
         textQuery: String?,
+        matchMode: String,
         actions: List<Pair<String, String?>>
     ) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -364,11 +365,34 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
                     packageName,
                     senderQuery,
                     textQuery,
+                    matchMode,
                     actions
                 )
             ) {
                 _events.tryEmit(NotificationControlUiEvent.RuleLimitReached)
             }
+        }
+    }
+
+    fun updateRule(
+        id: Long,
+        name: String,
+        packageName: String?,
+        senderQuery: String?,
+        textQuery: String?,
+        matchMode: String,
+        actions: List<Pair<String, String?>>
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            automationRepository.updateRule(
+                id = id,
+                name = name,
+                packageName = packageName,
+                senderQuery = senderQuery,
+                textQuery = textQuery,
+                matchMode = matchMode,
+                actions = actions
+            )
         }
     }
 
