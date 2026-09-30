@@ -3,6 +3,7 @@ package com.riccardopinato.notificationcontrol.ui.overlay
 import android.content.Context
 import android.graphics.Color
 import android.graphics.PixelFormat
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -13,14 +14,17 @@ import android.view.animation.Animation
 import android.widget.FrameLayout
 import android.widget.TextView
 import com.riccardopinato.notificationcontrol.data.AppSettings
+import com.riccardopinato.notificationcontrol.luminous.LuminousAlertStyle
 import com.riccardopinato.notificationcontrol.ui.custom.LuminousCircleView
 import kotlin.random.Random
 
 class LuminousCircleOverlay(private val context: Context) {
+    private val appContext = context.applicationContext
     private val windowManager =
-        context.applicationContext.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
-    private val settings = AppSettings(context)
+        appContext.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
+    private val settings = AppSettings(appContext)
     private val handler = Handler(Looper.getMainLooper())
+
     private var container: FrameLayout? = null
     private var circle: LuminousCircleView? = null
 
@@ -35,13 +39,22 @@ class LuminousCircleOverlay(private val context: Context) {
         }
     }
 
-    fun show(label: String) {
+    fun show(
+        label: String,
+        style: LuminousAlertStyle = defaultStyle()
+    ) {
         if (Looper.myLooper() != Looper.getMainLooper()) {
-            handler.post { show(label) }
+            handler.post { show(label, style) }
             return
         }
-        if (container != null) return
-        if (!Settings.canDrawOverlays(context)) return
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            !Settings.canDrawOverlays(appContext)
+        ) {
+            return
+        }
+
+        hide()
 
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -58,14 +71,16 @@ class LuminousCircleOverlay(private val context: Context) {
             buttonBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_OFF
         }
 
-        val host = FrameLayout(context).apply {
+        val host = FrameLayout(appContext).apply {
             setBackgroundColor(Color.BLACK)
             setOnClickListener { hide() }
         }
-        val color = runCatching { Color.parseColor(settings.circleColorHex) }
-            .getOrDefault(Color.WHITE)
-        val view = LuminousCircleView(context).apply {
-            setAesthetics(color, settings.circleThickness, settings.circleGlow)
+        val color = runCatching {
+            Color.parseColor(style.colorHex)
+        }.getOrDefault(Color.WHITE)
+
+        val view = LuminousCircleView(appContext).apply {
+            setAesthetics(color, style.thickness, style.glow)
             layoutParams = FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT,
@@ -73,13 +88,13 @@ class LuminousCircleOverlay(private val context: Context) {
             )
             startAnimation(
                 AlphaAnimation(0.08f, 0.72f).apply {
-                    duration = settings.pulseSpeedMs
+                    duration = style.pulseSpeedMs.coerceIn(250L, 3_000L)
                     repeatMode = Animation.REVERSE
                     repeatCount = Animation.INFINITE
                 }
             )
         }
-        val text = TextView(context).apply {
+        val text = TextView(appContext).apply {
             this.text = label
             setTextColor(Color.WHITE)
             textSize = 14f
@@ -95,18 +110,20 @@ class LuminousCircleOverlay(private val context: Context) {
 
         host.addView(view)
         host.addView(text)
-        runCatching { windowManager?.addView(host, params) }
-            .onSuccess {
-                container = host
-                circle = view
-                handler.postDelayed(timeout, 120_000L)
-                handler.post(pixelShift)
-            }
+
+        runCatching {
+            windowManager?.addView(host, params)
+        }.onSuccess {
+            container = host
+            circle = view
+            handler.postDelayed(timeout, 120_000L)
+            handler.post(pixelShift)
+        }
     }
 
     fun hide() {
         if (Looper.myLooper() != Looper.getMainLooper()) {
-            handler.post { hide() }
+            handler.post(::hide)
             return
         }
         handler.removeCallbacks(timeout)
@@ -115,4 +132,11 @@ class LuminousCircleOverlay(private val context: Context) {
         container = null
         circle = null
     }
+
+    private fun defaultStyle() = LuminousAlertStyle(
+        colorHex = settings.circleColorHex,
+        thickness = settings.circleThickness,
+        glow = settings.circleGlow,
+        pulseSpeedMs = settings.pulseSpeedMs
+    )
 }
