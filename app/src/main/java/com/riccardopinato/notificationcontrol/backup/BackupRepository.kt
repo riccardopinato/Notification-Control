@@ -620,6 +620,22 @@ class BackupRepository(context: Context) {
         .put("quietHoursEnabled", settings.quietHoursEnabled)
         .put("quietStartMinutes", settings.quietStartMinutes)
         .put("quietEndMinutes", settings.quietEndMinutes)
+        .put(
+            "additionalQuietHours",
+            JSONArray().apply {
+                settings.additionalQuietHours.forEach { band ->
+                    put(
+                        JSONObject()
+                            .put("startMinutes", band.startMinutes)
+                            .put("endMinutes", band.endMinutes)
+                    )
+                }
+            }
+        )
+        .put(
+            "quietHoursExceptionPackages",
+            JSONArray(settings.quietHoursExceptionPackages.toList())
+        )
         .put("screenOffOnly", settings.screenOffOnly)
         .put("strobeSpeedMs", settings.strobeSpeedMs)
         .put("strobeCycles", settings.strobeCycles)
@@ -674,6 +690,31 @@ class BackupRepository(context: Context) {
             o.optInt("quietStartMinutes", settings.quietStartMinutes)
         settings.quietEndMinutes =
             o.optInt("quietEndMinutes", settings.quietEndMinutes)
+        if (settings.isPremium) {
+            val bands = o.optJSONArray("additionalQuietHours")
+            if (bands != null) {
+                settings.additionalQuietHours = buildList {
+                    for (i in 0 until bands.length()) {
+                        val band = bands.optJSONObject(i) ?: continue
+                        add(
+                            com.riccardopinato.notificationcontrol.data.QuietHoursBand(
+                                startMinutes = band.optInt("startMinutes", 0),
+                                endMinutes = band.optInt("endMinutes", 0)
+                            )
+                        )
+                    }
+                }
+            }
+            val exceptions = o.optJSONArray("quietHoursExceptionPackages")
+            if (exceptions != null) {
+                settings.quietHoursExceptionPackages = buildSet {
+                    for (i in 0 until exceptions.length()) {
+                        val packageName = exceptions.optString(i)
+                        if (packageName.isNotBlank()) add(packageName)
+                    }
+                }
+            }
+        }
         settings.screenOffOnly = o.optBoolean("screenOffOnly", settings.screenOffOnly)
         settings.strobeSpeedMs = o.optLong("strobeSpeedMs", settings.strobeSpeedMs)
         settings.strobeCycles = o.optInt("strobeCycles", settings.strobeCycles)

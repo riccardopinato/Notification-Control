@@ -55,6 +55,7 @@ fun ProfileScreen(
     modifier: Modifier,
     contentPadding: PaddingValues,
     state: SettingsUiState,
+    apps: List<InstalledApp>,
     billingState: BillingUiState,
     storageStats: StorageStats,
     onConfigureApps: () -> Unit,
@@ -66,6 +67,10 @@ fun ProfileScreen(
     onBatteryGuardThresholdChanged: (Int) -> Unit,
     onQuietStartChanged: (Int) -> Unit,
     onQuietEndChanged: (Int) -> Unit,
+    onAddQuietHoursBand: (Int, Int) -> Unit,
+    onRemoveQuietHoursBand: (Int, Int) -> Unit,
+    onAddQuietHoursException: (String) -> Unit,
+    onRemoveQuietHoursException: (String) -> Unit,
     onCriticalBypassQuietHoursChanged: (Boolean) -> Unit,
     onDeleteAll: () -> Unit,
     onResetLocalData: () -> Unit,
@@ -130,9 +135,14 @@ fun ProfileScreen(
         item {
             DeviceBehaviorCard(
                 state = state,
+                apps = apps,
                 onBatteryThresholdChanged = onBatteryGuardThresholdChanged,
                 onQuietStartChanged = onQuietStartChanged,
                 onQuietEndChanged = onQuietEndChanged,
+                onAddQuietHoursBand = onAddQuietHoursBand,
+                onRemoveQuietHoursBand = onRemoveQuietHoursBand,
+                onAddQuietHoursException = onAddQuietHoursException,
+                onRemoveQuietHoursException = onRemoveQuietHoursException,
                 onCriticalBypassQuietHoursChanged = onCriticalBypassQuietHoursChanged
             )
         }
@@ -479,11 +489,20 @@ private fun StorageCard(
 @Composable
 private fun DeviceBehaviorCard(
     state: SettingsUiState,
+    apps: List<InstalledApp>,
     onBatteryThresholdChanged: (Int) -> Unit,
     onQuietStartChanged: (Int) -> Unit,
     onQuietEndChanged: (Int) -> Unit,
+    onAddQuietHoursBand: (Int, Int) -> Unit,
+    onRemoveQuietHoursBand: (Int, Int) -> Unit,
+    onAddQuietHoursException: (String) -> Unit,
+    onRemoveQuietHoursException: (String) -> Unit,
     onCriticalBypassQuietHoursChanged: (Boolean) -> Unit
 ) {
+    var extraStart by remember { mutableStateOf(12 * 60f) }
+    var extraEnd by remember { mutableStateOf(13 * 60f) }
+    var exceptionApp by remember { mutableStateOf<InstalledApp?>(null) }
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(
@@ -541,6 +560,129 @@ private fun DeviceBehaviorCard(
                     valueRange = 0f..1410f,
                     steps = 46
                 )
+                if (state.isPremium) {
+                    HorizontalDivider(Modifier.padding(vertical = 10.dp))
+                    Text(
+                        stringResource(R.string.quiet_additional_title),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    state.additionalQuietHours.forEach { band ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                stringResource(
+                                    R.string.quiet_band_value,
+                                    formatMinutesOfDay(band.startMinutes),
+                                    formatMinutesOfDay(band.endMinutes)
+                                ),
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(
+                                onClick = {
+                                    onRemoveQuietHoursBand(
+                                        band.startMinutes,
+                                        band.endMinutes
+                                    )
+                                }
+                            ) {
+                                Text(stringResource(R.string.delete))
+                            }
+                        }
+                    }
+                    Text(
+                        stringResource(
+                            R.string.quiet_start_value,
+                            formatMinutesOfDay(extraStart.toInt())
+                        )
+                    )
+                    Slider(
+                        value = extraStart,
+                        onValueChange = {
+                            extraStart = ((it.toInt() / 30) * 30)
+                                .coerceIn(0, 1410)
+                                .toFloat()
+                        },
+                        valueRange = 0f..1410f,
+                        steps = 46
+                    )
+                    Text(
+                        stringResource(
+                            R.string.quiet_end_value,
+                            formatMinutesOfDay(extraEnd.toInt())
+                        )
+                    )
+                    Slider(
+                        value = extraEnd,
+                        onValueChange = {
+                            extraEnd = ((it.toInt() / 30) * 30)
+                                .coerceIn(0, 1410)
+                                .toFloat()
+                        },
+                        valueRange = 0f..1410f,
+                        steps = 46
+                    )
+                    FilledTonalButton(
+                        onClick = {
+                            onAddQuietHoursBand(
+                                extraStart.toInt(),
+                                extraEnd.toInt()
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.quiet_add_band))
+                    }
+
+                    Text(
+                        stringResource(R.string.quiet_exceptions_title),
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = 10.dp)
+                    )
+                    Text(
+                        stringResource(R.string.quiet_exceptions_body),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    SearchableAppPickerButton(
+                        apps = apps,
+                        selected = exceptionApp,
+                        placeholder = stringResource(R.string.choose_app),
+                        allowNone = false,
+                        onSelected = { exceptionApp = it }
+                    )
+                    FilledTonalButton(
+                        onClick = {
+                            exceptionApp?.let {
+                                onAddQuietHoursException(it.packageName)
+                                exceptionApp = null
+                            }
+                        },
+                        enabled = exceptionApp != null,
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                    ) {
+                        Text(stringResource(R.string.quiet_add_exception))
+                    }
+                    state.quietHoursExceptionPackages.forEach { packageName ->
+                        val label = apps.firstOrNull {
+                            it.packageName == packageName
+                        }?.label ?: packageName
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(label, Modifier.weight(1f))
+                            TextButton(
+                                onClick = {
+                                    onRemoveQuietHoursException(packageName)
+                                }
+                            ) {
+                                Text(stringResource(R.string.delete))
+                            }
+                        }
+                    }
+                }
+
                 Row(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically

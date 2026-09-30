@@ -29,7 +29,12 @@ class LuminousConsumer(
 
         if (!flashEnabled && !overlayEnabled) return
         if (context.suppressLuminous && !context.critical) return
-        if (suppressionPolicy.evaluate(context.critical).suppressed) return
+        if (
+            suppressionPolicy.evaluate(
+                critical = context.critical,
+                packageName = event.packageName
+            ).suppressed
+        ) return
 
         val baseCycles = profile?.strobeCycles ?: settings.strobeCycles
         val baseSpeed = profile?.strobeSpeedMs ?: settings.strobeSpeedMs

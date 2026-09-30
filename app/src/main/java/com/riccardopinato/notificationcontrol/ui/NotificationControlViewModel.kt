@@ -21,6 +21,7 @@ import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
 import com.riccardopinato.notificationcontrol.data.NotificationRevisionEntity
 import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
+import com.riccardopinato.notificationcontrol.data.QuietHoursBand
 import com.riccardopinato.notificationcontrol.data.RuleWithActions
 import com.riccardopinato.notificationcontrol.data.VaultAppFilter
 import com.riccardopinato.notificationcontrol.domain.MonitoredAppsPolicy
@@ -80,6 +81,8 @@ data class SettingsUiState(
     val quietHoursEnabled: Boolean = false,
     val quietStartMinutes: Int = 22 * 60,
     val quietEndMinutes: Int = 7 * 60,
+    val additionalQuietHours: List<QuietHoursBand> = emptyList(),
+    val quietHoursExceptionPackages: Set<String> = emptySet(),
     val circleColorHex: String = "#6750A4",
     val circleThickness: Float = 24f,
     val circleGlow: Float = 30f,
@@ -305,6 +308,40 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
 
     fun setQuietEndMinutes(value: Int) {
         settings.quietEndMinutes = value
+        refresh()
+    }
+
+    fun addQuietHoursBand(startMinutes: Int, endMinutes: Int) {
+        if (!settings.isPremium) return
+        val band = QuietHoursBand(
+            startMinutes.coerceIn(0, 1439),
+            endMinutes.coerceIn(0, 1439)
+        )
+        settings.additionalQuietHours =
+            (settings.additionalQuietHours + band).distinct()
+        refresh()
+    }
+
+    fun removeQuietHoursBand(startMinutes: Int, endMinutes: Int) {
+        if (!settings.isPremium) return
+        settings.additionalQuietHours =
+            settings.additionalQuietHours.filterNot {
+                it.startMinutes == startMinutes && it.endMinutes == endMinutes
+            }
+        refresh()
+    }
+
+    fun addQuietHoursException(packageName: String) {
+        if (!settings.isPremium || packageName.isBlank()) return
+        settings.quietHoursExceptionPackages =
+            settings.quietHoursExceptionPackages + packageName
+        refresh()
+    }
+
+    fun removeQuietHoursException(packageName: String) {
+        if (!settings.isPremium) return
+        settings.quietHoursExceptionPackages =
+            settings.quietHoursExceptionPackages - packageName
         refresh()
     }
 
@@ -653,6 +690,8 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         quietHoursEnabled = settings.quietHoursEnabled,
         quietStartMinutes = settings.quietStartMinutes,
         quietEndMinutes = settings.quietEndMinutes,
+        additionalQuietHours = settings.additionalQuietHours,
+        quietHoursExceptionPackages = settings.quietHoursExceptionPackages,
         circleColorHex = settings.circleColorHex,
         circleThickness = settings.circleThickness,
         circleGlow = settings.circleGlow,

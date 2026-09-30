@@ -4,6 +4,11 @@ import android.content.Context
 import androidx.core.content.edit
 import com.riccardopinato.notificationcontrol.billing.EntitlementStore
 
+data class QuietHoursBand(
+    val startMinutes: Int,
+    val endMinutes: Int
+)
+
 class AppSettings(context: Context) {
     private val appContext = context.applicationContext
     private val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -57,6 +62,40 @@ class AppSettings(context: Context) {
     var quietEndMinutes: Int
         get() = prefs.getInt(KEY_QUIET_END, 7 * 60)
         set(value) = prefs.edit { putInt(KEY_QUIET_END, value.coerceIn(0, 1439)) }
+
+    var additionalQuietHours: List<QuietHoursBand>
+        get() = prefs.getStringSet(KEY_QUIET_ADDITIONAL, emptySet())
+            .orEmpty()
+            .mapNotNull { encoded ->
+                val parts = encoded.split(':')
+                if (parts.size != 2) return@mapNotNull null
+                val start = parts[0].toIntOrNull() ?: return@mapNotNull null
+                val end = parts[1].toIntOrNull() ?: return@mapNotNull null
+                QuietHoursBand(
+                    start.coerceIn(0, 1439),
+                    end.coerceIn(0, 1439)
+                )
+            }
+            .distinct()
+            .sortedWith(compareBy({ it.startMinutes }, { it.endMinutes }))
+        set(value) = prefs.edit {
+            putStringSet(
+                KEY_QUIET_ADDITIONAL,
+                value.map {
+                    it.startMinutes.coerceIn(0, 1439).toString() +
+                        ":" +
+                        it.endMinutes.coerceIn(0, 1439)
+                }.toSet()
+            )
+        }
+
+    var quietHoursExceptionPackages: Set<String>
+        get() = prefs.getStringSet(KEY_QUIET_EXCEPTIONS, emptySet())
+            ?.toSet()
+            .orEmpty()
+        set(value) = prefs.edit {
+            putStringSet(KEY_QUIET_EXCEPTIONS, value.filter(String::isNotBlank).toSet())
+        }
 
     var screenOffOnly: Boolean
         get() = prefs.getBoolean(KEY_SCREEN_OFF_ONLY, true)
@@ -148,6 +187,8 @@ class AppSettings(context: Context) {
         private const val KEY_QUIET_ENABLED = "quiet_hours_enabled"
         private const val KEY_QUIET_START = "quiet_start_minutes"
         private const val KEY_QUIET_END = "quiet_end_minutes"
+        private const val KEY_QUIET_ADDITIONAL = "quiet_additional_bands"
+        private const val KEY_QUIET_EXCEPTIONS = "quiet_exception_packages"
         private const val KEY_FLASH_ENABLED = "flash_enabled"
         private const val KEY_OVERLAY_ENABLED = "overlay_enabled"
         private const val KEY_SCREEN_OFF_ONLY = "screen_off_only"
