@@ -20,6 +20,7 @@ class NotificationCaptureService : NotificationListenerService() {
     private lateinit var settings: AppSettings
     private lateinit var parser: NotificationParser
     private lateinit var database: NotificationDatabase
+    private lateinit var mediaStore: NotificationMediaStore
     private lateinit var health: ListenerHealthStore
     private lateinit var posture: DevicePostureMonitor
     private lateinit var suppressionPolicy: SuppressionPolicy
@@ -29,7 +30,8 @@ class NotificationCaptureService : NotificationListenerService() {
     override fun onCreate() {
         super.onCreate()
         settings = AppSettings(this)
-        parser = NotificationParser(this)
+        mediaStore = NotificationMediaStore(this)
+        parser = NotificationParser(this, mediaStore)
         database = NotificationDatabase.get(this)
         health = ListenerHealthStore(this)
         posture = DevicePostureMonitor(this)
@@ -63,9 +65,19 @@ class NotificationCaptureService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         val notification = sbn ?: return
-        if (!shouldCapture(notification)) return
+        val persist = shouldPersistToVault(notification)
+        val luminous = shouldRunLuminous(notification)
+        if (!persist && !luminous) return
+
         health.lastEventAt = System.currentTimeMillis()
-        capture(notification, triggerVisualAlert = true)
+        serviceScope.launch {
+            val captured = parser.parse(
+                notification,
+                captureThumbnail = persist && settings.isPremium
+            )
+            if (persist) persist(captured)
+            if (luminous) triggerLuminous(captured)
+        }
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
@@ -75,7 +87,11 @@ class NotificationCaptureService : NotificationListenerService() {
         }
     }
 
-    override fun onNotificationRemoved(sbn: StatusBarNotification?, rankingMap: RankingMap?, reason: Int) {
+    override fun onNotificationRemoved(
+        sbn: StatusBarNotification?,
+        rankingMap: RankingMap?,
+        reason: Int
+    ) {
         val notification = sbn ?: return
         serviceScope.launch {
             database.notificationDao().markRemoved(notification.key, System.currentTimeMillis(), reason)
@@ -84,33 +100,50 @@ class NotificationCaptureService : NotificationListenerService() {
 
     private fun reconcileActiveNotifications() {
         serviceScope.launch {
-            val notifications = runCatching { activeNotifications.orEmpty().toList() }.getOrDefault(emptyList())
-            notifications.filter(::shouldCapture).forEach { capture(it, triggerVisualAlert = false) }
+            val notifications = runCatching { activeNotifications.orEmpty().toList() }
+                .getOrDefault(emptyList())
+            notifications.filter(::shouldPersistToVault).forEach { sbn ->
+                persist(parser.parse(sbn, captureThumbnail = settings.isPremium))
+            }
             health.lastReconciliationAt = System.currentTimeMillis()
         }
     }
 
-    private fun shouldCapture(sbn: StatusBarNotification): Boolean {
-        if (sbn.packageName == packageName || sbn.isOngoing) return false
-        return sbn.packageName in settings.monitoredPackages
-    }
+    private fun shouldConsider(sbn: StatusBarNotification): Boolean =
+        sbn.packageName != packageName && !sbn.isOngoing
 
-    private fun capture(sbn: StatusBarNotification, triggerVisualAlert: Boolean) {
-        serviceScope.launch {
-            val captured = parser.parse(sbn, captureThumbnail = settings.isPremium)
-            val dao = database.notificationDao()
-            val previous = dao.findByKey(captured.sbnKey)
-            dao.upsert(
-                captured.toNotificationEntity(previous?.protected == true, previous?.thumbnailPath),
-                captured.toMessageEntities()
-            )
-            if (triggerVisualAlert) triggerLuminous(captured)
+    private fun shouldPersistToVault(sbn: StatusBarNotification): Boolean =
+        shouldConsider(sbn) && sbn.packageName in settings.monitoredPackages
+
+    private fun shouldRunLuminous(sbn: StatusBarNotification): Boolean =
+        shouldConsider(sbn) && (settings.flashEnabled || settings.overlayEnabled)
+
+    private suspend fun persist(captured: CapturedNotification) {
+        val dao = database.notificationDao()
+        val previous = dao.findByKey(captured.sbnKey)
+        dao.upsert(
+            captured.toNotificationEntity(
+                existingProtected = previous?.protected == true,
+                existingThumbnailPath = previous?.thumbnailPath
+            ),
+            captured.toMessageEntities(),
+            captured.toRevisionEntity()
+        )
+        val replacedMedia = previous?.thumbnailPath
+        if (
+            replacedMedia != null &&
+            captured.thumbnailPath != null &&
+            replacedMedia != captured.thumbnailPath
+        ) {
+            mediaStore.delete(replacedMedia)
         }
     }
 
     private fun triggerLuminous(captured: CapturedNotification) {
         if (suppressionPolicy.evaluate().suppressed) return
-        if (settings.flashEnabled) flash.startStrobe(settings.strobeCycles, settings.strobeSpeedMs, settings.strobeSpeedMs)
+        if (settings.flashEnabled) {
+            flash.startStrobe(settings.strobeCycles, settings.strobeSpeedMs, settings.strobeSpeedMs)
+        }
         if (settings.overlayEnabled) overlay.show(captured.appLabel)
     }
 }
