@@ -1,0 +1,14 @@
+<resources>
+    <string name="reset_all_local_data">Reimposta tutti i dati locali</string>
+    <string name="reset_all_local_data_confirm">Elimina Vault, cronologia messaggi, anteprime media, regole, pattern Critical, Follow Up, Pickup Code, profili Luminous, cache account locale e impostazioni dell’app. L’acquisto Premium su Play non viene eliminato.</string>
+    <string name="retention_choose">Conservazione automatica</string>
+    <string name="retention_always">Sempre</string>
+    <string name="retention_days_short">%1$d g</string>
+    <string name="control_center_title">Centro di controllo</string>
+    <string name="control_center_body">Configura spazio, Quiet Hours e comportamento Critical. Premium sblocca le soglie avanzate.</string>
+    <string name="battery_threshold_value">Soglia Battery Guard: %1$d%%</string>
+    <string name="quiet_start_value">Inizio Quiet Hours: %1$s</string>
+    <string name="quiet_end_value">Fine Quiet Hours: %1$s</string>
+    <string name="critical_bypass_quiet">Gli avvisi Critical possono bypassare Quiet Hours</string>
+    <string name="premium_controls_locked">Le soglie avanzate richiedono Premium. Le protezioni base restano attive in Free.</string>
+</resources>

@@ -1,0 +1,14 @@
+<resources>
+    <string name="reset_all_local_data">Reset all local data</string>
+    <string name="reset_all_local_data_confirm">This removes the Vault, message history, media previews, rules, Critical patterns, Follow Ups, Pickup Codes, Luminous profiles, local account cache and app settings. Your Play purchase entitlement is not deleted.</string>
+    <string name="retention_choose">Automatic retention</string>
+    <string name="retention_always">Always</string>
+    <string name="retention_days_short">%1$d d</string>
+    <string name="control_center_title">Control center</string>
+    <string name="control_center_body">Tune storage, Quiet Hours and Critical behavior. Premium unlocks advanced thresholds.</string>
+    <string name="battery_threshold_value">Battery Guard threshold: %1$d%%</string>
+    <string name="quiet_start_value">Quiet Hours start: %1$s</string>
+    <string name="quiet_end_value">Quiet Hours end: %1$s</string>
+    <string name="critical_bypass_quiet">Critical alerts may bypass Quiet Hours</string>
+    <string name="premium_controls_locked">Advanced thresholds require Premium. The basic protections remain active in Free.</string>
+</resources>

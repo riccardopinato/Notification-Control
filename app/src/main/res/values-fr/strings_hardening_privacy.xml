@@ -1,0 +1,14 @@
+<resources>
+    <string name="reset_all_local_data">Réinitialiser toutes les données locales</string>
+    <string name="reset_all_local_data_confirm">Supprime le Vault, l’historique des messages, les aperçus média, les règles, les motifs Critical, les Follow Ups, les Pickup Codes, les profils Luminous, le cache de compte local et les réglages. L’achat Premium Play n’est pas supprimé.</string>
+    <string name="retention_choose">Conservation automatique</string>
+    <string name="retention_always">Toujours</string>
+    <string name="retention_days_short">%1$d j</string>
+    <string name="control_center_title">Centre de contrôle</string>
+    <string name="control_center_body">Réglez le stockage, Quiet Hours et le comportement Critical. Premium déverrouille les seuils avancés.</string>
+    <string name="battery_threshold_value">Seuil Battery Guard : %1$d%%</string>
+    <string name="quiet_start_value">Début Quiet Hours : %1$s</string>
+    <string name="quiet_end_value">Fin Quiet Hours : %1$s</string>
+    <string name="critical_bypass_quiet">Les alertes Critical peuvent contourner Quiet Hours</string>
+    <string name="premium_controls_locked">Les seuils avancés nécessitent Premium. Les protections de base restent actives en Free.</string>
+</resources>

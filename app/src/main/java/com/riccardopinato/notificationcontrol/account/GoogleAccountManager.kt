@@ -101,6 +101,10 @@ class GoogleAccountManager private constructor(context: Context) {
             CredentialManager.create(activity)
                 .clearCredentialState(ClearCredentialStateRequest())
         }
+        clearCachedProfile()
+    }
+
+    fun clearCachedProfile() {
         prefs.edit { clear() }
         _state.value = AccountUiState(
             profile = null,

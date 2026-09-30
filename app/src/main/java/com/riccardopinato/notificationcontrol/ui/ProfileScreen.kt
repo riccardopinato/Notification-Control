@@ -57,6 +57,11 @@ fun ProfileScreen(
     onVaultLockChanged: (Boolean) -> Unit,
     onVaultTimeoutChanged: (Int) -> Unit,
     onDeleteAll: () -> Unit,
+    onDeleteAllLocalData: () -> Unit,
+    onRetentionDaysChanged: (Int) -> Unit,
+    onBatteryThresholdChanged: (Int) -> Unit,
+    onQuietHoursWindowChanged: (Int, Int) -> Unit,
+    onCriticalBypassQuietHoursChanged: (Boolean) -> Unit,
     onPurchasePremium: (String) -> Unit,
     onRestorePurchases: () -> Unit,
     onBackupRestored: () -> Unit,
@@ -65,6 +70,7 @@ fun ProfileScreen(
     requestOverlayPermission: () -> Unit
 ) {
     var confirmDelete by remember { mutableStateOf(false) }
+    var confirmReset by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val biometricAuthenticators =
         BiometricManager.Authenticators.BIOMETRIC_STRONG or
@@ -103,7 +109,22 @@ fun ProfileScreen(
                 onTimeoutChange = onVaultTimeoutChanged
             )
         }
-        item { StorageCard(storageStats, state) }
+        item {
+            StorageCard(
+                storageStats = storageStats,
+                state = state,
+                onRetentionDaysChanged = onRetentionDaysChanged
+            )
+        }
+        item {
+            PremiumControlsCard(
+                state = state,
+                onBatteryThresholdChanged = onBatteryThresholdChanged,
+                onQuietHoursWindowChanged = onQuietHoursWindowChanged,
+                onCriticalBypassQuietHoursChanged =
+                    onCriticalBypassQuietHoursChanged
+            )
+        }
         item {
             PermissionHealthCard(
                 requestNotificationAccess = requestNotificationAccess,
@@ -133,6 +154,14 @@ fun ProfileScreen(
                 Text(stringResource(R.string.delete_vault))
             }
         }
+        item {
+            FilledTonalButton(
+                onClick = { confirmReset = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.reset_all_local_data))
+            }
+        }
     }
 
     if (confirmDelete) {
@@ -152,6 +181,29 @@ fun ProfileScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmDelete = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (confirmReset) {
+        AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text(stringResource(R.string.reset_all_local_data)) },
+            text = { Text(stringResource(R.string.reset_all_local_data_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteAllLocalData()
+                        confirmReset = false
+                    }
+                ) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReset = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -308,7 +360,11 @@ private fun SecurityCard(
 }
 
 @Composable
-private fun StorageCard(storageStats: StorageStats, state: SettingsUiState) {
+private fun StorageCard(
+    storageStats: StorageStats,
+    state: SettingsUiState,
+    onRetentionDaysChanged: (Int) -> Unit
+) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(stringResource(R.string.storage_title), fontWeight = FontWeight.Bold)
@@ -323,8 +379,138 @@ private fun StorageCard(storageStats: StorageStats, state: SettingsUiState) {
                 },
                 style = MaterialTheme.typography.bodySmall
             )
+            if (state.isPremium) {
+                Text(
+                    stringResource(R.string.retention_choose),
+                    modifier = Modifier.padding(top = 8.dp),
+                    fontWeight = FontWeight.SemiBold
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    ProductLimits.PREMIUM_RETENTION_OPTIONS_DAYS.forEach { days ->
+                        FilterChip(
+                            selected = state.retentionDays == days,
+                            onClick = { onRetentionDaysChanged(days) },
+                            label = {
+                                Text(
+                                    if (days == Int.MAX_VALUE) {
+                                        stringResource(R.string.retention_always)
+                                    } else {
+                                        stringResource(R.string.retention_days_short, days)
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun PremiumControlsCard(
+    state: SettingsUiState,
+    onBatteryThresholdChanged: (Int) -> Unit,
+    onQuietHoursWindowChanged: (Int, Int) -> Unit,
+    onCriticalBypassQuietHoursChanged: (Boolean) -> Unit
+) {
+    var quietStart by remember(state.quietStartMinutes) {
+        mutableStateOf(state.quietStartMinutes.toFloat())
+    }
+    var quietEnd by remember(state.quietEndMinutes) {
+        mutableStateOf(state.quietEndMinutes.toFloat())
+    }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.control_center_title),
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                stringResource(R.string.control_center_body),
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Text(
+                stringResource(
+                    R.string.battery_threshold_value,
+                    state.batteryGuardThreshold
+                ),
+                modifier = Modifier.padding(top = 10.dp)
+            )
+            Slider(
+                value = state.batteryGuardThreshold.toFloat(),
+                onValueChange = { onBatteryThresholdChanged(it.toInt()) },
+                valueRange = 5f..50f,
+                enabled = state.isPremium
+            )
+
+            Text(
+                stringResource(
+                    R.string.quiet_start_value,
+                    formatMinutesOfDay(quietStart.toInt())
+                )
+            )
+            Slider(
+                value = quietStart,
+                onValueChange = {
+                    quietStart = it
+                    onQuietHoursWindowChanged(
+                        quietStart.toInt(),
+                        quietEnd.toInt()
+                    )
+                },
+                valueRange = 0f..1439f
+            )
+
+            Text(
+                stringResource(
+                    R.string.quiet_end_value,
+                    formatMinutesOfDay(quietEnd.toInt())
+                )
+            )
+            Slider(
+                value = quietEnd,
+                onValueChange = {
+                    quietEnd = it
+                    onQuietHoursWindowChanged(
+                        quietStart.toInt(),
+                        quietEnd.toInt()
+                    )
+                },
+                valueRange = 0f..1439f
+            )
+
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    stringResource(R.string.critical_bypass_quiet),
+                    Modifier.weight(1f)
+                )
+                Switch(
+                    checked = state.criticalBypassQuietHours,
+                    onCheckedChange = onCriticalBypassQuietHoursChanged,
+                    enabled = state.isPremium
+                )
+            }
+
+            if (!state.isPremium) {
+                Text(
+                    stringResource(R.string.premium_controls_locked),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+private fun formatMinutesOfDay(value: Int): String {
+    val safe = value.coerceIn(0, 1439)
+    return String.format("%02d:%02d", safe / 60, safe % 60)
 }
 
 @Composable

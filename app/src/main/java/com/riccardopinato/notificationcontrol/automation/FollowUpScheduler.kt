@@ -11,6 +11,7 @@ object FollowUpScheduler {
     fun schedule(context: Context, followUpId: Long, dueAt: Long) {
         val delayMs = (dueAt - System.currentTimeMillis()).coerceAtLeast(1_000L)
         val request = OneTimeWorkRequestBuilder<FollowUpWorker>()
+            .addTag(TAG)
             .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
             .setInputData(
                 Data.Builder()
@@ -30,5 +31,10 @@ object FollowUpScheduler {
         WorkManager.getInstance(context).cancelUniqueWork(workName(followUpId))
     }
 
+    fun cancelAll(context: Context) {
+        WorkManager.getInstance(context).cancelAllWorkByTag(TAG)
+    }
+
     private fun workName(id: Long) = "follow_up_$id"
+    private const val TAG = "notification_control_follow_up"
 }

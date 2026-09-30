@@ -1,5 +1,7 @@
 package com.riccardopinato.notificationcontrol.ui
 
+import android.app.Activity
+import android.view.WindowManager
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Archive
@@ -84,6 +86,15 @@ fun NotificationControlApp(
 
     val context = LocalContext.current
     val security = remember { VaultSecurityManager(context) }
+
+    LaunchedEffect(settings.vaultLockEnabled) {
+        val activity = context as? Activity
+        if (settings.vaultLockEnabled) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
     val snackbar = remember { SnackbarHostState() }
     val protectedLimitMessage = stringResource(R.string.protected_limit_reached)
     val ruleLimitMessage = stringResource(R.string.rule_limit_reached)
@@ -146,8 +157,17 @@ fun NotificationControlApp(
             }
         }
     ) { padding ->
+        val sensitiveLocked =
+            settings.vaultLockEnabled && security.isLocked()
+
         when (tab) {
-            MainTab.HOME -> HomeScreen(
+            MainTab.HOME -> if (sensitiveLocked) {
+                VaultLockedScreen(
+                    modifier = Modifier,
+                    contentPadding = padding,
+                    onUnlock = requestVaultUnlock
+                )
+            } else HomeScreen(
                 modifier = Modifier,
                 contentPadding = padding,
                 settings = settings,
@@ -158,7 +178,7 @@ fun NotificationControlApp(
             ) { showPicker = true }
 
             MainTab.VAULT -> {
-                if (security.isLocked()) {
+                if (sensitiveLocked) {
                     VaultLockedScreen(
                         modifier = Modifier,
                         contentPadding = padding,
@@ -191,7 +211,13 @@ fun NotificationControlApp(
                 }
             }
 
-            MainTab.FOLLOW_UP -> FollowUpScreen(
+            MainTab.FOLLOW_UP -> if (sensitiveLocked) {
+                VaultLockedScreen(
+                    modifier = Modifier,
+                    contentPadding = padding,
+                    onUnlock = requestVaultUnlock
+                )
+            } else FollowUpScreen(
                 modifier = Modifier,
                 contentPadding = padding,
                 followUps = followUps,
@@ -241,6 +267,11 @@ fun NotificationControlApp(
                 onVaultLockChanged = viewModel::setVaultLockEnabled,
                 onVaultTimeoutChanged = viewModel::setVaultLockTimeoutMinutes,
                 onDeleteAll = viewModel::deleteAllVault,
+                onDeleteAllLocalData = viewModel::deleteAllLocalData,
+                onRetentionDaysChanged = viewModel::setRetentionDays,
+                onBatteryThresholdChanged = viewModel::setBatteryGuardThreshold,
+                onQuietHoursWindowChanged = viewModel::setQuietHoursWindow,
+                onCriticalBypassQuietHoursChanged = viewModel::setCriticalBypassQuietHours,
                 onPurchasePremium = purchasePremiumOffer,
                 onRestorePurchases = viewModel::restorePurchases,
                 onBackupRestored = viewModel::refresh,

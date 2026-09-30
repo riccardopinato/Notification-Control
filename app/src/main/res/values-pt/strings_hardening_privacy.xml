@@ -1,0 +1,14 @@
+<resources>
+    <string name="reset_all_local_data">Repor todos os dados locais</string>
+    <string name="reset_all_local_data_confirm">Remove o Vault, histórico de mensagens, pré-visualizações, regras, padrões Critical, Follow Ups, Pickup Codes, perfis Luminous, cache local da conta e definições. A compra Premium da Play não é removida.</string>
+    <string name="retention_choose">Retenção automática</string>
+    <string name="retention_always">Sempre</string>
+    <string name="retention_days_short">%1$d d</string>
+    <string name="control_center_title">Centro de controlo</string>
+    <string name="control_center_body">Ajuste armazenamento, Quiet Hours e comportamento Critical. Premium desbloqueia limites avançados.</string>
+    <string name="battery_threshold_value">Limite Battery Guard: %1$d%%</string>
+    <string name="quiet_start_value">Início Quiet Hours: %1$s</string>
+    <string name="quiet_end_value">Fim Quiet Hours: %1$s</string>
+    <string name="critical_bypass_quiet">Alertas Critical podem ignorar Quiet Hours</string>
+    <string name="premium_controls_locked">Os limites avançados requerem Premium. As proteções básicas continuam ativas no Free.</string>
+</resources>

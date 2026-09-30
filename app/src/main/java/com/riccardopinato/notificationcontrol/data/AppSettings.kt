@@ -100,6 +100,10 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean(KEY_CRITICAL_BYPASS_QUIET, true)
         set(value) = prefs.edit { putBoolean(KEY_CRITICAL_BYPASS_QUIET, value) }
 
+    fun clearUserSettings() {
+        prefs.edit { clear() }
+    }
+
     companion object {
         private const val PREFS = "notification_control_settings"
         private const val KEY_ONBOARDING = "onboarding_completed"

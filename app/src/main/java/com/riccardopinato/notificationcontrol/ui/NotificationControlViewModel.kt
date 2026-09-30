@@ -5,7 +5,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
+import com.riccardopinato.notificationcontrol.account.GoogleAccountManager
 import com.riccardopinato.notificationcontrol.automation.AutomationRepository
+import com.riccardopinato.notificationcontrol.automation.FollowUpScheduler
 import com.riccardopinato.notificationcontrol.billing.BillingUiState
 import com.riccardopinato.notificationcontrol.billing.PlayBillingManager
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
@@ -65,6 +68,8 @@ data class SettingsUiState(
     val batteryGuardEnabled: Boolean = true,
     val batteryGuardThreshold: Int = 15,
     val quietHoursEnabled: Boolean = false,
+    val quietStartMinutes: Int = 22 * 60,
+    val quietEndMinutes: Int = 7 * 60,
     val circleColorHex: String = "#6750A4",
     val circleThickness: Float = 24f,
     val circleGlow: Float = 30f,
@@ -281,8 +286,26 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         refresh()
     }
 
+    fun setBatteryGuardThreshold(value: Int) {
+        if (!settings.isPremium) return
+        settings.batteryGuardThreshold = value
+        refresh()
+    }
+
     fun setQuietHoursEnabled(value: Boolean) {
         settings.quietHoursEnabled = value
+        refresh()
+    }
+
+    fun setQuietHoursWindow(startMinutes: Int, endMinutes: Int) {
+        settings.quietStartMinutes = startMinutes
+        settings.quietEndMinutes = endMinutes
+        refresh()
+    }
+
+    fun setCriticalBypassQuietHours(enabled: Boolean) {
+        if (!settings.isPremium) return
+        settings.criticalBypassQuietHours = enabled
         refresh()
     }
 
@@ -486,6 +509,43 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         }
     }
 
+    fun deleteAllLocalData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val app = getApplication<Application>()
+            val mediaStore = NotificationMediaStore(app)
+            val paths = dao.allThumbnailPaths()
+            val backupDao = database.backupDao()
+            val followUps = backupDao.allFollowUps()
+
+            followUps.forEach { FollowUpScheduler.cancel(app, it.id) }
+            FollowUpScheduler.cancelAll(app)
+
+            database.withTransaction {
+                database.luminousProfileDao().deleteAll()
+                backupDao.deletePickupCodes()
+                backupDao.deleteFollowUps()
+                backupDao.deleteCriticalPatterns()
+                backupDao.deleteRuleActions()
+                backupDao.deleteRules()
+                backupDao.deleteFts()
+                backupDao.deleteRevisions()
+                backupDao.deleteMessages()
+                backupDao.deleteNotifications()
+            }
+
+            paths.forEach(mediaStore::delete)
+            mediaStore.cleanupOrphans(emptyList())
+            GoogleAccountManager.get(app).clearCachedProfile()
+            settings.clearUserSettings()
+            VaultSecurityManager(app).lock()
+            _selectedVaultEventKey.value = null
+            _vaultSearch.value = ""
+            _vaultPackageFilter.value = null
+            _vaultLimit.value = 100
+            refresh()
+        }
+    }
+
     fun testVisualAlerts() {
         val context = getApplication<Application>()
         if (settings.flashEnabled) {
@@ -524,6 +584,8 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         batteryGuardEnabled = settings.batteryGuardEnabled,
         batteryGuardThreshold = settings.batteryGuardThreshold,
         quietHoursEnabled = settings.quietHoursEnabled,
+        quietStartMinutes = settings.quietStartMinutes,
+        quietEndMinutes = settings.quietEndMinutes,
         circleColorHex = settings.circleColorHex,
         circleThickness = settings.circleThickness,
         circleGlow = settings.circleGlow,

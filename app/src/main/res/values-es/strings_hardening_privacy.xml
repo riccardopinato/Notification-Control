@@ -1,0 +1,14 @@
+<resources>
+    <string name="reset_all_local_data">Restablecer todos los datos locales</string>
+    <string name="reset_all_local_data_confirm">Elimina Vault, historial de mensajes, vistas previas, reglas, patrones Critical, Follow Ups, Pickup Codes, perfiles Luminous, caché local de la cuenta y ajustes. La compra Premium de Play no se elimina.</string>
+    <string name="retention_choose">Retención automática</string>
+    <string name="retention_always">Siempre</string>
+    <string name="retention_days_short">%1$d d</string>
+    <string name="control_center_title">Centro de control</string>
+    <string name="control_center_body">Configura almacenamiento, Quiet Hours y comportamiento Critical. Premium desbloquea umbrales avanzados.</string>
+    <string name="battery_threshold_value">Umbral Battery Guard: %1$d%%</string>
+    <string name="quiet_start_value">Inicio Quiet Hours: %1$s</string>
+    <string name="quiet_end_value">Fin Quiet Hours: %1$s</string>
+    <string name="critical_bypass_quiet">Las alertas Critical pueden omitir Quiet Hours</string>
+    <string name="premium_controls_locked">Los umbrales avanzados requieren Premium. Las protecciones básicas siguen activas en Free.</string>
+</resources>
