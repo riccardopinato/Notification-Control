@@ -1,0 +1,7 @@
+<resources>
+    <string name="critical_pending_title">Avviso Critical da gestire</string>
+    <string name="critical_pending_locked">I dettagli sensibili sono bloccati.</string>
+    <string name="critical_next_escalation">Prossima escalation circa alle %1$s</string>
+    <string name="mark_handled">Segna gestito</string>
+    <string name="critical_escalation_notification">Avviso Critical ancora da gestire</string>
+</resources>

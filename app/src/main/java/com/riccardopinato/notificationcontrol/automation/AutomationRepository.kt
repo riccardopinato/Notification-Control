@@ -2,8 +2,10 @@ package com.riccardopinato.notificationcontrol.automation
 
 import android.content.Context
 import com.riccardopinato.notificationcontrol.capture.CapturedNotification
+import com.riccardopinato.notificationcontrol.capture.NotificationFingerprint
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.AutomationDao
+import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
 import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
@@ -61,6 +63,34 @@ class AutomationRepository(
             actions
         )
         return true
+    }
+
+    suspend fun registerCriticalAlert(event: CapturedNotification): Long? {
+        if (!settings.isPremium) return null
+        val now = System.currentTimeMillis()
+        val eventKey = NotificationFingerprint.sha256(
+            event.sbnKey + "\u0000" + event.postedAt
+        )
+        val entity = CriticalAlertEntity(
+            eventKey = eventKey,
+            sourcePackage = event.packageName,
+            sourceLabel = event.appLabel,
+            title = event.title?.takeIf { it.isNotBlank() },
+            createdAt = now,
+            updatedAt = now,
+            status = "ACTIVE",
+            escalationStep = 0,
+            nextAt = now + 2L * 60L * 1000L
+        )
+        val id = dao.insertCriticalAlert(entity)
+        if (id == -1L) return null
+        CriticalAlertScheduler.schedule(context, id, entity.nextAt)
+        return id
+    }
+
+    suspend fun handleCriticalAlert(id: Long) {
+        dao.handleCriticalAlert(id, System.currentTimeMillis())
+        CriticalAlertScheduler.cancel(context, id)
     }
 
     suspend fun addCriticalPattern(type: String, value: String): Boolean {

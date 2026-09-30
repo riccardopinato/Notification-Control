@@ -1,0 +1,7 @@
+<resources>
+    <string name="critical_pending_title">Alerte Critical en attente</string>
+    <string name="critical_pending_locked">Les détails sensibles sont verrouillés.</string>
+    <string name="critical_next_escalation">Prochaine escalade vers %1$s</string>
+    <string name="mark_handled">Marquer comme traitée</string>
+    <string name="critical_escalation_notification">L’alerte Critical est toujours en attente</string>
+</resources>

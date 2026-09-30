@@ -52,6 +52,7 @@ fun NotificationControlApp(
     val appFilters by viewModel.vaultAppFilters.collectAsStateWithLifecycle()
     val storageStats by viewModel.storageStats.collectAsStateWithLifecycle()
     val rules by viewModel.rules.collectAsStateWithLifecycle()
+    val criticalAlerts by viewModel.criticalAlerts.collectAsStateWithLifecycle()
     val criticalPatterns by viewModel.criticalPatterns.collectAsStateWithLifecycle()
     val followUps by viewModel.followUps.collectAsStateWithLifecycle()
     val pickupCodes by viewModel.pickupCodes.collectAsStateWithLifecycle()
@@ -153,10 +154,12 @@ fun NotificationControlApp(
                 contentPadding = padding,
                 settings = settings,
                 count = count,
+                criticalAlerts = criticalAlerts,
                 pickupCodes = pickupCodes,
                 sensitiveLocked = sensitiveLocked,
                 requestNotificationAccess = requestNotificationAccess,
                 onUnlockSensitive = requestVaultUnlock,
+                onHandleCritical = viewModel::handleCriticalAlert,
                 onDismissPickup = viewModel::dismissPickupCode
             ) { showPicker = true }
 

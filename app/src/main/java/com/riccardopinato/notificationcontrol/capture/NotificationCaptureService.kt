@@ -68,7 +68,10 @@ class NotificationCaptureService : NotificationListenerService() {
             vaultRepository = vaultRepository,
             consumers = listOf(
                 RulesConsumer(RuleEngine(database.automationDao())),
-                CriticalConsumer(CriticalMatcher(database.automationDao())),
+                CriticalConsumer(
+                    matcher = CriticalMatcher(database.automationDao()),
+                    automationRepository = automationRepository
+                ),
                 PausePingConsumer(PausePingController(settings)),
                 FollowUpConsumer(automationRepository),
                 PickupCodeConsumer(vaultRepository, automationRepository),

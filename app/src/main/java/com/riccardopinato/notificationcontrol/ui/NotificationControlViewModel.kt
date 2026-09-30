@@ -11,6 +11,7 @@ import com.riccardopinato.notificationcontrol.billing.BillingUiState
 import com.riccardopinato.notificationcontrol.billing.PlayBillingManager
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
+import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
 import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
@@ -160,6 +161,13 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
 
     val rules: StateFlow<List<RuleWithActions>> =
         automationDao.observeRules().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
+
+    val criticalAlerts: StateFlow<List<CriticalAlertEntity>> =
+        automationDao.observeActiveCriticalAlerts().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             emptyList()
@@ -442,6 +450,12 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     fun deleteCriticalPattern(id: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             automationDao.deleteCriticalPattern(id)
+        }
+    }
+
+    fun handleCriticalAlert(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            automationRepository.handleCriticalAlert(id)
         }
     }
 

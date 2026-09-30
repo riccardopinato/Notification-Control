@@ -90,6 +90,32 @@ interface AutomationDao {
     @Query("DELETE FROM critical_patterns WHERE id = :id")
     suspend fun deleteCriticalPattern(id: Long)
 
+    @Query("SELECT * FROM critical_alerts WHERE status = 'ACTIVE' ORDER BY createdAt DESC")
+    fun observeActiveCriticalAlerts(): Flow<List<CriticalAlertEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertCriticalAlert(entity: CriticalAlertEntity): Long
+
+    @Query("SELECT * FROM critical_alerts WHERE id = :id LIMIT 1")
+    suspend fun criticalAlertById(id: Long): CriticalAlertEntity?
+
+    @Query(
+        "UPDATE critical_alerts SET status = 'HANDLED', updatedAt = :now " +
+            "WHERE id = :id"
+    )
+    suspend fun handleCriticalAlert(id: Long, now: Long)
+
+    @Query(
+        "UPDATE critical_alerts SET escalationStep = :step, nextAt = :nextAt, " +
+            "updatedAt = :now WHERE id = :id AND status = 'ACTIVE'"
+    )
+    suspend fun advanceCriticalAlert(
+        id: Long,
+        step: Int,
+        nextAt: Long,
+        now: Long
+    )
+
     @Query("SELECT * FROM follow_ups WHERE status = 'ACTIVE' ORDER BY dueAt ASC")
     fun observeActiveFollowUps(): Flow<List<FollowUpEntity>>
 

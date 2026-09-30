@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.capture.ListenerHealthStore
+import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
 import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
 import com.riccardopinato.notificationcontrol.data.VaultAppFilter
@@ -58,10 +59,12 @@ fun HomeScreen(
     contentPadding: PaddingValues,
     settings: SettingsUiState,
     count: Int,
+    criticalAlerts: List<CriticalAlertEntity>,
     pickupCodes: List<PickupCodeEntity>,
     sensitiveLocked: Boolean,
     requestNotificationAccess: () -> Unit,
     onUnlockSensitive: () -> Unit,
+    onHandleCritical: (Long) -> Unit,
     onDismissPickup: (Long) -> Unit,
     onConfigureApps: () -> Unit
 ) {
@@ -102,6 +105,16 @@ fun HomeScreen(
                 }
             }
         }
+        criticalAlerts.firstOrNull()?.let { alert ->
+            item {
+                CriticalAlertCard(
+                    alert = alert,
+                    sensitiveLocked = sensitiveLocked,
+                    onHandle = { onHandleCritical(alert.id) }
+                )
+            }
+        }
+
         activeCode?.let { code ->
             item {
                 if (sensitiveLocked) {
@@ -155,6 +168,44 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.configure_apps))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CriticalAlertCard(
+    alert: CriticalAlertEntity,
+    sensitiveLocked: Boolean,
+    onHandle: () -> Unit
+) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(Modifier.padding(18.dp)) {
+            Text(
+                stringResource(R.string.critical_pending_title),
+                fontWeight = FontWeight.Bold
+            )
+            if (!sensitiveLocked) {
+                Text(alert.sourceLabel, fontWeight = FontWeight.SemiBold)
+                alert.title?.takeIf { it.isNotBlank() }?.let { Text(it) }
+            } else {
+                Text(stringResource(R.string.critical_pending_locked))
+            }
+            Text(
+                stringResource(
+                    R.string.critical_next_escalation,
+                    DateFormat.getTimeInstance(DateFormat.SHORT)
+                        .format(Date(alert.nextAt))
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
+            TextButton(onClick = onHandle) {
+                Text(stringResource(R.string.mark_handled))
             }
         }
     }

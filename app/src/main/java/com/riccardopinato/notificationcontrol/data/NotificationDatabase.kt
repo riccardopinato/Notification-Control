@@ -16,11 +16,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RuleEntity::class,
         RuleActionEntity::class,
         CriticalPatternEntity::class,
+        CriticalAlertEntity::class,
         FollowUpEntity::class,
         PickupCodeEntity::class,
         LuminousProfileEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class NotificationDatabase : RoomDatabase() {
@@ -238,6 +239,39 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS critical_alerts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        eventKey TEXT NOT NULL,
+                        sourcePackage TEXT NOT NULL,
+                        sourceLabel TEXT NOT NULL,
+                        title TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        status TEXT NOT NULL,
+                        escalationStep INTEGER NOT NULL,
+                        nextAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "index_critical_alerts_eventKey ON critical_alerts(eventKey)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "index_critical_alerts_status ON critical_alerts(status)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "index_critical_alerts_nextAt ON critical_alerts(nextAt)"
+                )
+            }
+        }
+
         fun get(context: Context): NotificationDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -249,7 +283,8 @@ abstract class NotificationDatabase : RoomDatabase() {
                     MIGRATION_2_3,
                     MIGRATION_3_4,
                     MIGRATION_4_5,
-                    MIGRATION_5_6
+                    MIGRATION_5_6,
+                    MIGRATION_6_7
                 )
                 .build()
                 .also { instance = it }
