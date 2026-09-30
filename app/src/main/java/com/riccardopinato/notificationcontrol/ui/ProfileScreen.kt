@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -25,9 +26,9 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +39,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.riccardopinato.notificationcontrol.R
+import com.riccardopinato.notificationcontrol.billing.BillingUiState
+import com.riccardopinato.notificationcontrol.billing.EntitlementTier
 import com.riccardopinato.notificationcontrol.capture.ListenerHealthStore
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 import com.riccardopinato.notificationcontrol.localization.LocaleController
@@ -48,11 +51,14 @@ fun ProfileScreen(
     modifier: Modifier,
     contentPadding: PaddingValues,
     state: SettingsUiState,
+    billingState: BillingUiState,
     storageStats: StorageStats,
     onConfigureApps: () -> Unit,
     onVaultLockChanged: (Boolean) -> Unit,
     onVaultTimeoutChanged: (Int) -> Unit,
     onDeleteAll: () -> Unit,
+    onPurchasePremium: (String) -> Unit,
+    onRestorePurchases: () -> Unit,
     requestNotificationAccess: () -> Unit,
     requestCameraPermission: () -> Unit,
     requestOverlayPermission: () -> Unit
@@ -78,14 +84,19 @@ fun ProfileScreen(
             )
         }
         item {
+            PremiumCard(
+                billingState = billingState,
+                onPurchase = onPurchasePremium,
+                onRestore = onRestorePurchases
+            )
+        }
+        item {
             InfoCard(
                 stringResource(R.string.account_title),
                 stringResource(R.string.account_optional)
             )
         }
-        item {
-            LanguageCard()
-        }
+        item { LanguageCard() }
         item {
             SecurityCard(
                 enabled = state.vaultLockEnabled,
@@ -95,9 +106,7 @@ fun ProfileScreen(
                 onTimeoutChange = onVaultTimeoutChanged
             )
         }
-        item {
-            StorageCard(storageStats, state)
-        }
+        item { StorageCard(storageStats, state) }
         item {
             PermissionHealthCard(
                 requestNotificationAccess = requestNotificationAccess,
@@ -150,6 +159,75 @@ fun ProfileScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun PremiumCard(
+    billingState: BillingUiState,
+    onPurchase: (String) -> Unit,
+    onRestore: () -> Unit
+) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer
+        )
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.premium_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            val tierText = when (billingState.entitlement) {
+                EntitlementTier.FREE -> stringResource(R.string.plan_free)
+                EntitlementTier.PREMIUM_SUBSCRIPTION ->
+                    stringResource(R.string.plan_premium_subscription)
+                EntitlementTier.PREMIUM_LIFETIME ->
+                    stringResource(R.string.plan_premium_lifetime)
+            }
+            Text(stringResource(R.string.current_plan, tierText))
+            Text(
+                stringResource(R.string.premium_value),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
+            if (!billingState.entitlement.isPremium) {
+                billingState.offers.forEach { offer ->
+                    FilledTonalButton(
+                        onClick = { onPurchase(offer.key) },
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+                    ) {
+                        Text(
+                            if (offer.isLifetime) {
+                                stringResource(
+                                    R.string.buy_lifetime,
+                                    offer.formattedPrice
+                                )
+                            } else {
+                                stringResource(
+                                    R.string.buy_subscription,
+                                    offer.planLabel,
+                                    offer.formattedPrice
+                                )
+                            }
+                        )
+                    }
+                }
+                if (!billingState.loading && billingState.offers.isEmpty()) {
+                    Text(
+                        stringResource(R.string.billing_products_unavailable),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+
+            TextButton(onClick = onRestore) {
+                Text(stringResource(R.string.restore_purchases))
+            }
+        }
     }
 }
 
@@ -301,7 +379,10 @@ private fun PermissionHealthRow(
     ) {
         Text(label, Modifier.weight(1f))
         if (ok) {
-            Text(stringResource(R.string.status_ok), color = MaterialTheme.colorScheme.primary)
+            Text(
+                stringResource(R.string.status_ok),
+                color = MaterialTheme.colorScheme.primary
+            )
         } else {
             TextButton(onClick = onFix) {
                 Text(stringResource(R.string.fix))

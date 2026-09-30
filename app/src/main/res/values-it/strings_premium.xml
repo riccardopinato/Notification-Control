@@ -1,0 +1,12 @@
+<resources>
+    <string name="premium_title">Notification Control Premium</string>
+    <string name="plan_free">Free</string>
+    <string name="plan_premium_subscription">Abbonamento Premium</string>
+    <string name="plan_premium_lifetime">Premium a vita</string>
+    <string name="current_plan">Piano attuale: %1$s</string>
+    <string name="premium_value">App monitorate illimitate, automazioni avanzate, conservazione configurabile e controlli Luminous più ricchi.</string>
+    <string name="buy_subscription">%1$s · %2$s</string>
+    <string name="buy_lifetime">A vita · %1$s</string>
+    <string name="restore_purchases">Ripristina acquisti</string>
+    <string name="billing_products_unavailable">I prodotti Premium non sono ancora disponibili da Google Play per questa installazione.</string>
+</resources>
