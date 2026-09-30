@@ -1,0 +1,3 @@
+-keepattributes SourceFile,LineNumberTable,*Annotation*,Signature,InnerClasses
+-keep class * extends androidx.room.RoomDatabase
+-dontwarn androidx.room.**

@@ -1,0 +1,24 @@
+NOTIFICATION CONTROL — AGENT RULES
+
+Source-of-truth order:
+1. docs/PRODUCT_BIBLE.txt
+2. docs/ROADMAP.txt
+3. PROJECT_RULES.txt
+4. current implementation
+5. current task
+
+Execution rules:
+- Inspect only files relevant to the active roadmap step.
+- Do not re-audit/re-read GitHub between consecutive steps unless remote state may have changed or the user asks.
+- Keep main stable. Use focused branches/PRs.
+- One NotificationListenerService only: NotificationCaptureService.
+- One canonical local Vault only. Features consume the same captured event.
+- Notification content remains local by default.
+- Business/Premium limits are centralized, never scattered through UI.
+- Never grant Premium because Billing is unavailable.
+- Do not add QUERY_ALL_PACKAGES, READ_CALL_LOG, RECEIVE_SMS without documented need and Play-policy review.
+- All new user-facing strings use resources and support EN/IT/ES/FR/PT fallback rules.
+- Prefer Material 3, accessibility, dark mode and low-friction flows.
+- Add/update tests for capture, persistence, retention and business limits when touching those areas.
+- Update docs/ROADMAP.txt after material milestones.
+- Final report: modified files, tests run/not run, risks, next step.

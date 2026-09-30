@@ -1,0 +1,335 @@
+NOTIFICATION CONTROL — PRODUCT BIBLE v0.2
+Date: 2026-09-30
+Status: BASELINE APPROVATA
+
+==================================================
+1. IDENTITÀ DEL PRODOTTO
+==================================================
+Nome: Notification Control
+Piattaforma iniziale: Android
+Base/donor principale: The Luminous Infinite Circle
+Design system: Material 3, soft utility aesthetic, dark mode
+Stack: Kotlin + Jetpack Compose
+
+Notification Control è un sistema locale di controllo, conservazione e automazione delle notifiche Android.
+Non è una semplice notification history app: cattura una notifica una sola volta, la normalizza, la salva nel Vault locale e la rende disponibile a più moduli senza duplicazione di listener o dati.
+
+Proposta di valore:
+- non perdere ciò che è arrivato;
+- capire cosa conta;
+- ridurre il rumore;
+- trasformare notifiche importanti in azioni;
+- mantenere il controllo dei dati sul dispositivo;
+- offrire avvisi visivi avanzati tramite Luminous.
+
+==================================================
+2. PRINCIPI NON NEGOZIABILI
+==================================================
+1. Local-first: contenuto notifiche e media preview restano sul dispositivo.
+2. Nessun cloud obbligatorio per le funzioni core.
+3. Single Capture: un solo NotificationListenerService canonico.
+4. Single Vault: una sola fonte persistente per storico/undo/message archive.
+5. Multiple Consumers: Rules, Critical, Follow Up, Pickup e Luminous consumano lo stesso evento.
+6. Privacy by default: nessun contenuto notifiche usato per advertising o analytics.
+7. Security by default: protezione locale tramite tecnologie Android appropriate.
+8. Premium = automazione, controllo e tranquillità; il Free deve restare realmente utile.
+9. Accessibilità Luminous fondamentale non deve essere resa inutilizzabile dal paywall.
+10. Performance e consumo batteria sono requisiti di prodotto.
+11. Stringhe UI sempre centralizzate e localizzabili.
+12. Permessi richiesti progressivamente, solo quando servono.
+13. La rimozione di una notifica non prova che il mittente abbia eliminato un messaggio.
+
+==================================================
+3. ARCHITETTURA FUNZIONALE
+==================================================
+ANDROID NOTIFICATION
+    -> Notification Capture Core
+    -> Normalizer + Deduplication
+    -> Local Event Vault
+        -> Notification Undo
+        -> Message Vault
+        -> Critical Alert
+        -> Follow Up
+        -> Pausa Ping
+        -> Pickup Code
+        -> Luminous Visual Alerts
+        -> Rules Engine
+        -> Retention / Cleanup
+
+Il Vault è la source of truth locale.
+Notification Undo non crea una seconda copia dei dati: usa la copia canonica già presente nel Vault.
+
+==================================================
+4. MODULI V1
+==================================================
+A. Notification Capture Core
+- intercetta le notifiche autorizzate;
+- normalizza package, app, titolo, testo, timestamp, mittente e conversation metadata quando disponibili;
+- deduplica aggiornamenti multipli;
+- separa posted/updated/removed;
+- riconcilia le notifiche attive alla riconnessione del listener.
+
+B. Local Event Vault
+- storico locale;
+- ricerca e filtri;
+- elementi protetti;
+- cancellazione manuale;
+- retention automatica;
+- metriche spazio occupato.
+
+C. Message Vault / Notification Undo
+- conserva il contenuto che Android espone tramite la notifica;
+- può mantenere messaggi non più presenti successivamente nell'app sorgente;
+- non promette recupero retroattivo o accesso al database interno di WhatsApp/Telegram.
+
+D. Critical Alert
+- contatti/app/parole chiave prioritarie;
+- escalation Premium;
+- bypass opzionale di Pausa Ping e Quiet Hours;
+- integrazione Luminous.
+
+E. Follow Up
+- trasforma una notifica in promemoria;
+- snooze;
+- lista Da gestire;
+- ripetizioni Premium.
+
+F. Pausa Ping
+- cooldown;
+- raggruppamento raffiche;
+- eccezioni Premium;
+- riduzione rumore senza bloccare eventi critici.
+
+G. Pickup Code
+- estrazione di codici quando tecnicamente rilevabili dal testo della notifica;
+- copia one-tap;
+- pin temporaneo;
+- scadenza automatica Premium;
+- nessuna promessa di cattura OTP sensibili/redatti dal sistema.
+
+H. Luminous Visual Alerts
+- donor: The Luminous Infinite Circle;
+- flash base;
+- overlay/cerchio luminoso OLED-black;
+- face-down/proximity;
+- Battery Guard;
+- Quiet Hours;
+- pixel shifting;
+- profili avanzati Premium per app/contatto.
+
+I. Rules Engine
+- condizioni su app, mittente, parole, tempo, stato;
+- azioni multiple sullo stesso evento;
+- Free: 2 regole;
+- Premium: regole illimitate e concatenate.
+
+==================================================
+5. FREE VS PREMIUM — BASELINE
+==================================================
+FREE
+- massimo 3 app monitorate dal Vault;
+- storico locale: ultimi 7 giorni;
+- testo notifiche salvato localmente;
+- Notification Undo;
+- ricerca testuale semplice;
+- ricerca per app;
+- eliminazione manuale;
+- massimo 10 elementi protetti;
+- 3 Follow Up attivi;
+- snooze rapido;
+- 1 Critical Contact;
+- 3 parole critiche;
+- 1 app critica;
+- Pausa Ping globale;
+- 2 regole semplici;
+- Pickup Code manuale/base;
+- Luminous flash base;
+- Luminous visual overlay base;
+- face-down / pocket detection;
+- pixel shifting;
+- Battery Guard base;
+- una fascia Quiet Hours;
+- protezione locale del Vault;
+- export limitato allo storico disponibile.
+
+PREMIUM
+- app monitorate illimitate;
+- retention configurabile: 1 / 3 / 7 / 30 giorni / Sempre;
+- retention distinta per app e, in futuro, testo/media;
+- elementi protetti illimitati;
+- ricerca combinata;
+- filtri salvati;
+- thumbnail leggere quando la notifica espone media;
+- limite massimo spazio Vault configurabile;
+- Smart Cleanup;
+- Follow Up illimitati;
+- Critical Alert avanzato;
+- Pausa Ping avanzato;
+- Rules Engine illimitato;
+- Pickup Code automatico;
+- Luminous per app e per contatto;
+- colori/pattern/glow/spessore/animazioni avanzati;
+- più Quiet Hours + eccezioni;
+- Battery Guard configurabile;
+- backup/export avanzati.
+
+Nota: Luminous base può reagire alle notifiche anche indipendentemente dal limite di 3 app del Vault, per non impoverire la funzione di accessibilità.
+
+==================================================
+6. SMART RETENTION E STORAGE
+==================================================
+Obiettivo: mantenere l'app leggera senza manutenzione manuale.
+
+Premium:
+- conservazione 1 / 3 / 7 / 30 giorni / sempre;
+- regole future diverse per singola app e media;
+- elementi protetti esclusi dalla cancellazione automatica;
+- soglia massima di storage configurabile;
+- pulizia periodica di record scaduti e file orfani;
+- dashboard spazio: testo / media / totale.
+
+==================================================
+7. MEDIA PREVIEW ARCHIVE
+==================================================
+Notification Control conserva solo le immagini realmente esposte dalla notifica.
+Non promette la foto originale inviata via WhatsApp/Telegram.
+
+Pipeline:
+1. ricezione notifica;
+2. rilevazione media disponibile;
+3. estrazione sicura;
+4. ridimensionamento immediato;
+5. thumbnail leggera max circa 320 px sul lato maggiore;
+6. formato compresso supportato dalla piattaforma;
+7. salvataggio locale;
+8. cancellazione secondo retention.
+
+Il bitmap originale non viene conservato di default.
+
+==================================================
+8. LOCALIZZAZIONE
+==================================================
+Lingue iniziali:
+- English
+- Italiano
+- Español
+- Français
+- Português
+
+Regole:
+- primo avvio: lingua del telefono;
+- fallback: English;
+- cambio manuale futuro in Profilo > Lingua;
+- nessuna schermata obbligatoria di scelta lingua nell'onboarding;
+- stringhe UI, onboarding, paywall, notifiche interne e descrizioni accessibilità localizzate;
+- date/orari secondo locale;
+- nessuna stringa business hardcoded nella UI.
+
+==================================================
+9. PROFILO E IDENTITÀ
+==================================================
+Il login NON è obbligatorio.
+
+Profilo include:
+- avatar/nome/email se collegato;
+- Google Sign-In opzionale;
+- piano Free/Premium;
+- Sicurezza;
+- Lingua;
+- Storage & Retention;
+- Privacy;
+- Permessi;
+- Backup;
+- Diagnostica;
+- Info/versione/licenze.
+
+Google Sign-In serve per identità, entitlement/backup futuri e continuità.
+Non sostituisce la sicurezza locale del Vault.
+
+==================================================
+10. ONBOARDING V1
+==================================================
+Onboarding massimo 4 step principali + test finale futuro.
+
+STEP 1 — Benvenuto / Privacy
+STEP 2 — Accesso notifiche + scelta massimo 3 app Free
+STEP 3 — Avvisi visivi Luminous e permessi progressivi
+STEP 4 — Sicurezza + account opzionale
+
+==================================================
+11. PERMISSION HEALTH
+==================================================
+Profilo > Stato Notification Control:
+- Notification Access;
+- Camera;
+- Overlay;
+- Exact alarm solo se necessario;
+- battery/background dove rilevante;
+- biometria;
+- Luminous;
+- eventuali errori di servizio.
+
+==================================================
+12. DESIGN SYSTEM
+==================================================
+Material 3.
+Direzione: minimal, confortevole, affidabile, non tecnica.
+
+Principi:
+- card funzionali;
+- gerarchia chiara;
+- spaziatura generosa ma non dispersiva;
+- light + dark mode;
+- palette proprietaria;
+- Critical usa colore di allerta solo quando necessario;
+- Luminous può usare accenti neon nella propria area;
+- Premium integrato nel flusso, senza lucchetti ovunque;
+- accessibilità TalkBack e target touch corretti.
+
+==================================================
+13. PRIVACY
+==================================================
+- contenuto notifiche locale;
+- nessun contenuto inviato a server per le funzioni core;
+- nessun advertising basato sul contenuto;
+- nessuna analytics del testo;
+- cancellazione completa accessibile dal Profilo;
+- export solo su azione utente;
+- disclosure chiara prima di Notification Access;
+- backup cloud automatico Android disattivato finché non esiste un design cifrato esplicito.
+
+==================================================
+14. OUT OF SCOPE V1
+==================================================
+- recupero retroattivo messaggi non notificati;
+- accesso al database privato WhatsApp/Telegram;
+- promessa “recupera tutti i messaggi cancellati”;
+- cloud sync obbligatorio;
+- AI generativa;
+- analisi semantica cloud del contenuto privato;
+- iOS;
+- web feature-complete per funzioni native Android.
+
+==================================================
+15. DONOR AUDIT DECISIONS
+==================================================
+Confermato riutilizzabile:
+- CameraManager flash engine concept;
+- Quiet Hours calculation;
+- circle rendering concept;
+- pixel shifting concept;
+- proximity/pocket sensing;
+- Material 3 foundation;
+- local diagnostics/test concepts.
+
+Correzioni:
+- donor non aveva Vault né parsing contenuto notifiche;
+- donor non aveva vera face-down detection basata su accelerometro/gravity;
+- proximity non sopprimeva coerentemente flash e overlay;
+- “AOD” donor era TYPE_APPLICATION_OVERLAY che accende/mantiene lo schermo, non hardware/system AOD;
+- reminder donor era globale;
+- Billing donor non era production-safe;
+- RECEIVE_SMS / READ_CALL_LOG esclusi dall'architettura target;
+- entitlement non deve stare nei renderer Luminous.
+
+END PRODUCT BIBLE v0.2

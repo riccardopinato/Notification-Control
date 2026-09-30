@@ -1,0 +1,212 @@
+NOTIFICATION CONTROL — ROADMAP v0.3
+Date: 2026-09-30
+Status: IN ESECUZIONE
+
+==================================================
+PHASE 0 — DONOR AUDIT & BASELINE
+==================================================
+STATIC AUDIT: COMPLETED
+BUILD EVIDENCE DONOR ZIP: BLOCKED
+Reason: ZIP donor senza wrapper Gradle completo.
+
+Risultato:
+- donor Luminous mappato;
+- reuse/refactor/drop identificati;
+- rischi Billing/permessi/overlay/sensori identificati.
+
+==================================================
+MAXI STEP 0B — DONOR HARDENING & PROJECT CONVERSION
+==================================================
+Status: IN PROGRESS
+
+Completato nel branch di sviluppo:
+- repo Notification-Control inizializzato;
+- package prodotto dedicato;
+- AI/network boilerplate donor escluso;
+- manifest ridotto ai permessi necessari alla baseline;
+- backup Android automatico disabilitato;
+- Material 3 light/dark foundation;
+- EN/IT/ES/FR/PT locale foundation;
+- MainActivity ridotta a shell;
+- Luminous FlashCoordinator singleton;
+- shared SuppressionPolicy;
+- face-down con gravity/accelerometro + pocket/proximity;
+- Battery Guard con charging exception;
+- Quiet Hours;
+- overlay Luminous separato;
+- onboarding baseline;
+- Profile baseline;
+- CI Android.
+
+Da chiudere prima del merge:
+- build/test/lint CI verdi;
+- correzione di eventuali incompatibilità SDK/Gradle;
+- static permission/policy review finale.
+
+==================================================
+PHASE 1 — FOUNDATION & MODULARIZATION
+==================================================
+Status: PARTI CORE GIÀ ANTICIPATE IN 0B
+- package boundaries: avviate;
+- core notifications/data/domain: avviati;
+- feature Vault: avviata;
+- feature Luminous: avviata;
+- feature Profile: avviata;
+- localization foundation: avviata;
+- Material 3: avviata.
+
+==================================================
+PHASE 2 — SINGLE CAPTURE CORE
+==================================================
+Status: BASELINE IMPLEMENTATA, DA VALIDARE
+- un solo NotificationListenerService;
+- event model canonico;
+- MessagingStyle parsing;
+- posted/removed lifecycle;
+- removal reason quando Android lo espone;
+- reconcile active notifications su reconnect;
+- app selection;
+- Free limit 3 centralizzato;
+- listener health.
+
+Da fare:
+- test notifiche reali su device;
+- copertura più ampia per edge case e grouped notifications;
+- eventuale storico update/versioning più ricco.
+
+==================================================
+PHASE 3 — LOCAL VAULT
+==================================================
+Status: BASELINE IMPLEMENTATA, DA VALIDARE
+- Room schema v1;
+- notification + structured messages;
+- protected items;
+- cancellazione completa;
+- 7-day Free retention;
+- dedupe message fingerprint;
+- no cloud dependency.
+
+Da fare:
+- FTS/search;
+- filtri;
+- storage accounting;
+- encryption/security strategy;
+- migration tests prima di schema post-v1.
+
+==================================================
+PHASE 4 — MEDIA PREVIEW + STORAGE ENGINE
+==================================================
+Status: PARTIAL
+- estrazione EXTRA_PICTURE;
+- thumbnail WebP locale max ~320px;
+- capture thumbnail attualmente Premium;
+- cleanup retention;
+- orphan cleanup nel lifecycle controllato.
+
+Da fare:
+- Storage Dashboard;
+- per-app retention;
+- text/media retention split;
+- quota massima;
+- render thumbnail nel Vault;
+- test storage/media.
+
+==================================================
+PHASE 5 — LUMINOUS INTEGRATION
+==================================================
+Status: BASELINE PORTED
+- FlashCoordinator;
+- circle overlay;
+- pixel shifting;
+- face-down/proximity;
+- Battery Guard;
+- Quiet Hours;
+- suppression comune;
+- screen-off-only.
+
+Da fare:
+- profili Premium app/contatto;
+- overlay power/battery profiling;
+- accessibilità QA;
+- OEM behavior tests.
+
+==================================================
+PHASE 6 — RULES + CRITICAL + PAUSA PING
+==================================================
+NEXT AFTER BASELINE MERGE
+- conditions/actions model;
+- Free 2 rules;
+- Premium unlimited;
+- Critical contacts/apps/keywords;
+- escalation;
+- cooldown;
+- burst grouping;
+- deterministic priority resolver.
+
+==================================================
+PHASE 7 — FOLLOW UP + PICKUP CODE
+==================================================
+- 3 Free Follow Ups;
+- Premium unlimited;
+- snooze;
+- repeated reminders;
+- Da gestire;
+- code extraction;
+- pin/expiry;
+- exact alarm only when truly necessary.
+
+==================================================
+PHASE 8 — PROFILE SECURITY + LOGIN
+==================================================
+- biometric/device credential Vault gate;
+- optional Google Sign-In;
+- Profile hub refinement;
+- Permission Health;
+- diagnostic test notification.
+
+==================================================
+PHASE 9 — MULTILINGUAL COMPLETION
+==================================================
+- complete en/it/es/fr/pt coverage;
+- device locale default;
+- English fallback;
+- manual language override;
+- localized internal notifications/paywall/a11y;
+- missing-string QA.
+
+==================================================
+PHASE 10 — PREMIUM ENGINE
+==================================================
+- centralized entitlement provider;
+- supported Google Play Billing;
+- no local release bypass;
+- restore purchases;
+- offline entitlement tolerance;
+- gates: >3 apps, retention/media, advanced Rules/Critical/Follow Up/Pausa Ping/Pickup/Luminous.
+
+==================================================
+PHASE 11 — QA / PERFORMANCE / PLAY READINESS
+==================================================
+- notification lifecycle tests;
+- migration tests;
+- concurrency;
+- battery/memory/storage;
+- OEM behavior;
+- accessibility;
+- privacy disclosure;
+- Play policy audit;
+- release build;
+- size audit.
+
+==================================================
+PHASE 12 — RELEASE CANDIDATE
+==================================================
+- store assets/privacy/Data Safety;
+- internal testing;
+- staged release;
+- rollback/hotfix plan.
+
+IMMEDIATE NEXT ACTION:
+Close current baseline with green CI, merge to main, then start PHASE 6 Rules/Critical/Pausa Ping while continuing device validation for Capture/Vault/Luminous.
+
+END ROADMAP v0.3
