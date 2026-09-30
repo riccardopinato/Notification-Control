@@ -38,6 +38,7 @@ fun NotificationControlApp(
     requestNotificationAccess: () -> Unit,
     requestPostNotifications: () -> Unit,
     requestVaultUnlock: () -> Unit,
+    setSecureWindow: (Boolean) -> Unit,
     purchasePremiumOffer: (String) -> Unit
 ) {
     val settings by viewModel.settingsState.collectAsStateWithLifecycle()
@@ -60,6 +61,10 @@ fun NotificationControlApp(
     permissionEpoch.hashCode()
     vaultUnlockEpoch.hashCode()
 
+    LaunchedEffect(settings.sensitiveProtectionEnabled) {
+        setSecureWindow(settings.sensitiveProtectionEnabled)
+    }
+
     if (!settings.onboardingCompleted) {
         OnboardingScreen(
             settings = settings,
@@ -79,6 +84,7 @@ fun NotificationControlApp(
 
     val context = LocalContext.current
     val security = remember { VaultSecurityManager(context) }
+    val sensitiveLocked = security.isLocked()
     val snackbar = remember { SnackbarHostState() }
     val protectedLimitMessage = stringResource(R.string.protected_limit_reached)
     val ruleLimitMessage = stringResource(R.string.rule_limit_reached)
@@ -148,7 +154,9 @@ fun NotificationControlApp(
                 settings = settings,
                 count = count,
                 pickupCodes = pickupCodes,
+                sensitiveLocked = sensitiveLocked,
                 requestNotificationAccess = requestNotificationAccess,
+                onUnlockSensitive = requestVaultUnlock,
                 onDismissPickup = viewModel::dismissPickupCode
             ) { showPicker = true }
 
@@ -182,14 +190,24 @@ fun NotificationControlApp(
                 }
             }
 
-            MainTab.FOLLOW_UP -> FollowUpScreen(
-                modifier = Modifier,
-                contentPadding = padding,
-                followUps = followUps,
-                requestPostNotifications = requestPostNotifications,
-                onComplete = viewModel::completeFollowUp,
-                onSnooze = viewModel::snoozeFollowUp
-            )
+            MainTab.FOLLOW_UP -> {
+                if (sensitiveLocked) {
+                    VaultLockedScreen(
+                        modifier = Modifier,
+                        contentPadding = padding,
+                        onUnlock = requestVaultUnlock
+                    )
+                } else {
+                    FollowUpScreen(
+                        modifier = Modifier,
+                        contentPadding = padding,
+                        followUps = followUps,
+                        requestPostNotifications = requestPostNotifications,
+                        onComplete = viewModel::completeFollowUp,
+                        onSnooze = viewModel::snoozeFollowUp
+                    )
+                }
+            }
 
             MainTab.RULES -> RulesScreen(
                 modifier = Modifier,
@@ -231,11 +249,18 @@ fun NotificationControlApp(
                 onConfigureApps = { showPicker = true },
                 onVaultLockChanged = viewModel::setVaultLockEnabled,
                 onVaultTimeoutChanged = viewModel::setVaultLockTimeoutMinutes,
+                onSensitiveProtectionChanged = viewModel::setSensitiveProtectionEnabled,
+                onRetentionDaysChanged = viewModel::setRetentionDays,
+                onBatteryGuardThresholdChanged = viewModel::setBatteryGuardThreshold,
+                onQuietStartChanged = viewModel::setQuietStartMinutes,
+                onQuietEndChanged = viewModel::setQuietEndMinutes,
                 onDeleteAll = viewModel::deleteAllVault,
+                onResetLocalData = viewModel::resetLocalData,
                 onPurchasePremium = purchasePremiumOffer,
                 onRestorePurchases = viewModel::restorePurchases,
                 onBackupRestored = viewModel::refresh,
                 requestNotificationAccess = requestNotificationAccess,
+                requestPostNotifications = requestPostNotifications,
                 requestCameraPermission = requestCameraPermission,
                 requestOverlayPermission = requestOverlayPermission
             )

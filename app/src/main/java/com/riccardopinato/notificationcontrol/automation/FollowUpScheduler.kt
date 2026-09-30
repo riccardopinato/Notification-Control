@@ -17,6 +17,7 @@ object FollowUpScheduler {
                     .putLong(FollowUpWorker.KEY_FOLLOW_UP_ID, followUpId)
                     .build()
             )
+            .addTag(TAG)
             .build()
 
         WorkManager.getInstance(context).enqueueUniqueWork(
@@ -30,5 +31,11 @@ object FollowUpScheduler {
         WorkManager.getInstance(context).cancelUniqueWork(workName(followUpId))
     }
 
-    private fun workName(id: Long) = "follow_up_$id"
+    fun cancelAll(context: Context) {
+        WorkManager.getInstance(context).cancelAllWorkByTag(TAG)
+    }
+
+    private fun workName(id: Long) = "follow_up_" + id
+
+    private const val TAG = "notification_control_follow_up"
 }

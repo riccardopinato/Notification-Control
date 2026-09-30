@@ -88,6 +88,10 @@ class AppSettings(context: Context) {
         get() = prefs.getInt(KEY_VAULT_LOCK_TIMEOUT, 5)
         set(value) = prefs.edit { putInt(KEY_VAULT_LOCK_TIMEOUT, value.coerceIn(1, 60)) }
 
+    var sensitiveProtectionEnabled: Boolean
+        get() = prefs.getBoolean(KEY_SENSITIVE_PROTECTION, true)
+        set(value) = prefs.edit { putBoolean(KEY_SENSITIVE_PROTECTION, value) }
+
     var pausePingEnabled: Boolean
         get() = prefs.getBoolean(KEY_PAUSE_PING_ENABLED, true)
         set(value) = prefs.edit { putBoolean(KEY_PAUSE_PING_ENABLED, value) }
@@ -99,6 +103,10 @@ class AppSettings(context: Context) {
     var criticalBypassQuietHours: Boolean
         get() = prefs.getBoolean(KEY_CRITICAL_BYPASS_QUIET, true)
         set(value) = prefs.edit { putBoolean(KEY_CRITICAL_BYPASS_QUIET, value) }
+
+    fun resetToDefaults() {
+        prefs.edit { clear() }
+    }
 
     companion object {
         private const val PREFS = "notification_control_settings"
@@ -121,6 +129,7 @@ class AppSettings(context: Context) {
         private const val KEY_PULSE_SPEED = "pulse_speed_ms"
         private const val KEY_VAULT_LOCK_ENABLED = "vault_lock_enabled"
         private const val KEY_VAULT_LOCK_TIMEOUT = "vault_lock_timeout_minutes"
+        private const val KEY_SENSITIVE_PROTECTION = "sensitive_protection_enabled"
         private const val KEY_PAUSE_PING_ENABLED = "pause_ping_enabled"
         private const val KEY_PAUSE_PING_COOLDOWN = "pause_ping_cooldown_seconds"
         private const val KEY_CRITICAL_BYPASS_QUIET = "critical_bypass_quiet_hours"

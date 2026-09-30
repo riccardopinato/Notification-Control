@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.riccardopinato.notificationcontrol.automation.AutomationRepository
+import com.riccardopinato.notificationcontrol.automation.FollowUpScheduler
 import com.riccardopinato.notificationcontrol.billing.BillingUiState
 import com.riccardopinato.notificationcontrol.billing.PlayBillingManager
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
@@ -71,12 +72,15 @@ data class SettingsUiState(
     val batteryGuardEnabled: Boolean = true,
     val batteryGuardThreshold: Int = 15,
     val quietHoursEnabled: Boolean = false,
+    val quietStartMinutes: Int = 22 * 60,
+    val quietEndMinutes: Int = 7 * 60,
     val circleColorHex: String = "#6750A4",
     val circleThickness: Float = 24f,
     val circleGlow: Float = 30f,
     val pulseSpeedMs: Long = 1_000L,
     val vaultLockEnabled: Boolean = false,
     val vaultLockTimeoutMinutes: Int = 5,
+    val sensitiveProtectionEnabled: Boolean = true,
     val pausePingEnabled: Boolean = true,
     val pausePingCooldownSeconds: Int = 20,
     val criticalBypassQuietHours: Boolean = true
@@ -269,8 +273,23 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         refresh()
     }
 
+    fun setBatteryGuardThreshold(value: Int) {
+        settings.batteryGuardThreshold = value
+        refresh()
+    }
+
     fun setQuietHoursEnabled(value: Boolean) {
         settings.quietHoursEnabled = value
+        refresh()
+    }
+
+    fun setQuietStartMinutes(value: Int) {
+        settings.quietStartMinutes = value
+        refresh()
+    }
+
+    fun setQuietEndMinutes(value: Int) {
+        settings.quietEndMinutes = value
         refresh()
     }
 
@@ -308,6 +327,11 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     fun setVaultLockTimeoutMinutes(minutes: Int) {
         settings.vaultLockTimeoutMinutes = minutes
         VaultSecurityManager(getApplication()).lock()
+        refresh()
+    }
+
+    fun setSensitiveProtectionEnabled(enabled: Boolean) {
+        settings.sensitiveProtectionEnabled = enabled
         refresh()
     }
 
@@ -470,6 +494,27 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
             dao.deleteEverything()
             paths.forEach(mediaStore::delete)
             mediaStore.cleanupOrphans(emptyList())
+            _vaultDetail.value = null
+            refreshStorageStats()
+        }
+    }
+
+    fun resetLocalData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val app = getApplication<Application>()
+            val mediaStore = NotificationMediaStore(app)
+            val paths = dao.allThumbnailPaths()
+            FollowUpScheduler.cancelAll(app)
+            database.clearAllTables()
+            paths.forEach(mediaStore::delete)
+            mediaStore.cleanupOrphans(emptyList())
+            settings.resetToDefaults()
+            VaultSecurityManager(app).lock()
+            _vaultDetail.value = null
+            _vaultSearch.value = ""
+            _vaultPackageFilter.value = null
+            _vaultLimit.value = 100
+            _settingsState.value = readSettings()
             refreshStorageStats()
         }
     }
@@ -512,12 +557,15 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         batteryGuardEnabled = settings.batteryGuardEnabled,
         batteryGuardThreshold = settings.batteryGuardThreshold,
         quietHoursEnabled = settings.quietHoursEnabled,
+        quietStartMinutes = settings.quietStartMinutes,
+        quietEndMinutes = settings.quietEndMinutes,
         circleColorHex = settings.circleColorHex,
         circleThickness = settings.circleThickness,
         circleGlow = settings.circleGlow,
         pulseSpeedMs = settings.pulseSpeedMs,
         vaultLockEnabled = settings.vaultLockEnabled,
         vaultLockTimeoutMinutes = settings.vaultLockTimeoutMinutes,
+        sensitiveProtectionEnabled = settings.sensitiveProtectionEnabled,
         pausePingEnabled = settings.pausePingEnabled,
         pausePingCooldownSeconds = settings.pausePingCooldownSeconds,
         criticalBypassQuietHours = settings.criticalBypassQuietHours

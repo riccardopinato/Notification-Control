@@ -59,7 +59,9 @@ fun HomeScreen(
     settings: SettingsUiState,
     count: Int,
     pickupCodes: List<PickupCodeEntity>,
+    sensitiveLocked: Boolean,
     requestNotificationAccess: () -> Unit,
+    onUnlockSensitive: () -> Unit,
     onDismissPickup: (Long) -> Unit,
     onConfigureApps: () -> Unit
 ) {
@@ -102,9 +104,12 @@ fun HomeScreen(
         }
         activeCode?.let { code ->
             item {
-                PickupCodeCard(
-                    code = code,
-                    onCopy = {
+                if (sensitiveLocked) {
+                    SensitiveContentLockedCard(onUnlockSensitive)
+                } else {
+                    PickupCodeCard(
+                        code = code,
+                        onCopy = {
                         val clipboard =
                             context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(
@@ -113,9 +118,10 @@ fun HomeScreen(
                                 code.code
                             )
                         )
-                    },
-                    onDismiss = { onDismissPickup(code.id) }
-                )
+                        },
+                        onDismiss = { onDismissPickup(code.id) }
+                    )
+                }
             }
         }
         item {
@@ -149,6 +155,22 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.configure_apps))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SensitiveContentLockedCard(onUnlock: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp)) {
+            Text(
+                stringResource(R.string.sensitive_content_locked),
+                fontWeight = FontWeight.Bold
+            )
+            Text(stringResource(R.string.sensitive_content_locked_body))
+            TextButton(onClick = onUnlock) {
+                Text(stringResource(R.string.unlock_vault))
             }
         }
     }
