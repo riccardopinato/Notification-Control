@@ -1,0 +1,9 @@
+<resources>
+    <string name="vault_details">Dettagli</string>
+    <string name="current_notification">Notifica catturata corrente</string>
+    <string name="platform_notification_removed">Questa notifica Android non è più attiva. Notification Control conserva solo ciò che è stato catturato localmente.</string>
+    <string name="message_history">Cronologia messaggi catturati</string>
+    <string name="message_history_empty">Questa notifica non ha esposto una cronologia strutturata dei messaggi.</string>
+    <string name="revision_history">Revisioni catturate</string>
+    <string name="revision_history_explainer">Le revisioni mostrano il contenuto della notifica osservato nel tempo. La rimozione di una notifica non prova che il mittente abbia eliminato un messaggio.</string>
+</resources>

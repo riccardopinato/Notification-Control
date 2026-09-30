@@ -13,8 +13,10 @@ import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
 import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
+import com.riccardopinato.notificationcontrol.data.MessageEntity
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
+import com.riccardopinato.notificationcontrol.data.NotificationRevisionEntity
 import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
 import com.riccardopinato.notificationcontrol.data.RuleWithActions
 import com.riccardopinato.notificationcontrol.data.VaultAppFilter
@@ -36,6 +38,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -101,6 +104,37 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
 
     private val _vaultLimit = MutableStateFlow(100)
     val vaultLimit: StateFlow<Int> = _vaultLimit.asStateFlow()
+
+    private val _selectedVaultEventKey = MutableStateFlow<String?>(null)
+    val selectedVaultEventKey: StateFlow<String?> =
+        _selectedVaultEventKey.asStateFlow()
+
+    val selectedVaultNotification: StateFlow<NotificationEntity?> =
+        _selectedVaultEventKey.flatMapLatest { key ->
+            if (key == null) flowOf(null) else dao.observeByKey(key)
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            null
+        )
+
+    val selectedVaultMessages: StateFlow<List<MessageEntity>> =
+        _selectedVaultEventKey.flatMapLatest { key ->
+            if (key == null) flowOf(emptyList()) else dao.observeMessagesFor(key)
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
+
+    val selectedVaultRevisions: StateFlow<List<NotificationRevisionEntity>> =
+        _selectedVaultEventKey.flatMapLatest { key ->
+            if (key == null) flowOf(emptyList()) else dao.observeRevisionsFor(key)
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
 
     private val _storageStats = MutableStateFlow(StorageStats())
     val storageStats: StateFlow<StorageStats> = _storageStats.asStateFlow()
@@ -217,6 +251,14 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
 
     fun loadMoreVault() {
         _vaultLimit.value = (_vaultLimit.value + 100).coerceAtMost(2_000)
+    }
+
+    fun openVaultDetail(eventKey: String) {
+        _selectedVaultEventKey.value = eventKey
+    }
+
+    fun closeVaultDetail() {
+        _selectedVaultEventKey.value = null
     }
 
     fun setFlashEnabled(value: Boolean) {

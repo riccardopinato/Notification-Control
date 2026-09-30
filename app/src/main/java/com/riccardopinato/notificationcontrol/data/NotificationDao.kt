@@ -190,6 +190,9 @@ interface NotificationDao {
     @Query("SELECT * FROM notifications WHERE sbnKey = :sbnKey LIMIT 1")
     suspend fun findByKey(sbnKey: String): NotificationEntity?
 
+    @Query("SELECT * FROM notifications WHERE sbnKey = :sbnKey LIMIT 1")
+    fun observeByKey(sbnKey: String): Flow<NotificationEntity?>
+
     @Query("SELECT * FROM messages WHERE notificationKey = :sbnKey ORDER BY timestamp ASC, messageKey ASC")
     fun observeMessagesFor(sbnKey: String): Flow<List<MessageEntity>>
 

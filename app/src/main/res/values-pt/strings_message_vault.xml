@@ -1,0 +1,9 @@
+<resources>
+    <string name="vault_details">Detalhes</string>
+    <string name="current_notification">Notificação capturada atual</string>
+    <string name="platform_notification_removed">Esta notificação do Android já não está ativa. O Notification Control mantém apenas o que foi capturado localmente.</string>
+    <string name="message_history">Histórico de mensagens capturadas</string>
+    <string name="message_history_empty">Esta notificação não expôs um histórico estruturado de mensagens.</string>
+    <string name="revision_history">Revisões capturadas</string>
+    <string name="revision_history_explainer">As revisões mostram o conteúdo da notificação observado ao longo do tempo. A remoção de uma notificação não prova que o remetente apagou uma mensagem.</string>
+</resources>

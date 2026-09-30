@@ -49,6 +49,12 @@ fun NotificationControlApp(
     val packageFilter by viewModel.vaultPackageFilter.collectAsStateWithLifecycle()
     val vaultLimit by viewModel.vaultLimit.collectAsStateWithLifecycle()
     val appFilters by viewModel.vaultAppFilters.collectAsStateWithLifecycle()
+    val selectedVaultNotification by
+        viewModel.selectedVaultNotification.collectAsStateWithLifecycle()
+    val selectedVaultMessages by
+        viewModel.selectedVaultMessages.collectAsStateWithLifecycle()
+    val selectedVaultRevisions by
+        viewModel.selectedVaultRevisions.collectAsStateWithLifecycle()
     val storageStats by viewModel.storageStats.collectAsStateWithLifecycle()
     val rules by viewModel.rules.collectAsStateWithLifecycle()
     val criticalPatterns by viewModel.criticalPatterns.collectAsStateWithLifecycle()
@@ -171,6 +177,11 @@ fun NotificationControlApp(
                         onSearchChange = viewModel::setVaultSearch,
                         onPackageFilterChange = viewModel::setVaultPackageFilter,
                         onLoadMore = viewModel::loadMoreVault,
+                        selectedNotification = selectedVaultNotification,
+                        selectedMessages = selectedVaultMessages,
+                        selectedRevisions = selectedVaultRevisions,
+                        onOpenDetail = { viewModel.openVaultDetail(it.sbnKey) },
+                        onCloseDetail = viewModel::closeVaultDetail,
                         onProtect = viewModel::setProtected,
                         onFollowUp = {
                             requestPostNotifications()

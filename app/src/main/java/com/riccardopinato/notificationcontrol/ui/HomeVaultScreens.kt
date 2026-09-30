@@ -43,7 +43,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.capture.ListenerHealthStore
+import com.riccardopinato.notificationcontrol.data.MessageEntity
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
+import com.riccardopinato.notificationcontrol.data.NotificationRevisionEntity
 import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
 import com.riccardopinato.notificationcontrol.data.VaultAppFilter
 import com.riccardopinato.notificationcontrol.storage.StorageStats
@@ -234,9 +236,28 @@ fun VaultScreen(
     onSearchChange: (String) -> Unit,
     onPackageFilterChange: (String?) -> Unit,
     onLoadMore: () -> Unit,
+    selectedNotification: NotificationEntity?,
+    selectedMessages: List<MessageEntity>,
+    selectedRevisions: List<NotificationRevisionEntity>,
+    onOpenDetail: (NotificationEntity) -> Unit,
+    onCloseDetail: () -> Unit,
     onProtect: (String, Boolean) -> Unit,
     onFollowUp: (NotificationEntity) -> Unit
 ) {
+    if (selectedNotification != null) {
+        VaultDetailScreen(
+            modifier = modifier,
+            contentPadding = contentPadding,
+            notification = selectedNotification,
+            messages = selectedMessages,
+            revisions = selectedRevisions,
+            onBack = onCloseDetail,
+            onProtect = onProtect,
+            onFollowUp = onFollowUp
+        )
+        return
+    }
+
     LazyColumn(
         modifier.fillMaxSize().padding(contentPadding).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -308,7 +329,12 @@ fun VaultScreen(
         }
 
         items(notifications, key = { it.sbnKey }) { n ->
-            NotificationVaultCard(n, onProtect, onFollowUp)
+            NotificationVaultCard(
+                notification = n,
+                onOpenDetail = onOpenDetail,
+                onProtect = onProtect,
+                onFollowUp = onFollowUp
+            )
         }
 
         if (notifications.size >= currentLimit) {
@@ -327,6 +353,7 @@ fun VaultScreen(
 @Composable
 private fun NotificationVaultCard(
     notification: NotificationEntity,
+    onOpenDetail: (NotificationEntity) -> Unit,
     onProtect: (String, Boolean) -> Unit,
     onFollowUp: (NotificationEntity) -> Unit
 ) {
@@ -363,6 +390,9 @@ private fun NotificationVaultCard(
                     )
                 }
                 Row {
+                    TextButton(onClick = { onOpenDetail(notification) }) {
+                        Text(stringResource(R.string.vault_details))
+                    }
                     TextButton(
                         onClick = {
                             onProtect(notification.sbnKey, !notification.protected)
@@ -408,4 +438,143 @@ private fun formatBytes(bytes: Long): String {
     if (kb < 1_024) return String.format("%.1f KB", kb)
     val mb = kb / 1_024.0
     return String.format("%.1f MB", mb)
+}
+
+
+@Composable
+private fun VaultDetailScreen(
+    modifier: Modifier,
+    contentPadding: PaddingValues,
+    notification: NotificationEntity,
+    messages: List<MessageEntity>,
+    revisions: List<NotificationRevisionEntity>,
+    onBack: () -> Unit,
+    onProtect: (String, Boolean) -> Unit,
+    onFollowUp: (NotificationEntity) -> Unit
+) {
+    LazyColumn(
+        modifier.fillMaxSize().padding(contentPadding).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            TextButton(onClick = onBack) {
+                Text(stringResource(R.string.back))
+            }
+            Text(
+                notification.appLabel,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
+            notification.title?.takeIf { it.isNotBlank() }?.let {
+                Text(it, style = MaterialTheme.typography.titleMedium)
+            }
+            Text(
+                DateFormat.getDateTimeInstance(
+                    DateFormat.SHORT,
+                    DateFormat.SHORT
+                ).format(Date(notification.postedAt)),
+                style = MaterialTheme.typography.labelMedium
+            )
+        }
+
+        item {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        stringResource(R.string.current_notification),
+                        fontWeight = FontWeight.Bold
+                    )
+                    val current = notification.bigText?.takeIf { it.isNotBlank() }
+                        ?: notification.text
+                    if (!current.isNullOrBlank()) Text(current)
+                    if (notification.removedAt != null) {
+                        Text(
+                            stringResource(R.string.platform_notification_removed),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                    Row {
+                        TextButton(
+                            onClick = {
+                                onProtect(
+                                    notification.sbnKey,
+                                    !notification.protected
+                                )
+                            }
+                        ) {
+                            Text(
+                                if (notification.protected) {
+                                    stringResource(R.string.unprotect)
+                                } else {
+                                    stringResource(R.string.protect)
+                                }
+                            )
+                        }
+                        TextButton(onClick = { onFollowUp(notification) }) {
+                            Text(stringResource(R.string.follow_up))
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Text(
+                stringResource(R.string.message_history),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            if (messages.isEmpty()) {
+                Text(stringResource(R.string.message_history_empty))
+            }
+        }
+
+        items(messages, key = { it.messageKey }) { message ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
+                    message.sender?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, fontWeight = FontWeight.SemiBold)
+                    }
+                    Text(message.text)
+                    Text(
+                        DateFormat.getDateTimeInstance(
+                            DateFormat.SHORT,
+                            DateFormat.SHORT
+                        ).format(Date(message.timestamp)),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+        }
+
+        item {
+            Text(
+                stringResource(R.string.revision_history),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                stringResource(R.string.revision_history_explainer),
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        items(revisions, key = { it.revisionKey }) { revision ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
+                    Text(
+                        DateFormat.getDateTimeInstance(
+                            DateFormat.SHORT,
+                            DateFormat.SHORT
+                        ).format(Date(revision.capturedAt)),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    revision.title?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                    val body = revision.bigText?.takeIf { it.isNotBlank() }
+                        ?: revision.text
+                    body?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                }
+            }
+        }
+    }
 }
