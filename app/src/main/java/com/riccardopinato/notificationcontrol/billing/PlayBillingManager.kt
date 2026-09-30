@@ -240,7 +240,7 @@ class PlayBillingManager private constructor(context: Context) : PurchasesUpdate
                                 planLabel = offer.basePlanId,
                                 isLifetime = false
                             )
-                            launchData[key] = LaunchData(details, offer.offerToken)
+                            launchData[key] = LaunchData(details, offer.offerToken.orEmpty())
                         }
                     }
 
@@ -261,7 +261,7 @@ class PlayBillingManager private constructor(context: Context) : PurchasesUpdate
                                 productId = details.productId,
                                 title = details.name,
                                 formattedPrice = offer.formattedPrice,
-                                planLabel = offer.purchaseOptionId,
+                                planLabel = offer.purchaseOptionId.orEmpty(),
                                 isLifetime = true
                             )
                             launchData[key] = LaunchData(details, offer.offerToken)
