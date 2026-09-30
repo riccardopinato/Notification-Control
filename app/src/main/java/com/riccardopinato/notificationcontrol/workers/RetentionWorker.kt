@@ -18,19 +18,22 @@ class RetentionWorker(
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         val settings = AppSettings(applicationContext)
+        val database = NotificationDatabase.get(applicationContext)
         val cutoff = RetentionPolicy.cutoffMillis(
             System.currentTimeMillis(),
             settings.isPremium,
             settings.retentionDays
         )
-        if (cutoff == Long.MIN_VALUE) return Result.success()
 
-        val dao = NotificationDatabase.get(applicationContext).notificationDao()
-        val mediaStore = NotificationMediaStore(applicationContext)
+        if (cutoff != Long.MIN_VALUE) {
+            val dao = database.notificationDao()
+            val mediaStore = NotificationMediaStore(applicationContext)
+            val mediaToDelete = dao.deleteExpiredAndReturnMedia(cutoff)
+            mediaToDelete.forEach(mediaStore::delete)
+            mediaStore.cleanupOrphans(dao.allThumbnailPaths())
+        }
 
-        val mediaToDelete = dao.deleteExpiredAndReturnMedia(cutoff)
-        mediaToDelete.forEach(mediaStore::delete)
-        mediaStore.cleanupOrphans(dao.allThumbnailPaths())
+        database.automationDao().cleanupPickupCodes(System.currentTimeMillis())
         return Result.success()
     }
 

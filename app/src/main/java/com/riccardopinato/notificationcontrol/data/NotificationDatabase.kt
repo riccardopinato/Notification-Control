@@ -12,13 +12,19 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NotificationEntity::class,
         MessageEntity::class,
         NotificationRevisionEntity::class,
-        NotificationFtsEntity::class
+        NotificationFtsEntity::class,
+        RuleEntity::class,
+        RuleActionEntity::class,
+        CriticalPatternEntity::class,
+        FollowUpEntity::class,
+        PickupCodeEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class NotificationDatabase : RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
+    abstract fun automationDao(): AutomationDao
 
     companion object {
         @Volatile
@@ -94,13 +100,104 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rules (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        enabled INTEGER NOT NULL,
+                        packageName TEXT,
+                        senderQuery TEXT,
+                        textQuery TEXT,
+                        matchMode TEXT NOT NULL,
+                        priority INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_rules_enabled ON rules(enabled)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_rules_priority ON rules(priority)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_rules_packageName ON rules(packageName)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS rule_actions (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        ruleId INTEGER NOT NULL,
+                        actionType TEXT NOT NULL,
+                        actionValue TEXT,
+                        FOREIGN KEY(ruleId) REFERENCES rules(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_rule_actions_ruleId ON rule_actions(ruleId)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_rule_actions_actionType ON rule_actions(actionType)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS critical_patterns (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        type TEXT NOT NULL,
+                        value TEXT NOT NULL,
+                        enabled INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_critical_patterns_type ON critical_patterns(type)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_critical_patterns_type_value ON critical_patterns(type, value)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS follow_ups (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        notificationKey TEXT,
+                        sourcePackage TEXT,
+                        sourceLabel TEXT,
+                        title TEXT NOT NULL,
+                        body TEXT,
+                        dueAt INTEGER NOT NULL,
+                        status TEXT NOT NULL,
+                        repeatMinutes INTEGER,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_follow_ups_status ON follow_ups(status)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_follow_ups_dueAt ON follow_ups(dueAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_follow_ups_notificationKey ON follow_ups(notificationKey)")
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS pickup_codes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        code TEXT NOT NULL,
+                        sourcePackage TEXT NOT NULL,
+                        sourceLabel TEXT NOT NULL,
+                        notificationKey TEXT NOT NULL,
+                        contextText TEXT,
+                        createdAt INTEGER NOT NULL,
+                        expiresAt INTEGER NOT NULL,
+                        dismissed INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_pickup_codes_expiresAt ON pickup_codes(expiresAt)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_pickup_codes_dismissed ON pickup_codes(dismissed)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_pickup_codes_code_sourcePackage_notificationKey ON pickup_codes(code, sourcePackage, notificationKey)")
+            }
+        }
+
         fun get(context: Context): NotificationDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 NotificationDatabase::class.java,
                 "notification_control.db"
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
                 .also { instance = it }
         }

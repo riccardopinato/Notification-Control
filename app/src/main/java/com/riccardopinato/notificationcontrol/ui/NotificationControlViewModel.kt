@@ -5,10 +5,15 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.riccardopinato.notificationcontrol.automation.AutomationRepository
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
+import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
+import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
+import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
+import com.riccardopinato.notificationcontrol.data.RuleWithActions
 import com.riccardopinato.notificationcontrol.data.VaultAppFilter
 import com.riccardopinato.notificationcontrol.domain.MonitoredAppsPolicy
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
@@ -34,6 +39,9 @@ data class InstalledApp(val packageName: String, val label: String)
 
 sealed interface NotificationControlUiEvent {
     data object ProtectedLimitReached : NotificationControlUiEvent
+    data object RuleLimitReached : NotificationControlUiEvent
+    data object CriticalLimitReached : NotificationControlUiEvent
+    data object FollowUpLimitReached : NotificationControlUiEvent
 }
 
 data class SettingsUiState(
@@ -54,12 +62,18 @@ data class SettingsUiState(
     val circleGlow: Float = 30f,
     val pulseSpeedMs: Long = 1_000L,
     val vaultLockEnabled: Boolean = false,
-    val vaultLockTimeoutMinutes: Int = 5
+    val vaultLockTimeoutMinutes: Int = 5,
+    val pausePingEnabled: Boolean = true,
+    val pausePingCooldownSeconds: Int = 20,
+    val criticalBypassQuietHours: Boolean = true
 )
 
 class NotificationControlViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = AppSettings(application)
-    private val dao = NotificationDatabase.get(application).notificationDao()
+    private val database = NotificationDatabase.get(application)
+    private val dao = database.notificationDao()
+    private val automationDao = database.automationDao()
+    private val automationRepository = AutomationRepository(application, settings, automationDao)
     private val storageRepository = StorageStatsRepository(application)
 
     private val _settingsState = MutableStateFlow(readSettings())
@@ -80,7 +94,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     private val _storageStats = MutableStateFlow(StorageStats())
     val storageStats: StateFlow<StorageStats> = _storageStats.asStateFlow()
 
-    private val _events = MutableSharedFlow<NotificationControlUiEvent>(extraBufferCapacity = 4)
+    private val _events = MutableSharedFlow<NotificationControlUiEvent>(extraBufferCapacity = 8)
     val events = _events.asSharedFlow()
 
     val notifications: StateFlow<List<NotificationEntity>> =
@@ -113,9 +127,40 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
             0
         )
 
+    val rules: StateFlow<List<RuleWithActions>> =
+        automationDao.observeRules().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
+
+    val criticalPatterns: StateFlow<List<CriticalPatternEntity>> =
+        automationDao.observeCriticalPatterns().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
+
+    val followUps: StateFlow<List<FollowUpEntity>> =
+        automationDao.observeActiveFollowUps().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
+
+    val pickupCodes: StateFlow<List<PickupCodeEntity>> =
+        automationDao.observePickupCodes().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
+
     init {
         loadInstalledApps()
         refreshStorageStats()
+        viewModelScope.launch(Dispatchers.IO) {
+            automationRepository.cleanupPickupCodes()
+        }
     }
 
     fun completeOnboarding() {
@@ -208,6 +253,95 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         refresh()
     }
 
+    fun setPausePingEnabled(enabled: Boolean) {
+        settings.pausePingEnabled = enabled
+        refresh()
+    }
+
+    fun setPausePingCooldownSeconds(seconds: Int) {
+        settings.pausePingCooldownSeconds = seconds
+        refresh()
+    }
+
+    fun createRule(
+        name: String,
+        packageName: String?,
+        senderQuery: String?,
+        textQuery: String?,
+        actions: List<Pair<String, String?>>
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (
+                !automationRepository.createRule(
+                    name,
+                    packageName,
+                    senderQuery,
+                    textQuery,
+                    actions
+                )
+            ) {
+                _events.tryEmit(NotificationControlUiEvent.RuleLimitReached)
+            }
+        }
+    }
+
+    fun setRuleEnabled(id: Long, enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            automationDao.setRuleEnabled(id, enabled)
+        }
+    }
+
+    fun deleteRule(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            automationDao.deleteRule(id)
+        }
+    }
+
+    fun addCriticalPattern(type: String, value: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (!automationRepository.addCriticalPattern(type, value)) {
+                _events.tryEmit(NotificationControlUiEvent.CriticalLimitReached)
+            }
+        }
+    }
+
+    fun deleteCriticalPattern(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            automationDao.deleteCriticalPattern(id)
+        }
+    }
+
+    fun createFollowUp(notification: NotificationEntity, delayMinutes: Int = 60) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (
+                automationRepository.createFollowUpFromNotification(
+                    notification,
+                    delayMinutes
+                ) == null
+            ) {
+                _events.tryEmit(NotificationControlUiEvent.FollowUpLimitReached)
+            }
+        }
+    }
+
+    fun completeFollowUp(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            automationRepository.completeFollowUp(id)
+        }
+    }
+
+    fun snoozeFollowUp(id: Long, delayMinutes: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            automationRepository.snoozeFollowUp(id, delayMinutes)
+        }
+    }
+
+    fun dismissPickupCode(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            automationDao.dismissPickupCode(id)
+        }
+    }
+
     fun setProtected(key: String, value: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
             if (
@@ -276,7 +410,10 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         circleGlow = settings.circleGlow,
         pulseSpeedMs = settings.pulseSpeedMs,
         vaultLockEnabled = settings.vaultLockEnabled,
-        vaultLockTimeoutMinutes = settings.vaultLockTimeoutMinutes
+        vaultLockTimeoutMinutes = settings.vaultLockTimeoutMinutes,
+        pausePingEnabled = settings.pausePingEnabled,
+        pausePingCooldownSeconds = settings.pausePingCooldownSeconds,
+        criticalBypassQuietHours = settings.criticalBypassQuietHours
     )
 
     private fun loadInstalledApps() {
