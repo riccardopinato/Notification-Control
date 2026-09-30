@@ -19,8 +19,8 @@ class NotificationVaultRepository(
     fun shouldCaptureThumbnail(packageName: String): Boolean =
         shouldPersist(packageName) && settings.isPremium
 
-    suspend fun persist(captured: CapturedNotification) {
-        if (!shouldPersist(captured.packageName)) return
+    suspend fun persist(captured: CapturedNotification): String? {
+        if (!shouldPersist(captured.packageName)) return null
 
         val dao = database.notificationDao()
         val active = dao.findActiveByPlatformKey(captured.sbnKey)
@@ -45,6 +45,8 @@ class NotificationVaultRepository(
         ) {
             mediaStore.delete(replacedMedia)
         }
+
+        return eventKey
     }
 
     suspend fun markRemoved(platformKey: String, reason: Int?) {

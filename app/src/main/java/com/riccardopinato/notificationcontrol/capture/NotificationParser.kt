@@ -65,7 +65,14 @@ class NotificationParser(
                 ?: fallbackBigText,
             subText = extras?.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString(),
             conversationTitle = extras?.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString(),
-            thumbnailPath = if (captureThumbnail) mediaStore.savePicture(notification, sbn.key) else null,
+            thumbnailPath = if (captureThumbnail) {
+                mediaStore.savePicture(
+                    notification,
+                    sbn.key + ":" + sbn.postTime + ":" + now
+                )
+            } else {
+                null
+            },
             postedAt = sbn.postTime,
             capturedAt = now,
             isOngoing = sbn.isOngoing,

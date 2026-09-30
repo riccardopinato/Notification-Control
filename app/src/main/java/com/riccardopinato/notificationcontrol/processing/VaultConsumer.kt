@@ -6,6 +6,6 @@ class VaultConsumer(
     private val repository: NotificationVaultRepository
 ) : NotificationEventConsumer {
     override suspend fun consume(event: CapturedNotification, context: ProcessingContext) {
-        repository.persist(event)
+        context.vaultEventKey = repository.persist(event)
     }
 }

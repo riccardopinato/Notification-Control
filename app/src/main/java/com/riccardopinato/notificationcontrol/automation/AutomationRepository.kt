@@ -59,12 +59,13 @@ class AutomationRepository(
     suspend fun createFollowUpFromEvent(
         event: CapturedNotification,
         delayMinutes: Int,
-        repeatMinutes: Int? = null
+        repeatMinutes: Int? = null,
+        notificationKey: String? = null
     ): Long? {
         if (!canCreateFollowUp()) return null
         val now = System.currentTimeMillis()
         val entity = FollowUpEntity(
-            notificationKey = event.sbnKey,
+            notificationKey = notificationKey,
             sourcePackage = event.packageName,
             sourceLabel = event.appLabel,
             title = event.title?.takeIf { it.isNotBlank() } ?: event.appLabel,
@@ -109,7 +110,8 @@ class AutomationRepository(
 
     suspend fun storePickupCode(
         event: CapturedNotification,
-        candidate: PickupCodeCandidate
+        candidate: PickupCodeCandidate,
+        notificationKey: String
     ) {
         val now = System.currentTimeMillis()
         dao.insertPickupCode(
@@ -117,7 +119,7 @@ class AutomationRepository(
                 code = candidate.code,
                 sourcePackage = event.packageName,
                 sourceLabel = event.appLabel,
-                notificationKey = event.sbnKey,
+                notificationKey = notificationKey,
                 contextText = candidate.context,
                 createdAt = now,
                 expiresAt = now + 24L * 60L * 60L * 1000L
