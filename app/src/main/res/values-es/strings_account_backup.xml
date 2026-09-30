@@ -1,0 +1,24 @@
+<resources>
+    <string name="google_profile_title">Perfil de Google · opcional</string>
+    <string name="google_profile_body">Elige un perfil de Google para continuidad de identidad. Notification Control funciona por completo sin cuenta.</string>
+    <string name="google_profile_security_note">Este perfil nunca desbloquea el Vault ni concede Premium. La seguridad local sigue usando credencial del dispositivo o biometría.</string>
+    <string name="google_sign_in">Acceder con Google</string>
+    <string name="google_signing_in">Accediendo…</string>
+    <string name="google_sign_out">Cerrar sesión</string>
+    <string name="google_sign_in_error">No se completó el acceso con Google.</string>
+    <string name="google_sign_in_not_configured">Google Sign-In está preparado en la app, pero requiere el ID de cliente OAuth Web en google_web_client_id.</string>
+    <string name="backup_title">Copia cifrada</string>
+    <string name="backup_body">Exporta o restaura el Vault local, reglas y recordatorios en un archivo cifrado AES-GCM. Android te permite elegir dónde guardarlo, incluidos proveedores cloud compatibles.</string>
+    <string name="backup_export">Exportar copia</string>
+    <string name="backup_restore">Restaurar copia</string>
+    <string name="backup_password">Contraseña de la copia</string>
+    <string name="backup_password_confirm">Confirmar contraseña</string>
+    <string name="backup_password_minimum">Usa al menos 8 caracteres.</string>
+    <string name="backup_password_mismatch">Las contraseñas no coinciden.</string>
+    <string name="backup_password_warning">Notification Control no guarda la contraseña y no puede recuperarla.</string>
+    <string name="backup_export_dialog_body">Crea una copia cifrada. La contraseña será necesaria para restaurarla.</string>
+    <string name="backup_restore_dialog_body">La restauración sustituye el Vault local y las automatizaciones actuales después de descifrar y validar la copia.</string>
+    <string name="backup_export_success">Copia creada: %1$d notificaciones, %2$d reglas, %3$d Follow Ups.</string>
+    <string name="backup_restore_success">Copia restaurada: %1$d notificaciones, %2$d reglas, %3$d Follow Ups.</string>
+    <string name="backup_operation_failed">La operación falló. Comprueba el archivo y la contraseña.</string>
+</resources>

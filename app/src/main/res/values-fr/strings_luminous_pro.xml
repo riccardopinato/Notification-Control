@@ -1,0 +1,11 @@
+<resources>
+    <string name="luminous_profiles_title">Profils Luminous Pro</string>
+    <string name="luminous_profiles_body">Attribuez aux applications ou expéditeurs une signature visuelle personnalisée. Luminous de base reste disponible en Free.</string>
+    <string name="luminous_profile_premium_required">Premium déverrouille les profils Luminous personnalisés.</string>
+    <string name="luminous_profile_add">Ajouter un profil Luminous</string>
+    <string name="luminous_profile_name">Nom du profil</string>
+    <string name="luminous_sender_contains">Expéditeur contient (facultatif)</string>
+    <string name="luminous_color">Couleur</string>
+    <string name="luminous_pulse_ms">Pulsation : %1$d ms</string>
+    <string name="luminous_duration_seconds">Durée : %1$d s</string>
+</resources>

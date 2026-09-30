@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
+import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
 import com.riccardopinato.notificationcontrol.data.RuleWithActions
 import com.riccardopinato.notificationcontrol.domain.CriticalPatternType
 import com.riccardopinato.notificationcontrol.domain.RuleActionType
@@ -49,6 +50,7 @@ fun RulesScreen(
     apps: List<InstalledApp>,
     rules: List<RuleWithActions>,
     criticalPatterns: List<CriticalPatternEntity>,
+    luminousProfiles: List<LuminousProfileEntity>,
     requestCameraPermission: () -> Unit,
     requestOverlayPermission: () -> Unit,
     onCreateRule: (
@@ -62,6 +64,22 @@ fun RulesScreen(
     onDeleteRule: (Long) -> Unit,
     onAddCriticalPattern: (String, String) -> Unit,
     onDeleteCriticalPattern: (Long) -> Unit,
+    onCreateLuminousProfile: (
+        String,
+        String?,
+        String?,
+        String,
+        Boolean,
+        Boolean,
+        Int,
+        Long,
+        Float,
+        Float,
+        Long,
+        Long
+    ) -> Unit,
+    onLuminousProfileEnabled: (Long, Boolean) -> Unit,
+    onDeleteLuminousProfile: (Long) -> Unit,
     onPausePingEnabled: (Boolean) -> Unit,
     onPausePingCooldown: (Int) -> Unit,
     setFlash: (Boolean) -> Unit,
@@ -210,6 +228,17 @@ fun RulesScreen(
                     }
                 }
             }
+        }
+
+        item {
+            LuminousProfilesSection(
+                state = state,
+                apps = apps,
+                profiles = luminousProfiles,
+                onCreate = onCreateLuminousProfile,
+                onEnabled = onLuminousProfileEnabled,
+                onDelete = onDeleteLuminousProfile
+            )
         }
 
         item {
