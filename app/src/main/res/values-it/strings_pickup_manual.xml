@@ -1,0 +1,4 @@
+<resources>
+    <string name="vault_pickup_candidate">Codice rilevato</string>
+    <string name="vault_pickup_candidate_free_hint">Copialo manualmente. Premium può fissare automaticamente i codici rilevati e farli scadere per te.</string>
+</resources>

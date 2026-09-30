@@ -40,6 +40,25 @@ class NotificationParser(
                 }
         }.getOrDefault(emptyList())
 
+        val textLineMessages = extras
+            ?.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
+            .orEmpty()
+            .mapIndexedNotNull { index, line ->
+                val value = line?.toString()?.trim().orEmpty()
+                if (value.isBlank()) {
+                    null
+                } else {
+                    CapturedMessage(
+                        sender = null,
+                        text = value,
+                        timestamp = sbn.postTime + index
+                    )
+                }
+            }
+
+        val capturedMessages =
+            if (structuredMessages.isNotEmpty()) structuredMessages else textLineMessages
+
         val mediaStableKey = sbn.key + "\u0000" + sbn.postTime
 
         return CapturedNotification(
@@ -70,7 +89,7 @@ class NotificationParser(
             capturedAt = now,
             isOngoing = sbn.isOngoing,
             isClearable = sbn.isClearable,
-            messages = structuredMessages
+            messages = capturedMessages
         )
     }
 }

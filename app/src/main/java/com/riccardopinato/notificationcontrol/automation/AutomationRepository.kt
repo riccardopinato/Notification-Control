@@ -134,9 +134,10 @@ class AutomationRepository(
     suspend fun storePickupCode(
         event: CapturedNotification,
         candidate: PickupCodeCandidate
-    ) {
+    ): Boolean {
+        if (!settings.isPremium) return false
         val now = System.currentTimeMillis()
-        dao.insertPickupCode(
+        val inserted = dao.insertPickupCode(
             PickupCodeEntity(
                 code = candidate.code,
                 sourcePackage = event.packageName,
@@ -147,6 +148,7 @@ class AutomationRepository(
                 expiresAt = now + 24L * 60L * 60L * 1000L
             )
         )
+        return inserted != -1L
     }
 
     suspend fun cleanupPickupCodes() {

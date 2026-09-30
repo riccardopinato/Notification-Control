@@ -1,5 +1,8 @@
 package com.riccardopinato.notificationcontrol.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,6 +21,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,6 +40,7 @@ fun VaultDetailDialog(
     onFollowUp: (NotificationEntity) -> Unit
 ) {
     val notification = state.notification
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -76,6 +81,45 @@ fun VaultDetailDialog(
                                 text,
                                 style = MaterialTheme.typography.bodyLarge
                             )
+                        }
+                    }
+
+                    state.pickupCandidate?.let { candidate ->
+                        item {
+                            Card(Modifier.fillMaxWidth()) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(
+                                        stringResource(R.string.vault_pickup_candidate),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        candidate.code,
+                                        style = MaterialTheme.typography.headlineSmall
+                                    )
+                                    Text(
+                                        stringResource(R.string.vault_pickup_candidate_free_hint),
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            val clipboard =
+                                                context.getSystemService(
+                                                    Context.CLIPBOARD_SERVICE
+                                                ) as ClipboardManager
+                                            clipboard.setPrimaryClip(
+                                                ClipData.newPlainText(
+                                                    context.getString(
+                                                        R.string.pickup_code
+                                                    ),
+                                                    candidate.code
+                                                )
+                                            )
+                                        }
+                                    ) {
+                                        Text(stringResource(R.string.copy))
+                                    }
+                                }
+                            }
                         }
                     }
 

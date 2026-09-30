@@ -22,6 +22,8 @@ import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
 import com.riccardopinato.notificationcontrol.data.RuleWithActions
 import com.riccardopinato.notificationcontrol.data.VaultAppFilter
 import com.riccardopinato.notificationcontrol.domain.MonitoredAppsPolicy
+import com.riccardopinato.notificationcontrol.domain.PickupCodeCandidate
+import com.riccardopinato.notificationcontrol.domain.PickupCodeExtractor
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 import com.riccardopinato.notificationcontrol.domain.VaultSearchQuery
 import com.riccardopinato.notificationcontrol.hardware.FlashCoordinator
@@ -48,6 +50,7 @@ data class VaultDetailUiState(
     val notification: NotificationEntity,
     val messages: List<MessageEntity> = emptyList(),
     val revisions: List<NotificationRevisionEntity> = emptyList(),
+    val pickupCandidate: PickupCodeCandidate? = null,
     val loading: Boolean = true
 )
 
@@ -236,6 +239,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
                 notification = notification,
                 messages = messages,
                 revisions = revisions,
+                pickupCandidate = PickupCodeExtractor.extract(notification, messages),
                 loading = false
             )
         }
