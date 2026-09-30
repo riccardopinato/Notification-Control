@@ -202,9 +202,11 @@ fun NotificationControlApp(
                         modifier = Modifier,
                         contentPadding = padding,
                         followUps = followUps,
+                        isPremium = settings.isPremium,
                         requestPostNotifications = requestPostNotifications,
                         onComplete = viewModel::completeFollowUp,
-                        onSnooze = viewModel::snoozeFollowUp
+                        onSnooze = viewModel::snoozeFollowUp,
+                        onSchedule = viewModel::scheduleFollowUp
                     )
                 }
             }

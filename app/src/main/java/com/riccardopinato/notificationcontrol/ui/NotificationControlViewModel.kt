@@ -451,6 +451,12 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         }
     }
 
+    fun scheduleFollowUp(id: Long, dueAt: Long, repeatMinutes: Int?) {
+        viewModelScope.launch(Dispatchers.IO) {
+            automationRepository.scheduleFollowUp(id, dueAt, repeatMinutes)
+        }
+    }
+
     fun dismissPickupCode(id: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             automationDao.dismissPickupCode(id)

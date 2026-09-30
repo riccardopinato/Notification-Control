@@ -111,6 +111,17 @@ interface AutomationDao {
     @Query("UPDATE follow_ups SET dueAt = :dueAt, updatedAt = :now WHERE id = :id AND status = 'ACTIVE'")
     suspend fun snoozeFollowUp(id: Long, dueAt: Long, now: Long)
 
+    @Query(
+        "UPDATE follow_ups SET dueAt = :dueAt, repeatMinutes = :repeatMinutes, " +
+            "updatedAt = :now WHERE id = :id AND status = 'ACTIVE'"
+    )
+    suspend fun updateFollowUpSchedule(
+        id: Long,
+        dueAt: Long,
+        repeatMinutes: Int?,
+        now: Long
+    )
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPickupCode(entity: PickupCodeEntity): Long
 

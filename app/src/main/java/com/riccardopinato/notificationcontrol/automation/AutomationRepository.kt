@@ -131,6 +131,26 @@ class AutomationRepository(
         FollowUpScheduler.schedule(context, id, dueAt)
     }
 
+    suspend fun scheduleFollowUp(
+        id: Long,
+        dueAt: Long,
+        repeatMinutes: Int?
+    ): Boolean {
+        if (!settings.isPremium) return false
+        val safeDueAt = dueAt.coerceAtLeast(System.currentTimeMillis() + 60_000L)
+        val safeRepeat = repeatMinutes
+            ?.takeIf { it > 0 }
+            ?.coerceIn(15, 10_080)
+        dao.updateFollowUpSchedule(
+            id = id,
+            dueAt = safeDueAt,
+            repeatMinutes = safeRepeat,
+            now = System.currentTimeMillis()
+        )
+        FollowUpScheduler.schedule(context, id, safeDueAt)
+        return true
+    }
+
     suspend fun storePickupCode(
         event: CapturedNotification,
         candidate: PickupCodeCandidate
