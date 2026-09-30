@@ -235,7 +235,8 @@ fun VaultScreen(
     onPackageFilterChange: (String?) -> Unit,
     onLoadMore: () -> Unit,
     onProtect: (String, Boolean) -> Unit,
-    onFollowUp: (NotificationEntity) -> Unit
+    onFollowUp: (NotificationEntity) -> Unit,
+    onOpenDetail: (NotificationEntity) -> Unit
 ) {
     LazyColumn(
         modifier.fillMaxSize().padding(contentPadding).padding(16.dp),
@@ -308,7 +309,7 @@ fun VaultScreen(
         }
 
         items(notifications, key = { it.sbnKey }) { n ->
-            NotificationVaultCard(n, onProtect, onFollowUp)
+            NotificationVaultCard(n, onProtect, onFollowUp, onOpenDetail)
         }
 
         if (notifications.size >= currentLimit) {
@@ -328,7 +329,8 @@ fun VaultScreen(
 private fun NotificationVaultCard(
     notification: NotificationEntity,
     onProtect: (String, Boolean) -> Unit,
-    onFollowUp: (NotificationEntity) -> Unit
+    onFollowUp: (NotificationEntity) -> Unit,
+    onOpenDetail: (NotificationEntity) -> Unit
 ) {
     Card(Modifier.fillMaxWidth()) {
         Row(
@@ -378,6 +380,9 @@ private fun NotificationVaultCard(
                     }
                     TextButton(onClick = { onFollowUp(notification) }) {
                         Text(stringResource(R.string.follow_up))
+                    }
+                    TextButton(onClick = { onOpenDetail(notification) }) {
+                        Text(stringResource(R.string.vault_details))
                     }
                 }
             }

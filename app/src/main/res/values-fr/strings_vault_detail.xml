@@ -1,0 +1,13 @@
+<resources>
+    <string name="vault_details">Détails</string>
+    <string name="vault_messages_title">Messages capturés</string>
+    <string name="vault_versions_title">Versions capturées · %1$d</string>
+    <string name="vault_versions_body">Le contenu visible de la notification reste stocké localement lorsqu’une mise à jour ultérieure le modifie.</string>
+    <string name="vault_status_active">Actuellement active sur Android</string>
+    <string name="vault_status_removed">N’est plus active sur Android</string>
+    <string name="vault_captured_at">Publiée : %1$s</string>
+    <string name="vault_removed_at">Retirée : %1$s</string>
+    <string name="vault_removed_disclaimer">Le retrait ne prouve pas que l’expéditeur a supprimé le message.</string>
+    <string name="vault_unknown_sender">Expéditeur inconnu</string>
+    <string name="close">Fermer</string>
+</resources>

@@ -13,8 +13,10 @@ import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
 import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
+import com.riccardopinato.notificationcontrol.data.MessageEntity
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
+import com.riccardopinato.notificationcontrol.data.NotificationRevisionEntity
 import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
 import com.riccardopinato.notificationcontrol.data.RuleWithActions
 import com.riccardopinato.notificationcontrol.data.VaultAppFilter
@@ -40,6 +42,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class InstalledApp(val packageName: String, val label: String)
+
+data class VaultDetailUiState(
+    val notification: NotificationEntity,
+    val messages: List<MessageEntity> = emptyList(),
+    val revisions: List<NotificationRevisionEntity> = emptyList(),
+    val loading: Boolean = true
+)
 
 sealed interface NotificationControlUiEvent {
     data object ProtectedLimitReached : NotificationControlUiEvent
@@ -104,6 +113,9 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
 
     private val _storageStats = MutableStateFlow(StorageStats())
     val storageStats: StateFlow<StorageStats> = _storageStats.asStateFlow()
+
+    private val _vaultDetail = MutableStateFlow<VaultDetailUiState?>(null)
+    val vaultDetail: StateFlow<VaultDetailUiState?> = _vaultDetail.asStateFlow()
 
     private val _events = MutableSharedFlow<NotificationControlUiEvent>(extraBufferCapacity = 8)
     val events = _events.asSharedFlow()
@@ -209,6 +221,24 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
 
     fun setVaultSearch(value: String) {
         _vaultSearch.value = value
+    }
+
+    fun openVaultDetail(notification: NotificationEntity) {
+        _vaultDetail.value = VaultDetailUiState(notification = notification)
+        viewModelScope.launch(Dispatchers.IO) {
+            val messages = dao.messagesFor(notification.sbnKey)
+            val revisions = dao.revisionsFor(notification.sbnKey)
+            _vaultDetail.value = VaultDetailUiState(
+                notification = notification,
+                messages = messages,
+                revisions = revisions,
+                loading = false
+            )
+        }
+    }
+
+    fun closeVaultDetail() {
+        _vaultDetail.value = null
     }
 
     fun setVaultPackageFilter(packageName: String?) {

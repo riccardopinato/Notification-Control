@@ -55,6 +55,7 @@ fun NotificationControlApp(
     val followUps by viewModel.followUps.collectAsStateWithLifecycle()
     val pickupCodes by viewModel.pickupCodes.collectAsStateWithLifecycle()
     val luminousProfiles by viewModel.luminousProfiles.collectAsStateWithLifecycle()
+    val vaultDetail by viewModel.vaultDetail.collectAsStateWithLifecycle()
 
     permissionEpoch.hashCode()
     vaultUnlockEpoch.hashCode()
@@ -175,7 +176,8 @@ fun NotificationControlApp(
                         onFollowUp = {
                             requestPostNotifications()
                             viewModel.createFollowUp(it, 60)
-                        }
+                        },
+                        onOpenDetail = viewModel::openVaultDetail
                     )
                 }
             }
@@ -238,6 +240,18 @@ fun NotificationControlApp(
                 requestOverlayPermission = requestOverlayPermission
             )
         }
+    }
+
+    vaultDetail?.let { detail ->
+        VaultDetailDialog(
+            state = detail,
+            onDismiss = viewModel::closeVaultDetail,
+            onProtect = viewModel::setProtected,
+            onFollowUp = {
+                requestPostNotifications()
+                viewModel.createFollowUp(it, 60)
+            }
+        )
     }
 
     if (showPicker) {
