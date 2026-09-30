@@ -25,6 +25,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 abstract class NotificationDatabase : RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
     abstract fun automationDao(): AutomationDao
+    abstract fun backupDao(): BackupDao
 
     companion object {
         @Volatile

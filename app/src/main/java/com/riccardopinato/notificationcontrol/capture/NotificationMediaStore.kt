@@ -30,7 +30,7 @@ class NotificationMediaStore(private val context: Context) {
         } else {
             Bitmap.createScaledBitmap(bitmap, width, height, true)
         }
-        val file = File(directory, "${sha256(stableKey)}.webp")
+        val file = fileFor(stableKey)
         return runCatching {
             FileOutputStream(file).use { output ->
                 val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -46,6 +46,25 @@ class NotificationMediaStore(private val context: Context) {
         }.getOrNull()
     }
 
+    fun read(path: String?): ByteArray? {
+        if (path.isNullOrBlank()) return null
+        return runCatching {
+            val file = File(path)
+            if (file.parentFile?.canonicalFile != directory.canonicalFile) return@runCatching null
+            if (!file.isFile || file.length() > 2L * 1024L * 1024L) return@runCatching null
+            file.readBytes()
+        }.getOrNull()
+    }
+
+    fun restorePicture(stableKey: String, bytes: ByteArray): String? {
+        if (bytes.isEmpty() || bytes.size > 2 * 1024 * 1024) return null
+        val file = fileFor(stableKey)
+        return runCatching {
+            FileOutputStream(file).use { it.write(bytes) }
+            file.absolutePath
+        }.getOrNull()
+    }
+
     fun delete(path: String?) {
         if (path.isNullOrBlank()) return
         runCatching {
@@ -55,12 +74,17 @@ class NotificationMediaStore(private val context: Context) {
     }
 
     fun cleanupOrphans(referencedPaths: Collection<String>) {
-        val referenced = referencedPaths.mapNotNull { runCatching { File(it).canonicalPath }.getOrNull() }.toSet()
+        val referenced = referencedPaths.mapNotNull {
+            runCatching { File(it).canonicalPath }.getOrNull()
+        }.toSet()
         directory.listFiles()?.forEach { file ->
             val canonical = runCatching { file.canonicalPath }.getOrNull() ?: return@forEach
             if (canonical !in referenced) runCatching { file.delete() }
         }
     }
+
+    private fun fileFor(stableKey: String): File =
+        File(directory, "${sha256(stableKey)}.webp")
 
     private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
         .digest(value.toByteArray())
