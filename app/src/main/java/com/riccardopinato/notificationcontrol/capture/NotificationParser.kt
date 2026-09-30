@@ -22,21 +22,22 @@ class NotificationParser(
         }.getOrDefault(sbn.packageName)
 
         val structuredMessages = runCatching {
-            NotificationCompat.MessagingStyle.Message.getMessagesFromBundleArray(
-                extras?.getParcelableArray(Notification.EXTRA_MESSAGES)
-            ).orEmpty().mapNotNull { message ->
-                val text = message.text?.toString()?.takeIf { it.isNotBlank() }
-                    ?: return@mapNotNull null
-                @Suppress("DEPRECATION")
-                val legacySender = message.sender?.toString()
-                CapturedMessage(
-                    sender = message.person?.name?.toString() ?: legacySender,
-                    text = text,
-                    timestamp = message.timestamp,
-                    mimeType = message.dataMimeType,
-                    dataUri = message.dataUri?.toString()
-                )
-            }
+            NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
+                ?.messages
+                .orEmpty()
+                .mapNotNull { message ->
+                    val text = message.text?.toString()?.takeIf { it.isNotBlank() }
+                        ?: return@mapNotNull null
+                    @Suppress("DEPRECATION")
+                    val legacySender = message.sender?.toString()
+                    CapturedMessage(
+                        sender = message.person?.name?.toString() ?: legacySender,
+                        text = text,
+                        timestamp = message.timestamp,
+                        mimeType = message.dataMimeType,
+                        dataUri = message.dataUri?.toString()
+                    )
+                }
         }.getOrDefault(emptyList())
 
         return CapturedNotification(
