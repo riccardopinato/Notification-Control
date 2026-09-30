@@ -2,6 +2,7 @@ package com.riccardopinato.notificationcontrol.capture
 
 import com.riccardopinato.notificationcontrol.data.MessageEntity
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
+import com.riccardopinato.notificationcontrol.data.NotificationFtsEntity
 import com.riccardopinato.notificationcontrol.data.NotificationRevisionEntity
 import java.security.MessageDigest
 
@@ -72,6 +73,17 @@ fun CapturedNotification.toRevisionEntity(): NotificationRevisionEntity {
         contentHash = contentHash
     )
 }
+
+fun CapturedNotification.toFtsEntity(): NotificationFtsEntity =
+    NotificationFtsEntity(
+        sbnKey = sbnKey,
+        appLabel = appLabel,
+        title = title,
+        text = text,
+        bigText = bigText,
+        conversationTitle = conversationTitle,
+        messagesText = messages.joinToString(" ") { it.sender.orEmpty() + " " + it.text }
+    )
 
 private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
     .digest(value.toByteArray())

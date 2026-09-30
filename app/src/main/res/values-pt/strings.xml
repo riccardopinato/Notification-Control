@@ -21,7 +21,7 @@
     <string name="selected_count">%1$d / %2$d selecionadas</string>
     <string name="free_limit_reached">Limite Free atingido: %1$d apps</string>
     <string name="security_title">Proteja o seu Vault</string>
-    <string name="security_body">O Vault pode conter mensagens e códigos privados. O bloqueio biométrico e a identidade Google opcional fazem parte do roteiro de segurança; nenhum deles é necessário para usar o núcleo local.</string>
+    <string name="security_body">O Vault pode conter mensagens e códigos privados. A credencial do dispositivo ou a biometria podem proteger o acesso local.</string>
     <string name="finish_setup">Concluir configuração</string>
     <string name="home_title">Notification Control</string>
     <string name="home_subtitle">Uma captura. Um Vault local. Várias ações inteligentes.</string>
@@ -42,7 +42,7 @@
     <string name="luminous_title">Alertas visuais Luminous</string>
     <string name="luminous_body">The Luminous Infinite Circle vive aqui como módulo de alerta visual do Notification Control.</string>
     <string name="flash_alerts">Flash da câmara</string>
-    <string name="flash_alerts_desc">Usa o LED traseiro para notificações monitorizadas.</string>
+    <string name="flash_alerts_desc">Usa o LED traseiro para notificações.</string>
     <string name="overlay_alerts">Overlay Luminous</string>
     <string name="overlay_alerts_desc">Mostra o círculo luminoso sobre preto OLED quando o Android o permite.</string>
     <string name="screen_off_only">Apenas com o ecrã desligado</string>
@@ -60,11 +60,11 @@
     <string name="circle_glow">Brilho</string>
     <string name="profile_title">Perfil e centro de controlo</string>
     <string name="account_title">Conta</string>
-    <string name="account_optional">O início de sessão Google será opcional. A utilização local nunca exigirá uma conta.</string>
+    <string name="account_optional">O início de sessão Google é opcional e nunca será necessário para a utilização local.</string>
     <string name="language_title">Idioma</string>
-    <string name="language_device">Usa por predefinição o idioma do telefone (EN / IT / ES / FR / PT, com fallback EN).</string>
+    <string name="language_device">Usa por predefinição o idioma do telefone. Pode alterá-lo aqui.</string>
     <string name="storage_title">Armazenamento e retenção</string>
-    <string name="storage_free">Free: 7 dias. Premium: 1 / 3 / 7 / 30 dias / sempre, com os itens protegidos excluídos da limpeza.</string>
+    <string name="storage_free">Free: 7 dias. Premium acrescenta retenção configurável.</string>
     <string name="privacy_title">Privacidade</string>
     <string name="privacy_body">O conteúdo principal das notificações permanece local. A cópia de segurança automática na cloud do Android está desativada.</string>
     <string name="delete_vault">Eliminar todo o Vault</string>
@@ -80,4 +80,31 @@
     <string name="notification_state">Acesso às notificações: %1$s</string>
     <string name="yes">Sim</string>
     <string name="no">Não</string>
+
+    <string name="unlock_vault">Desbloquear Vault</string>
+    <string name="unlock_vault_subtitle">Use biometria ou a credencial do dispositivo.</string>
+    <string name="protected_limit_reached">Free pode proteger até 10 itens do Vault.</string>
+    <string name="vault_locked_title">Vault bloqueado</string>
+    <string name="vault_locked_body">Desbloqueie para ler o conteúdo das notificações guardado localmente.</string>
+    <string name="search_vault">Pesquisar no Vault</string>
+    <string name="all_apps">Todas as apps</string>
+    <string name="vault_storage">Armazenamento do Vault</string>
+    <string name="load_more">Carregar mais</string>
+    <string name="language_auto">Auto</string>
+    <string name="biometric_security_available">Proteja o Vault com biometria ou a credencial do dispositivo.</string>
+    <string name="biometric_security_unavailable">Não está disponível uma credencial segura compatível.</string>
+    <string name="lock_timeout">Voltar a bloquear após</string>
+    <string name="minutes_short">%1$d min</string>
+    <string name="storage_total">Total: %1$s</string>
+    <string name="storage_database">Base de dados: %1$s</string>
+    <string name="storage_media">Pré-visualizações multimédia: %1$s</string>
+    <string name="retention_current">Retenção: %1$d dias</string>
+    <string name="status_ok">OK</string>
+    <string name="fix">Corrigir</string>
+    <string name="visual_setup_title">Alertas visuais</string>
+    <string name="visual_setup_body">Escolha como o Notification Control deve alertá-lo. As permissões só são pedidas para os modos que ativar.</string>
+    <string name="enable_vault_lock">Bloqueio do Vault</string>
+    <string name="setup_complete_title">Configuração concluída</string>
+    <string name="setup_complete_body">%1$d apps são monitorizadas pelo Vault local.</string>
+    <string name="test_visual_alerts">Testar alertas visuais</string>
 </resources>

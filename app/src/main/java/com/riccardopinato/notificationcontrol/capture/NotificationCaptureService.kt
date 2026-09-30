@@ -8,6 +8,11 @@ import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.domain.SuppressionPolicy
 import com.riccardopinato.notificationcontrol.hardware.DevicePostureMonitor
 import com.riccardopinato.notificationcontrol.hardware.FlashCoordinator
+import com.riccardopinato.notificationcontrol.processing.LuminousConsumer
+import com.riccardopinato.notificationcontrol.processing.NotificationEventProcessor
+import com.riccardopinato.notificationcontrol.processing.NotificationVaultRepository
+import com.riccardopinato.notificationcontrol.processing.ProcessingMode
+import com.riccardopinato.notificationcontrol.processing.VaultConsumer
 import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,25 +24,41 @@ class NotificationCaptureService : NotificationListenerService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var settings: AppSettings
     private lateinit var parser: NotificationParser
-    private lateinit var database: NotificationDatabase
-    private lateinit var mediaStore: NotificationMediaStore
     private lateinit var health: ListenerHealthStore
     private lateinit var posture: DevicePostureMonitor
-    private lateinit var suppressionPolicy: SuppressionPolicy
-    private lateinit var flash: FlashCoordinator
+    private lateinit var processor: NotificationEventProcessor
     private lateinit var overlay: LuminousCircleOverlay
 
     override fun onCreate() {
         super.onCreate()
         settings = AppSettings(this)
-        mediaStore = NotificationMediaStore(this)
+        val mediaStore = NotificationMediaStore(this)
         parser = NotificationParser(this, mediaStore)
-        database = NotificationDatabase.get(this)
         health = ListenerHealthStore(this)
         posture = DevicePostureMonitor(this)
-        suppressionPolicy = SuppressionPolicy(this, settings, posture)
-        flash = FlashCoordinator.get(this)
+
+        val database = NotificationDatabase.get(this)
+        val vaultRepository = NotificationVaultRepository(
+            settings = settings,
+            database = database,
+            mediaStore = mediaStore
+        )
+        val suppressionPolicy = SuppressionPolicy(this, settings, posture)
+        val flash = FlashCoordinator.get(this)
         overlay = LuminousCircleOverlay(this)
+
+        processor = NotificationEventProcessor(
+            vaultRepository = vaultRepository,
+            consumers = listOf(
+                VaultConsumer(vaultRepository),
+                LuminousConsumer(
+                    settings = settings,
+                    suppressionPolicy = suppressionPolicy,
+                    flash = flash,
+                    overlay = overlay
+                )
+            )
+        )
     }
 
     override fun onListenerConnected() {
@@ -65,26 +86,21 @@ class NotificationCaptureService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         val notification = sbn ?: return
-        val persist = shouldPersistToVault(notification)
-        val luminous = shouldRunLuminous(notification)
-        if (!persist && !luminous) return
+        if (!shouldConsider(notification)) return
 
         health.lastEventAt = System.currentTimeMillis()
         serviceScope.launch {
             val captured = parser.parse(
                 notification,
-                captureThumbnail = persist && settings.isPremium
+                captureThumbnail = processor.shouldCaptureThumbnail(notification.packageName)
             )
-            if (persist) persist(captured)
-            if (luminous) triggerLuminous(captured)
+            processor.process(captured, ProcessingMode.POSTED)
         }
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         val notification = sbn ?: return
-        serviceScope.launch {
-            database.notificationDao().markRemoved(notification.key, System.currentTimeMillis(), null)
-        }
+        serviceScope.launch { processor.markRemoved(notification.key, null) }
     }
 
     override fun onNotificationRemoved(
@@ -93,17 +109,19 @@ class NotificationCaptureService : NotificationListenerService() {
         reason: Int
     ) {
         val notification = sbn ?: return
-        serviceScope.launch {
-            database.notificationDao().markRemoved(notification.key, System.currentTimeMillis(), reason)
-        }
+        serviceScope.launch { processor.markRemoved(notification.key, reason) }
     }
 
     private fun reconcileActiveNotifications() {
         serviceScope.launch {
             val notifications = runCatching { activeNotifications.orEmpty().toList() }
                 .getOrDefault(emptyList())
-            notifications.filter(::shouldPersistToVault).forEach { sbn ->
-                persist(parser.parse(sbn, captureThumbnail = settings.isPremium))
+            notifications.filter(::shouldConsider).forEach { sbn ->
+                val captured = parser.parse(
+                    sbn,
+                    captureThumbnail = processor.shouldCaptureThumbnail(sbn.packageName)
+                )
+                processor.process(captured, ProcessingMode.RECONCILIATION)
             }
             health.lastReconciliationAt = System.currentTimeMillis()
         }
@@ -111,39 +129,4 @@ class NotificationCaptureService : NotificationListenerService() {
 
     private fun shouldConsider(sbn: StatusBarNotification): Boolean =
         sbn.packageName != packageName && !sbn.isOngoing
-
-    private fun shouldPersistToVault(sbn: StatusBarNotification): Boolean =
-        shouldConsider(sbn) && sbn.packageName in settings.monitoredPackages
-
-    private fun shouldRunLuminous(sbn: StatusBarNotification): Boolean =
-        shouldConsider(sbn) && (settings.flashEnabled || settings.overlayEnabled)
-
-    private suspend fun persist(captured: CapturedNotification) {
-        val dao = database.notificationDao()
-        val previous = dao.findByKey(captured.sbnKey)
-        dao.upsert(
-            captured.toNotificationEntity(
-                existingProtected = previous?.protected == true,
-                existingThumbnailPath = previous?.thumbnailPath
-            ),
-            captured.toMessageEntities(),
-            captured.toRevisionEntity()
-        )
-        val replacedMedia = previous?.thumbnailPath
-        if (
-            replacedMedia != null &&
-            captured.thumbnailPath != null &&
-            replacedMedia != captured.thumbnailPath
-        ) {
-            mediaStore.delete(replacedMedia)
-        }
-    }
-
-    private fun triggerLuminous(captured: CapturedNotification) {
-        if (suppressionPolicy.evaluate().suppressed) return
-        if (settings.flashEnabled) {
-            flash.startStrobe(settings.strobeCycles, settings.strobeSpeedMs, settings.strobeSpeedMs)
-        }
-        if (settings.overlayEnabled) overlay.show(captured.appLabel)
-    }
 }
