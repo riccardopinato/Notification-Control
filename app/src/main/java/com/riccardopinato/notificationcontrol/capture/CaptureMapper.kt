@@ -2,9 +2,13 @@ package com.riccardopinato.notificationcontrol.capture
 
 import com.riccardopinato.notificationcontrol.data.MessageEntity
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
+import com.riccardopinato.notificationcontrol.data.NotificationRevisionEntity
 import java.security.MessageDigest
 
-fun CapturedNotification.toNotificationEntity(existingProtected: Boolean = false, existingThumbnailPath: String? = null): NotificationEntity =
+fun CapturedNotification.toNotificationEntity(
+    existingProtected: Boolean = false,
+    existingThumbnailPath: String? = null
+): NotificationEntity =
     NotificationEntity(
         sbnKey = sbnKey,
         packageName = packageName,
@@ -40,6 +44,32 @@ fun CapturedNotification.toMessageEntities(): List<MessageEntity> = messages.map
         timestamp = message.timestamp,
         mimeType = message.mimeType,
         dataUri = message.dataUri
+    )
+}
+
+fun CapturedNotification.toRevisionEntity(): NotificationRevisionEntity {
+    val contentFingerprint = listOf(
+        title.orEmpty(),
+        text.orEmpty(),
+        bigText.orEmpty(),
+        subText.orEmpty(),
+        conversationTitle.orEmpty(),
+        messages.joinToString("\u0001") {
+            listOf(it.timestamp.toString(), it.sender.orEmpty(), it.text, it.mimeType.orEmpty(), it.dataUri.orEmpty())
+                .joinToString("\u0000")
+        }
+    ).joinToString("\u0002")
+    val contentHash = sha256(contentFingerprint)
+    return NotificationRevisionEntity(
+        revisionKey = sha256("$sbnKey\u0000$contentHash"),
+        notificationKey = sbnKey,
+        capturedAt = capturedAt,
+        title = title,
+        text = text,
+        bigText = bigText,
+        subText = subText,
+        conversationTitle = conversationTitle,
+        contentHash = contentHash
     )
 }
 

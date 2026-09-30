@@ -20,16 +20,24 @@ class NotificationMediaStore(private val context: Context) {
             is Icon -> runCatching { raw.loadDrawable(context)?.toBitmap() }.getOrNull()
             else -> null
         } ?: return null
+
         val maxSide = 320
         val scale = minOf(1f, maxSide.toFloat() / maxOf(bitmap.width, bitmap.height).coerceAtLeast(1))
         val width = (bitmap.width * scale).toInt().coerceAtLeast(1)
         val height = (bitmap.height * scale).toInt().coerceAtLeast(1)
-        val resized = if (width == bitmap.width && height == bitmap.height) bitmap else Bitmap.createScaledBitmap(bitmap, width, height, true)
+        val resized = if (width == bitmap.width && height == bitmap.height) {
+            bitmap
+        } else {
+            Bitmap.createScaledBitmap(bitmap, width, height, true)
+        }
         val file = File(directory, "${sha256(stableKey)}.webp")
         return runCatching {
             FileOutputStream(file).use { output ->
-                val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) Bitmap.CompressFormat.WEBP_LOSSY else {
-                    @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP
+                val format = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    Bitmap.CompressFormat.WEBP_LOSSY
+                } else {
+                    @Suppress("DEPRECATION")
+                    Bitmap.CompressFormat.WEBP
                 }
                 check(resized.compress(format, 72, output))
             }
@@ -46,6 +54,15 @@ class NotificationMediaStore(private val context: Context) {
         }
     }
 
+    fun cleanupOrphans(referencedPaths: Collection<String>) {
+        val referenced = referencedPaths.mapNotNull { runCatching { File(it).canonicalPath }.getOrNull() }.toSet()
+        directory.listFiles()?.forEach { file ->
+            val canonical = runCatching { file.canonicalPath }.getOrNull() ?: return@forEach
+            if (canonical !in referenced) runCatching { file.delete() }
+        }
+    }
+
     private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
-        .digest(value.toByteArray()).joinToString("") { "%02x".format(it) }
+        .digest(value.toByteArray())
+        .joinToString("") { "%02x".format(it) }
 }
