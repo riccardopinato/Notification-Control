@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.riccardopinato.notificationcontrol.automation.AutomationRepository
+import com.riccardopinato.notificationcontrol.automation.CriticalAlertScheduler
 import com.riccardopinato.notificationcontrol.automation.FollowUpScheduler
 import com.riccardopinato.notificationcontrol.billing.BillingUiState
 import com.riccardopinato.notificationcontrol.billing.PlayBillingManager
@@ -577,6 +578,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
             val mediaStore = NotificationMediaStore(app)
             val paths = dao.allThumbnailPaths()
             FollowUpScheduler.cancelAll(app)
+            CriticalAlertScheduler.cancelAll(app)
             database.clearAllTables()
             paths.forEach(mediaStore::delete)
             mediaStore.cleanupOrphans(emptyList())

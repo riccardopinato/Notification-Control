@@ -6,6 +6,7 @@ import android.util.Base64
 import androidx.room.withTransaction
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
+import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
 import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.MessageEntity
@@ -43,6 +44,7 @@ class BackupRepository(context: Context) {
         val rules = backupDao.allRules()
         val actions = backupDao.allRuleActions()
         val critical = backupDao.allCriticalPatterns()
+        val criticalAlerts = backupDao.allCriticalAlerts()
         val followUps = backupDao.allFollowUps()
         val pickupCodes = backupDao.allPickupCodes()
         val luminousProfiles = database.luminousProfileDao().allProfiles()
@@ -67,6 +69,9 @@ class BackupRepository(context: Context) {
             })
             .put("criticalPatterns", JSONArray().apply {
                 critical.forEach { put(criticalJson(it)) }
+            })
+            .put("criticalAlerts", JSONArray().apply {
+                criticalAlerts.forEach { put(criticalAlertJson(it)) }
             })
             .put("followUps", JSONArray().apply {
                 followUps.forEach { put(followUpJson(it)) }
@@ -121,6 +126,9 @@ class BackupRepository(context: Context) {
         val rules = parseRules(root.getJSONArray("rules"))
         val actions = parseRuleActions(root.getJSONArray("ruleActions"))
         val critical = parseCritical(root.getJSONArray("criticalPatterns"))
+        val criticalAlerts = parseCriticalAlerts(
+            root.optJSONArray("criticalAlerts") ?: JSONArray()
+        )
         val followUps = parseFollowUps(root.getJSONArray("followUps"))
         val pickupCodes = parsePickupCodes(root.getJSONArray("pickupCodes"))
         val luminousProfiles = parseLuminousProfiles(
@@ -144,6 +152,7 @@ class BackupRepository(context: Context) {
                 database.luminousProfileDao().deleteAll()
                 backupDao.deletePickupCodes()
                 backupDao.deleteFollowUps()
+                backupDao.deleteCriticalAlerts()
                 backupDao.deleteCriticalPatterns()
                 backupDao.deleteRuleActions()
                 backupDao.deleteRules()
@@ -160,6 +169,9 @@ class BackupRepository(context: Context) {
                 if (rules.isNotEmpty()) backupDao.insertRules(rules)
                 if (actions.isNotEmpty()) backupDao.insertRuleActions(actions)
                 if (critical.isNotEmpty()) backupDao.insertCriticalPatterns(critical)
+                if (criticalAlerts.isNotEmpty()) {
+                    backupDao.insertCriticalAlerts(criticalAlerts)
+                }
                 if (followUps.isNotEmpty()) backupDao.insertFollowUps(followUps)
                 if (pickupCodes.isNotEmpty()) backupDao.insertPickupCodes(pickupCodes)
                 if (luminousProfiles.isNotEmpty()) {
@@ -310,6 +322,28 @@ class BackupRepository(context: Context) {
                     value = o.getString("value"),
                     enabled = o.getBoolean("enabled"),
                     createdAt = o.getLong("createdAt")
+                )
+            )
+        }
+    }
+
+    private fun parseCriticalAlerts(
+        array: JSONArray
+    ): List<CriticalAlertEntity> = buildList {
+        for (i in 0 until array.length()) {
+            val o = array.getJSONObject(i)
+            add(
+                CriticalAlertEntity(
+                    id = o.getLong("id"),
+                    eventKey = o.getString("eventKey"),
+                    sourcePackage = o.getString("sourcePackage"),
+                    sourceLabel = o.getString("sourceLabel"),
+                    title = o.stringOrNull("title"),
+                    createdAt = o.getLong("createdAt"),
+                    updatedAt = o.getLong("updatedAt"),
+                    status = o.getString("status"),
+                    escalationStep = o.getInt("escalationStep"),
+                    nextAt = o.getLong("nextAt")
                 )
             )
         }
@@ -498,6 +532,19 @@ class BackupRepository(context: Context) {
         "value" to c.value,
         "enabled" to c.enabled,
         "createdAt" to c.createdAt
+    ))
+
+    private fun criticalAlertJson(c: CriticalAlertEntity) = JSONObject(mapOf(
+        "id" to c.id,
+        "eventKey" to c.eventKey,
+        "sourcePackage" to c.sourcePackage,
+        "sourceLabel" to c.sourceLabel,
+        "title" to c.title,
+        "createdAt" to c.createdAt,
+        "updatedAt" to c.updatedAt,
+        "status" to c.status,
+        "escalationStep" to c.escalationStep,
+        "nextAt" to c.nextAt
     ))
 
     private fun followUpJson(f: FollowUpEntity) = JSONObject(mapOf(

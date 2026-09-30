@@ -112,6 +112,88 @@ class NotificationDatabaseMigrationTest {
         context.deleteDatabase(databaseName)
     }
 
+    @Test
+    fun migration6To7CreatesCriticalEscalationStorage() {
+        val context = RuntimeEnvironment.getApplication()
+        val databaseName = "notification-control-migration-6-7.db"
+        context.deleteDatabase(databaseName)
+
+        val v6 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(6) {
+                        override fun onCreate(db: SupportSQLiteDatabase) = Unit
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) = Unit
+                    }
+                )
+                .build()
+        )
+        v6.writableDatabase
+        v6.close()
+
+        val v7 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(7) {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            NotificationDatabase.MIGRATION_6_7.migrate(db)
+                        }
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) {
+                            assertEquals(6, oldVersion)
+                            assertEquals(7, newVersion)
+                            NotificationDatabase.MIGRATION_6_7.migrate(db)
+                        }
+                    }
+                )
+                .build()
+        )
+
+        val db = v7.writableDatabase
+        var tableFound = false
+        db.query(
+            "SELECT name FROM sqlite_master " +
+                "WHERE type='table' AND name='critical_alerts'"
+        ).use { cursor ->
+            tableFound = cursor.moveToFirst()
+        }
+        assertTrue(tableFound)
+
+        db.execSQL(
+            """
+            INSERT INTO critical_alerts(
+                eventKey, sourcePackage, sourceLabel, title,
+                createdAt, updatedAt, status, escalationStep, nextAt
+            ) VALUES(
+                'event-1', 'com.example', 'Example', 'Urgent',
+                100, 100, 'ACTIVE', 0, 200
+            )
+            """.trimIndent()
+        )
+        db.query(
+            "SELECT eventKey, status, escalationStep FROM critical_alerts"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("event-1", cursor.getString(0))
+            assertEquals("ACTIVE", cursor.getString(1))
+            assertEquals(0, cursor.getInt(2))
+        }
+
+        v7.close()
+        context.deleteDatabase(databaseName)
+    }
+
     private fun createNotificationsV5(db: SupportSQLiteDatabase) {
         db.execSQL(
             """

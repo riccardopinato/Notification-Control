@@ -25,6 +25,9 @@ interface BackupDao {
     @Query("SELECT * FROM critical_patterns ORDER BY id ASC")
     suspend fun allCriticalPatterns(): List<CriticalPatternEntity>
 
+    @Query("SELECT * FROM critical_alerts ORDER BY id ASC")
+    suspend fun allCriticalAlerts(): List<CriticalAlertEntity>
+
     @Query("SELECT * FROM follow_ups ORDER BY id ASC")
     suspend fun allFollowUps(): List<FollowUpEntity>
 
@@ -39,6 +42,9 @@ interface BackupDao {
 
     @Query("DELETE FROM critical_patterns")
     suspend fun deleteCriticalPatterns()
+
+    @Query("DELETE FROM critical_alerts")
+    suspend fun deleteCriticalAlerts()
 
     @Query("DELETE FROM rule_actions")
     suspend fun deleteRuleActions()
@@ -75,6 +81,9 @@ interface BackupDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCriticalPatterns(items: List<CriticalPatternEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCriticalAlerts(items: List<CriticalAlertEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFollowUps(items: List<FollowUpEntity>)
