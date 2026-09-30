@@ -254,6 +254,7 @@ fun NotificationControlApp(
                 onBatteryGuardThresholdChanged = viewModel::setBatteryGuardThreshold,
                 onQuietStartChanged = viewModel::setQuietStartMinutes,
                 onQuietEndChanged = viewModel::setQuietEndMinutes,
+                onCriticalBypassQuietHoursChanged = viewModel::setCriticalBypassQuietHours,
                 onDeleteAll = viewModel::deleteAllVault,
                 onResetLocalData = viewModel::resetLocalData,
                 onPurchasePremium = purchasePremiumOffer,

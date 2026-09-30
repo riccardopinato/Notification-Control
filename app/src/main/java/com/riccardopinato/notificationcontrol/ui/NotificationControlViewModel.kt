@@ -335,6 +335,11 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         refresh()
     }
 
+    fun setCriticalBypassQuietHours(enabled: Boolean) {
+        settings.criticalBypassQuietHours = enabled
+        refresh()
+    }
+
     fun setPausePingEnabled(enabled: Boolean) {
         settings.pausePingEnabled = enabled
         refresh()

@@ -2,6 +2,7 @@ package com.riccardopinato.notificationcontrol.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import androidx.biometric.BiometricManager
 import androidx.compose.foundation.layout.Arrangement
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -22,6 +24,8 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -56,15 +60,24 @@ fun ProfileScreen(
     onConfigureApps: () -> Unit,
     onVaultLockChanged: (Boolean) -> Unit,
     onVaultTimeoutChanged: (Int) -> Unit,
+    onSensitiveProtectionChanged: (Boolean) -> Unit,
+    onRetentionDaysChanged: (Int) -> Unit,
+    onBatteryGuardThresholdChanged: (Int) -> Unit,
+    onQuietStartChanged: (Int) -> Unit,
+    onQuietEndChanged: (Int) -> Unit,
+    onCriticalBypassQuietHoursChanged: (Boolean) -> Unit,
     onDeleteAll: () -> Unit,
+    onResetLocalData: () -> Unit,
     onPurchasePremium: (String) -> Unit,
     onRestorePurchases: () -> Unit,
     onBackupRestored: () -> Unit,
     requestNotificationAccess: () -> Unit,
+    requestPostNotifications: () -> Unit,
     requestCameraPermission: () -> Unit,
     requestOverlayPermission: () -> Unit
 ) {
     var confirmDelete by remember { mutableStateOf(false) }
+    var confirmReset by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val biometricAuthenticators =
         BiometricManager.Authenticators.BIOMETRIC_STRONG or
@@ -99,14 +112,33 @@ fun ProfileScreen(
                 enabled = state.vaultLockEnabled,
                 available = biometricAvailable,
                 timeoutMinutes = state.vaultLockTimeoutMinutes,
+                sensitiveProtectionEnabled = state.sensitiveProtectionEnabled,
                 onEnabledChange = onVaultLockChanged,
-                onTimeoutChange = onVaultTimeoutChanged
+                onTimeoutChange = onVaultTimeoutChanged,
+                onSensitiveProtectionChange = onSensitiveProtectionChanged
             )
         }
-        item { StorageCard(storageStats, state) }
+        item {
+            StorageCard(
+                storageStats = storageStats,
+                state = state,
+                onRetentionDaysChanged = onRetentionDaysChanged
+            )
+        }
+        item {
+            DeviceBehaviorCard(
+                state = state,
+                onBatteryThresholdChanged = onBatteryGuardThresholdChanged,
+                onQuietStartChanged = onQuietStartChanged,
+                onQuietEndChanged = onQuietEndChanged,
+                onCriticalBypassQuietHoursChanged = onCriticalBypassQuietHoursChanged
+            )
+        }
         item {
             PermissionHealthCard(
+                state = state,
                 requestNotificationAccess = requestNotificationAccess,
+                requestPostNotifications = requestPostNotifications,
                 requestCameraPermission = requestCameraPermission,
                 requestOverlayPermission = requestOverlayPermission
             )
@@ -133,6 +165,14 @@ fun ProfileScreen(
                 Text(stringResource(R.string.delete_vault))
             }
         }
+        item {
+            TextButton(
+                onClick = { confirmReset = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.reset_local_data))
+            }
+        }
     }
 
     if (confirmDelete) {
@@ -152,6 +192,29 @@ fun ProfileScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmDelete = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (confirmReset) {
+        AlertDialog(
+            onDismissRequest = { confirmReset = false },
+            title = { Text(stringResource(R.string.reset_local_data)) },
+            text = { Text(stringResource(R.string.reset_local_data_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onResetLocalData()
+                        confirmReset = false
+                    }
+                ) {
+                    Text(stringResource(R.string.reset))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReset = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             }
@@ -263,8 +326,10 @@ private fun SecurityCard(
     enabled: Boolean,
     available: Boolean,
     timeoutMinutes: Int,
+    sensitiveProtectionEnabled: Boolean,
     onEnabledChange: (Boolean) -> Unit,
-    onTimeoutChange: (Int) -> Unit
+    onTimeoutChange: (Int) -> Unit,
+    onSensitiveProtectionChange: (Boolean) -> Unit
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -303,33 +368,170 @@ private fun SecurityCard(
                     }
                 }
             }
+            HorizontalDivider(Modifier.padding(vertical = 10.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        stringResource(R.string.sensitive_screen_protection),
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        stringResource(R.string.sensitive_screen_protection_body),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Switch(
+                    checked = sensitiveProtectionEnabled,
+                    onCheckedChange = onSensitiveProtectionChange
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun StorageCard(storageStats: StorageStats, state: SettingsUiState) {
+private fun StorageCard(
+    storageStats: StorageStats,
+    state: SettingsUiState,
+    onRetentionDaysChanged: (Int) -> Unit
+) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(stringResource(R.string.storage_title), fontWeight = FontWeight.Bold)
             Text(stringResource(R.string.storage_total, formatBytesProfile(storageStats.totalBytes)))
             Text(stringResource(R.string.storage_database, formatBytesProfile(storageStats.databaseBytes)))
             Text(stringResource(R.string.storage_media, formatBytesProfile(storageStats.mediaBytes)))
+
             Text(
-                if (state.isPremium) {
-                    stringResource(R.string.retention_current, state.retentionDays)
-                } else {
-                    stringResource(R.string.storage_free)
-                },
-                style = MaterialTheme.typography.bodySmall
+                stringResource(R.string.retention_title),
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 10.dp)
             )
+            if (state.isPremium) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    items(ProductLimits.PREMIUM_RETENTION_OPTIONS_DAYS) { days ->
+                        FilterChip(
+                            selected = state.retentionDays == days,
+                            onClick = { onRetentionDaysChanged(days) },
+                            label = {
+                                Text(
+                                    if (days == Int.MAX_VALUE) {
+                                        stringResource(R.string.retention_always)
+                                    } else {
+                                        stringResource(R.string.days_short, days)
+                                    }
+                                )
+                            }
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    stringResource(
+                        R.string.retention_free_fixed,
+                        ProductLimits.FREE_RETENTION_DAYS
+                    ),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceBehaviorCard(
+    state: SettingsUiState,
+    onBatteryThresholdChanged: (Int) -> Unit,
+    onQuietStartChanged: (Int) -> Unit,
+    onQuietEndChanged: (Int) -> Unit,
+    onCriticalBypassQuietHoursChanged: (Boolean) -> Unit
+) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.behavior_controls_title),
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                stringResource(
+                    R.string.battery_threshold_value,
+                    state.batteryGuardThreshold
+                ),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            Slider(
+                value = state.batteryGuardThreshold.toFloat(),
+                onValueChange = { onBatteryThresholdChanged(it.toInt()) },
+                valueRange = 5f..50f,
+                enabled = state.isPremium && state.batteryGuardEnabled
+            )
+            if (!state.isPremium) {
+                Text(
+                    stringResource(R.string.battery_threshold_premium),
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+
+            if (state.quietHoursEnabled) {
+                Text(
+                    stringResource(
+                        R.string.quiet_start_value,
+                        formatMinutesOfDay(state.quietStartMinutes)
+                    ),
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                Slider(
+                    value = state.quietStartMinutes.coerceIn(0, 1410).toFloat(),
+                    onValueChange = {
+                        onQuietStartChanged(((it.toInt() / 30) * 30).coerceIn(0, 1410))
+                    },
+                    valueRange = 0f..1410f,
+                    steps = 46
+                )
+                Text(
+                    stringResource(
+                        R.string.quiet_end_value,
+                        formatMinutesOfDay(state.quietEndMinutes)
+                    )
+                )
+                Slider(
+                    value = state.quietEndMinutes.coerceIn(0, 1410).toFloat(),
+                    onValueChange = {
+                        onQuietEndChanged(((it.toInt() / 30) * 30).coerceIn(0, 1410))
+                    },
+                    valueRange = 0f..1410f,
+                    steps = 46
+                )
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.critical_bypass_quiet))
+                        Text(
+                            stringResource(R.string.critical_bypass_quiet_body),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Switch(
+                        checked = state.criticalBypassQuietHours,
+                        onCheckedChange = onCriticalBypassQuietHoursChanged
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
 private fun PermissionHealthCard(
+    state: SettingsUiState,
     requestNotificationAccess: () -> Unit,
+    requestPostNotifications: () -> Unit,
     requestCameraPermission: () -> Unit,
     requestOverlayPermission: () -> Unit
 ) {
@@ -341,6 +543,10 @@ private fun PermissionHealthCard(
         context.checkSelfPermission(Manifest.permission.CAMERA) ==
             PackageManager.PERMISSION_GRANTED
     val overlayGranted = Settings.canDrawOverlays(context)
+    val reminderNotificationsGranted =
+        Build.VERSION.SDK_INT < 33 ||
+            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -351,15 +557,28 @@ private fun PermissionHealthCard(
                 requestNotificationAccess
             )
             PermissionHealthRow(
-                stringResource(R.string.camera_permission),
-                cameraGranted,
-                requestCameraPermission
+                stringResource(R.string.follow_up_notification_permission),
+                reminderNotificationsGranted,
+                requestPostNotifications
             )
-            PermissionHealthRow(
-                stringResource(R.string.overlay_permission),
-                overlayGranted,
-                requestOverlayPermission
-            )
+            if (state.flashEnabled) {
+                PermissionHealthRow(
+                    stringResource(R.string.camera_permission),
+                    cameraGranted,
+                    requestCameraPermission
+                )
+            } else {
+                PermissionNotNeededRow(stringResource(R.string.camera_permission))
+            }
+            if (state.overlayEnabled) {
+                PermissionHealthRow(
+                    stringResource(R.string.overlay_permission),
+                    overlayGranted,
+                    requestOverlayPermission
+                )
+            } else {
+                PermissionNotNeededRow(stringResource(R.string.overlay_permission))
+            }
         }
     }
 }
@@ -389,6 +608,20 @@ private fun PermissionHealthRow(
 }
 
 @Composable
+private fun PermissionNotNeededRow(label: String) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, Modifier.weight(1f))
+        Text(
+            stringResource(R.string.status_not_needed),
+            style = MaterialTheme.typography.labelMedium
+        )
+    }
+}
+
+@Composable
 private fun InfoCard(title: String, body: String) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -407,12 +640,32 @@ fun AppPickerDialog(
     onDismiss: () -> Unit
 ) {
     var error by remember { mutableStateOf(false) }
+    var query by remember { mutableStateOf("") }
+    val filteredApps = remember(apps, query) {
+        val normalized = query.trim()
+        if (normalized.isBlank()) {
+            apps
+        } else {
+            apps.filter {
+                it.label.contains(normalized, ignoreCase = true) ||
+                    it.packageName.contains(normalized, ignoreCase = true)
+            }
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.choose_apps_title)) },
         text = {
-            LazyColumn(Modifier.height(420.dp)) {
-                items(apps, key = { it.packageName }) { app ->
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.search_apps)) }
+                )
+                LazyColumn(Modifier.height(420.dp)) {
+                items(filteredApps, key = { it.packageName }) { app ->
                     Row(
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -441,6 +694,7 @@ fun AppPickerDialog(
                         )
                     }
                 }
+                }
             }
         },
         confirmButton = {
@@ -449,6 +703,11 @@ fun AppPickerDialog(
             }
         }
     )
+}
+
+private fun formatMinutesOfDay(minutes: Int): String {
+    val safe = minutes.coerceIn(0, 1439)
+    return String.format("%02d:%02d", safe / 60, safe % 60)
 }
 
 private fun formatBytesProfile(bytes: Long): String {

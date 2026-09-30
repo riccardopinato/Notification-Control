@@ -1,0 +1,26 @@
+<resources>
+    <string name="sensitive_content_locked">Conteúdo sensível bloqueado</string>
+    <string name="sensitive_content_locked_body">Desbloqueie o Vault para mostrar códigos de recolha e outros conteúdos privados.</string>
+    <string name="sensitive_screen_protection">Proteger capturas e apps recentes</string>
+    <string name="sensitive_screen_protection_body">Bloqueia capturas e a pré-visualização nas apps recentes enquanto o Notification Control está aberto.</string>
+    <string name="reset_local_data">Repor dados locais</string>
+    <string name="reset_local_data_confirm">Elimina Vault local, regras, Follow Ups, padrões Critical, perfis Luminous e definições. Contas/compras Google Play não são eliminadas.</string>
+    <string name="reset">Repor</string>
+    <string name="retention_title">Retenção do Vault</string>
+    <string name="retention_always">Sempre</string>
+    <string name="days_short">%1$d d</string>
+    <string name="retention_free_fixed">Free mantém até %1$d dias.</string>
+    <string name="behavior_controls_title">Bateria e horas silenciosas</string>
+    <string name="battery_threshold_value">Limite Battery Guard: %1$d%%</string>
+    <string name="battery_threshold_premium">Premium desbloqueia um limite Battery Guard configurável.</string>
+    <string name="quiet_start_value">Início Quiet Hours: %1$s</string>
+    <string name="quiet_end_value">Fim Quiet Hours: %1$s</string>
+    <string name="critical_bypass_quiet">Alertas Critical podem ignorar Quiet Hours</string>
+    <string name="critical_bypass_quiet_body">Mantém alertas visuais realmente críticos enquanto os normais permanecem silenciosos.</string>
+    <string name="follow_up_notification_permission">Lembretes Follow Up</string>
+    <string name="status_not_needed">Não necessário</string>
+    <string name="grant_camera_for_flash">Dar acesso à câmara para o flash</string>
+    <string name="grant_overlay_for_luminous">Dar acesso de sobreposição para Luminous</string>
+    <string name="selected_visual_permissions_required">Conceda a permissão exigida por cada alerta visual selecionado antes de continuar.</string>
+    <string name="search_apps">Pesquisar apps</string>
+</resources>

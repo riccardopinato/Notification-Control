@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -264,8 +265,42 @@ private fun VisualSetupPage(
             if (enabled && !overlayGranted) requestOverlayPermission()
         }
 
+        if (flashEnabled && !cameraGranted) {
+            FilledTonalButton(
+                onClick = requestCameraPermission,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) {
+                Text(stringResource(R.string.grant_camera_for_flash))
+            }
+        }
+
+        if (overlayEnabled && !overlayGranted) {
+            FilledTonalButton(
+                onClick = requestOverlayPermission,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            ) {
+                Text(stringResource(R.string.grant_overlay_for_luminous))
+            }
+        }
+
+        val selectedPermissionsReady =
+            (!flashEnabled || cameraGranted) && (!overlayEnabled || overlayGranted)
+
+        if (!selectedPermissionsReady) {
+            Text(
+                stringResource(R.string.selected_visual_permissions_required),
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
         Spacer(Modifier.height(16.dp))
-        Button(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
+        Button(
+            onClick = onNext,
+            enabled = selectedPermissionsReady,
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text(stringResource(R.string.continue_label))
         }
     }
