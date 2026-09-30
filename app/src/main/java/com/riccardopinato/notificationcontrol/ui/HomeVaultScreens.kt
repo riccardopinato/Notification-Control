@@ -1,5 +1,8 @@
 package com.riccardopinato.notificationcontrol.ui
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -9,7 +12,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,6 +44,7 @@ import androidx.core.app.NotificationManagerCompat
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.capture.ListenerHealthStore
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
+import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
 import com.riccardopinato.notificationcontrol.data.VaultAppFilter
 import com.riccardopinato.notificationcontrol.storage.StorageStats
 import java.text.DateFormat
@@ -55,13 +58,18 @@ fun HomeScreen(
     contentPadding: PaddingValues,
     settings: SettingsUiState,
     count: Int,
+    pickupCodes: List<PickupCodeEntity>,
     requestNotificationAccess: () -> Unit,
+    onDismissPickup: (Long) -> Unit,
     onConfigureApps: () -> Unit
 ) {
     val context = LocalContext.current
     val permission = NotificationManagerCompat.getEnabledListenerPackages(context)
         .contains(context.packageName)
     val health = remember { ListenerHealthStore(context) }
+    val activeCode = pickupCodes.firstOrNull {
+        !it.dismissed && it.expiresAt > System.currentTimeMillis()
+    }
 
     LazyColumn(
         modifier.fillMaxSize().padding(contentPadding).padding(20.dp),
@@ -90,6 +98,24 @@ fun HomeScreen(
                     )
                     Text(stringResource(R.string.apps_monitored, settings.monitoredPackages.size))
                 }
+            }
+        }
+        activeCode?.let { code ->
+            item {
+                PickupCodeCard(
+                    code = code,
+                    onCopy = {
+                        val clipboard =
+                            context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(
+                            ClipData.newPlainText(
+                                context.getString(R.string.pickup_code),
+                                code.code
+                            )
+                        )
+                    },
+                    onDismiss = { onDismissPickup(code.id) }
+                )
             }
         }
         item {
@@ -123,6 +149,41 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.configure_apps))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PickupCodeCard(
+    code: PickupCodeEntity,
+    onCopy: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+        )
+    ) {
+        Column(Modifier.padding(18.dp)) {
+            Text(
+                stringResource(R.string.pickup_code),
+                style = MaterialTheme.typography.labelLarge
+            )
+            Text(
+                code.code,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(code.sourceLabel, style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onCopy) {
+                    Text(stringResource(R.string.copy))
+                }
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.dismiss))
+                }
             }
         }
     }
@@ -173,7 +234,8 @@ fun VaultScreen(
     onSearchChange: (String) -> Unit,
     onPackageFilterChange: (String?) -> Unit,
     onLoadMore: () -> Unit,
-    onProtect: (String, Boolean) -> Unit
+    onProtect: (String, Boolean) -> Unit,
+    onFollowUp: (NotificationEntity) -> Unit
 ) {
     LazyColumn(
         modifier.fillMaxSize().padding(contentPadding).padding(16.dp),
@@ -246,7 +308,7 @@ fun VaultScreen(
         }
 
         items(notifications, key = { it.sbnKey }) { n ->
-            NotificationVaultCard(n, onProtect)
+            NotificationVaultCard(n, onProtect, onFollowUp)
         }
 
         if (notifications.size >= currentLimit) {
@@ -265,7 +327,8 @@ fun VaultScreen(
 @Composable
 private fun NotificationVaultCard(
     notification: NotificationEntity,
-    onProtect: (String, Boolean) -> Unit
+    onProtect: (String, Boolean) -> Unit,
+    onFollowUp: (NotificationEntity) -> Unit
 ) {
     Card(Modifier.fillMaxWidth()) {
         Row(
@@ -299,18 +362,23 @@ private fun NotificationVaultCard(
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
-                TextButton(
-                    onClick = {
-                        onProtect(notification.sbnKey, !notification.protected)
-                    }
-                ) {
-                    Text(
-                        if (notification.protected) {
-                            stringResource(R.string.unprotect)
-                        } else {
-                            stringResource(R.string.protect)
+                Row {
+                    TextButton(
+                        onClick = {
+                            onProtect(notification.sbnKey, !notification.protected)
                         }
-                    )
+                    ) {
+                        Text(
+                            if (notification.protected) {
+                                stringResource(R.string.unprotect)
+                            } else {
+                                stringResource(R.string.protect)
+                            }
+                        )
+                    }
+                    TextButton(onClick = { onFollowUp(notification) }) {
+                        Text(stringResource(R.string.follow_up))
+                    }
                 }
             }
         }
