@@ -23,7 +23,17 @@ jobs:
       - name: Unit tests
         run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
       - name: Lint
-        run: gradle :app:lintDebug --stacktrace --no-daemon
+        shell: bash
+        run: |
+          set +e
+          gradle :app:lintDebug --stacktrace --no-daemon
+          status=$?
+          report="app/build/intermediates/lint_intermediate_text_report/debug/lintReportDebug/lint-results-debug.txt"
+          if [ -f "$report" ]; then
+            echo "----- FULL LINT REPORT -----"
+            cat "$report"
+          fi
+          exit $status
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace --no-daemon
       - name: Upload debug APK
