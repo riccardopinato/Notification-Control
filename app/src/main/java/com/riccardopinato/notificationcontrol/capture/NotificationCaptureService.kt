@@ -5,6 +5,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import com.riccardopinato.notificationcontrol.automation.AutomationRepository
 import com.riccardopinato.notificationcontrol.data.AppSettings
+import com.riccardopinato.notificationcontrol.data.LuminousProfileDao
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.domain.CriticalMatcher
 import com.riccardopinato.notificationcontrol.domain.PausePingController
@@ -35,6 +36,7 @@ class NotificationCaptureService : NotificationListenerService() {
     private lateinit var parser: NotificationParser
     private lateinit var health: ListenerHealthStore
     private lateinit var posture: DevicePostureMonitor
+    private lateinit var luminousProfileDao: LuminousProfileDao
     private lateinit var processor: NotificationEventProcessor
     private lateinit var overlay: LuminousCircleOverlay
 
@@ -47,6 +49,7 @@ class NotificationCaptureService : NotificationListenerService() {
         posture = DevicePostureMonitor(this)
 
         val database = NotificationDatabase.get(this)
+        luminousProfileDao = database.luminousProfileDao()
         val vaultRepository = NotificationVaultRepository(
             settings = settings,
             database = database,
@@ -76,7 +79,7 @@ class NotificationCaptureService : NotificationListenerService() {
                     overlay = overlay,
                     profileResolver = LuminousProfileResolver(
                         settings = settings,
-                        dao = database.luminousProfileDao()
+                        dao = luminousProfileDao
                     )
                 )
             )
@@ -87,7 +90,7 @@ class NotificationCaptureService : NotificationListenerService() {
         super.onListenerConnected()
         health.connected = true
         health.lastConnectedAt = System.currentTimeMillis()
-        posture.start()
+        serviceScope.launch { updatePostureMonitoring() }
         reconcileActiveNotifications()
     }
 
@@ -112,6 +115,7 @@ class NotificationCaptureService : NotificationListenerService() {
 
         health.lastEventAt = System.currentTimeMillis()
         serviceScope.launch {
+            updatePostureMonitoring()
             val captured = parser.parse(
                 notification,
                 captureThumbnail = processor.shouldCaptureThumbnail(notification.packageName)
@@ -136,6 +140,7 @@ class NotificationCaptureService : NotificationListenerService() {
 
     private fun reconcileActiveNotifications() {
         serviceScope.launch {
+            updatePostureMonitoring()
             val notifications = runCatching { activeNotifications.orEmpty().toList() }
                 .getOrDefault(emptyList())
             notifications.filter(::shouldConsider).forEach { sbn ->
@@ -146,6 +151,19 @@ class NotificationCaptureService : NotificationListenerService() {
                 processor.process(captured, ProcessingMode.RECONCILIATION)
             }
             health.lastReconciliationAt = System.currentTimeMillis()
+        }
+    }
+
+    private suspend fun updatePostureMonitoring() {
+        val visualAlertsMayRun =
+            settings.flashEnabled ||
+                settings.overlayEnabled ||
+                (settings.isPremium && luminousProfileDao.enabledProfileCount() > 0)
+
+        if (visualAlertsMayRun) {
+            posture.start()
+        } else {
+            posture.stop()
         }
     }
 

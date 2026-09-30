@@ -16,15 +16,22 @@ class DevicePostureMonitor(context: Context) : SensorEventListener {
 
     private val covered = AtomicBoolean(false)
     private val faceDown = AtomicBoolean(false)
+    private val started = AtomicBoolean(false)
     private var filteredZ = 0f
     private var hasZSample = false
 
     fun start() {
-        proximity?.let { manager?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
-        gravity?.let { manager?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL) }
+        if (!started.compareAndSet(false, true)) return
+        proximity?.let {
+            manager?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        }
+        gravity?.let {
+            manager?.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
+        }
     }
 
     fun stop() {
+        if (!started.compareAndSet(true, false)) return
         manager?.unregisterListener(this)
         covered.set(false)
         faceDown.set(false)
@@ -33,6 +40,8 @@ class DevicePostureMonitor(context: Context) : SensorEventListener {
     }
 
     fun isCoveredOrFaceDown(): Boolean = covered.get() || faceDown.get()
+
+    fun isStarted(): Boolean = started.get()
 
     override fun onSensorChanged(event: SensorEvent) {
         when (event.sensor.type) {
