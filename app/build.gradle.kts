@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.biometric)
+    implementation(libs.billing.ktx)
     implementation(libs.kotlinx.coroutines.android)
 
     ksp(libs.androidx.room.compiler)

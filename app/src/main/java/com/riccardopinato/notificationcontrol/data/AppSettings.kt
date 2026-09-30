@@ -2,9 +2,12 @@ package com.riccardopinato.notificationcontrol.data
 
 import android.content.Context
 import androidx.core.content.edit
+import com.riccardopinato.notificationcontrol.billing.EntitlementStore
 
 class AppSettings(context: Context) {
-    private val prefs = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private val appContext = context.applicationContext
+    private val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+    private val entitlementStore by lazy { EntitlementStore(appContext) }
 
     var onboardingCompleted: Boolean
         get() = prefs.getBoolean(KEY_ONBOARDING, false)
@@ -14,9 +17,8 @@ class AppSettings(context: Context) {
         get() = prefs.getStringSet(KEY_MONITORED_PACKAGES, emptySet())?.toSet().orEmpty()
         set(value) = prefs.edit { putStringSet(KEY_MONITORED_PACKAGES, value.toSet()) }
 
-    var isPremium: Boolean
-        get() = prefs.getBoolean(KEY_PREMIUM, false)
-        set(value) = prefs.edit { putBoolean(KEY_PREMIUM, value) }
+    val isPremium: Boolean
+        get() = entitlementStore.effectiveTier().isPremium
 
     var retentionDays: Int
         get() = prefs.getInt(KEY_RETENTION_DAYS, 7)
@@ -102,7 +104,6 @@ class AppSettings(context: Context) {
         private const val PREFS = "notification_control_settings"
         private const val KEY_ONBOARDING = "onboarding_completed"
         private const val KEY_MONITORED_PACKAGES = "monitored_packages"
-        private const val KEY_PREMIUM = "premium_entitlement"
         private const val KEY_RETENTION_DAYS = "retention_days"
         private const val KEY_BATTERY_GUARD = "battery_guard_enabled"
         private const val KEY_BATTERY_THRESHOLD = "battery_guard_threshold"
