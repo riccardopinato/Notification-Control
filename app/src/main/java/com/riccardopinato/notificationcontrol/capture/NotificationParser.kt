@@ -3,12 +3,17 @@ package com.riccardopinato.notificationcontrol.capture
 import android.app.Notification
 import android.content.Context
 import android.service.notification.StatusBarNotification
+import androidx.core.app.NotificationCompat
 
 class NotificationParser(
     private val context: Context,
     private val mediaStore: NotificationMediaStore = NotificationMediaStore(context)
 ) {
-    fun parse(sbn: StatusBarNotification, now: Long = System.currentTimeMillis(), captureThumbnail: Boolean = false): CapturedNotification {
+    fun parse(
+        sbn: StatusBarNotification,
+        now: Long = System.currentTimeMillis(),
+        captureThumbnail: Boolean = false
+    ): CapturedNotification {
         val notification = sbn.notification
         val extras = notification.extras
         val appLabel = runCatching {
@@ -17,14 +22,15 @@ class NotificationParser(
         }.getOrDefault(sbn.packageName)
 
         val structuredMessages = runCatching {
-            Notification.MessagingStyle.Message.getMessagesFromBundleArray(
+            NotificationCompat.MessagingStyle.Message.getMessagesFromBundleArray(
                 extras?.getParcelableArray(Notification.EXTRA_MESSAGES)
             ).orEmpty().mapNotNull { message ->
-                val text = message.text?.toString()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                val text = message.text?.toString()?.takeIf { it.isNotBlank() }
+                    ?: return@mapNotNull null
                 @Suppress("DEPRECATION")
                 val legacySender = message.sender?.toString()
                 CapturedMessage(
-                    sender = message.senderPerson?.name?.toString() ?: legacySender,
+                    sender = message.person?.name?.toString() ?: legacySender,
                     text = text,
                     timestamp = message.timestamp,
                     mimeType = message.dataMimeType,
