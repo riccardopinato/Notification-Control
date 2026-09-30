@@ -9,7 +9,7 @@ class PickupCodeConsumer(
     private val automationRepository: AutomationRepository
 ) : NotificationEventConsumer {
     override suspend fun consume(event: CapturedNotification, context: ProcessingContext) {
-        if (context.mode != ProcessingMode.POSTED) return
+        if (context.mode != ProcessingMode.POSTED || !context.allowSideEffects) return
         if (!vaultRepository.shouldPersist(event.packageName)) return
         val candidate = PickupCodeExtractor.extract(event) ?: return
         automationRepository.storePickupCode(event, candidate)

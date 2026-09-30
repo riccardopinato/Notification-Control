@@ -7,7 +7,7 @@ class PausePingConsumer(
     private val controller: PausePingController
 ) : NotificationEventConsumer {
     override suspend fun consume(event: CapturedNotification, context: ProcessingContext) {
-        if (context.mode != ProcessingMode.POSTED) return
+        if (context.mode != ProcessingMode.POSTED || !context.allowSideEffects) return
         context.suppressLuminous = controller.shouldSuppress(
             packageName = event.packageName,
             critical = context.critical

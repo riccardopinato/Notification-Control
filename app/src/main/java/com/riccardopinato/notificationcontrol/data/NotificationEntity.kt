@@ -1,12 +1,14 @@
 package com.riccardopinato.notificationcontrol.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "notifications", indices = [Index("packageName"), Index("postedAt"), Index("removedAt"), Index("protected")])
+@Entity(tableName = "notifications", indices = [Index("platformKey"), Index("packageName"), Index("postedAt"), Index("removedAt"), Index("protected")])
 data class NotificationEntity(
     @PrimaryKey val sbnKey: String,
+    @ColumnInfo(defaultValue = "''") val platformKey: String = sbnKey,
     val packageName: String,
     val appLabel: String,
     val notificationId: Int,

@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PickupCodeEntity::class,
         LuminousProfileEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class NotificationDatabase : RoomDatabase() {
@@ -224,13 +224,27 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE notifications ADD COLUMN platformKey TEXT NOT NULL DEFAULT ''")
+                db.execSQL("UPDATE notifications SET platformKey = sbnKey WHERE platformKey = ''")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_notifications_platformKey ON notifications(platformKey)")
+            }
+        }
+
         fun get(context: Context): NotificationDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 NotificationDatabase::class.java,
                 "notification_control.db"
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6
+                )
                 .build()
                 .also { instance = it }
         }

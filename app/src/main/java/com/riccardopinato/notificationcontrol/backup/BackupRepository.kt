@@ -112,10 +112,14 @@ class BackupRepository(context: Context) {
         val encrypted = readLimited(uri)
         val plain = EncryptedBackupCodec.decrypt(encrypted, passphrase)
         val root = JSONObject(plain.toString(Charsets.UTF_8))
-        require(root.getInt("format") == FORMAT_VERSION) { "Unsupported backup version" }
+        val backupFormat = root.getInt("format")
+        require(backupFormat in 1..FORMAT_VERSION) { "Unsupported backup version" }
 
         val mediaPayloads = parseMedia(root.getJSONArray("media"))
-        val notifications = parseNotifications(root.getJSONArray("notifications"))
+        val notifications = parseNotifications(
+            root.getJSONArray("notifications"),
+            backupFormat
+        )
         val messages = parseMessages(root.getJSONArray("messages"))
         val revisions = parseRevisions(root.getJSONArray("revisions"))
         val rules = parseRules(root.getJSONArray("rules"))
@@ -199,12 +203,20 @@ class BackupRepository(context: Context) {
         )
     }
 
-    private fun parseNotifications(array: JSONArray): List<NotificationEntity> = buildList {
+    private fun parseNotifications(
+        array: JSONArray,
+        backupFormat: Int
+    ): List<NotificationEntity> = buildList {
         for (index in 0 until array.length()) {
             val o = array.getJSONObject(index)
             add(
                 NotificationEntity(
                     sbnKey = o.getString("sbnKey"),
+                    platformKey = if (backupFormat >= 2) {
+                        o.optString("platformKey", o.getString("sbnKey"))
+                    } else {
+                        o.getString("sbnKey")
+                    },
                     packageName = o.getString("packageName"),
                     appLabel = o.getString("appLabel"),
                     notificationId = o.getInt("notificationId"),
@@ -428,6 +440,7 @@ class BackupRepository(context: Context) {
 
     private fun notificationJson(n: NotificationEntity) = JSONObject(mapOf(
         "sbnKey" to n.sbnKey,
+        "platformKey" to n.platformKey,
         "packageName" to n.packageName,
         "appLabel" to n.appLabel,
         "notificationId" to n.notificationId,
@@ -621,7 +634,7 @@ class BackupRepository(context: Context) {
         if (isNull(key)) null else getInt(key)
 
     companion object {
-        private const val FORMAT_VERSION = 1
+        private const val FORMAT_VERSION = 2
         private const val MAX_MEDIA_BYTES = 2 * 1024 * 1024
     }
 }

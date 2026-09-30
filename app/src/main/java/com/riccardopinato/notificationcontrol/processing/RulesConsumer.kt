@@ -7,7 +7,7 @@ class RulesConsumer(
     private val ruleEngine: RuleEngine
 ) : NotificationEventConsumer {
     override suspend fun consume(event: CapturedNotification, context: ProcessingContext) {
-        if (context.mode != ProcessingMode.POSTED) return
+        if (context.mode != ProcessingMode.POSTED || !context.allowSideEffects) return
         val evaluation = ruleEngine.evaluate(event)
         context.forceFlash = evaluation.forceFlash
         context.forceOverlay = evaluation.forceOverlay

@@ -7,7 +7,7 @@ class FollowUpConsumer(
     private val repository: AutomationRepository
 ) : NotificationEventConsumer {
     override suspend fun consume(event: CapturedNotification, context: ProcessingContext) {
-        if (context.mode != ProcessingMode.POSTED) return
+        if (context.mode != ProcessingMode.POSTED || !context.allowSideEffects) return
         val delay = context.followUpDelayMinutes ?: return
         repository.createFollowUpFromEvent(event, delay)
     }

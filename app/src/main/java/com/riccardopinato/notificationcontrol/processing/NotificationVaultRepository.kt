@@ -2,7 +2,6 @@ package com.riccardopinato.notificationcontrol.processing
 
 import com.riccardopinato.notificationcontrol.capture.CapturedNotification
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
-import com.riccardopinato.notificationcontrol.capture.toFtsEntity
 import com.riccardopinato.notificationcontrol.capture.toMessageEntities
 import com.riccardopinato.notificationcontrol.capture.toNotificationEntity
 import com.riccardopinato.notificationcontrol.capture.toRevisionEntity
@@ -24,15 +23,18 @@ class NotificationVaultRepository(
         if (!shouldPersist(captured.packageName)) return
 
         val dao = database.notificationDao()
-        val previous = dao.findByKey(captured.sbnKey)
+        val active = dao.findActiveByPlatformKey(captured.sbnKey)
+        val eventKey = active?.sbnKey ?: newEventKey(captured)
+        val previous = dao.findByKey(eventKey)
+
         dao.upsert(
             captured.toNotificationEntity(
+                eventKey = eventKey,
                 existingProtected = previous?.protected == true,
                 existingThumbnailPath = previous?.thumbnailPath
             ),
-            captured.toMessageEntities(),
-            captured.toRevisionEntity(),
-            captured.toFtsEntity()
+            captured.toMessageEntities(eventKey),
+            captured.toRevisionEntity(eventKey)
         )
 
         val replacedMedia = previous?.thumbnailPath
@@ -45,7 +47,31 @@ class NotificationVaultRepository(
         }
     }
 
-    suspend fun markRemoved(key: String, reason: Int?) {
-        database.notificationDao().markRemoved(key, System.currentTimeMillis(), reason)
+    suspend fun markRemoved(platformKey: String, reason: Int?) {
+        database.notificationDao().markLatestRemovedByPlatformKey(
+            platformKey = platformKey,
+            removedAt = System.currentTimeMillis(),
+            reason = reason
+        )
+    }
+
+    private suspend fun newEventKey(captured: CapturedNotification): String {
+        val dao = database.notificationDao()
+        val initial = VaultEventIdentity.initialKey(
+            platformKey = captured.sbnKey,
+            postedAt = captured.postedAt
+        )
+        if (dao.findByKey(initial) == null) return initial
+
+        var attempt = captured.capturedAt
+        while (true) {
+            val candidate = VaultEventIdentity.collisionKey(
+                platformKey = captured.sbnKey,
+                postedAt = captured.postedAt,
+                capturedAt = attempt
+            )
+            if (dao.findByKey(candidate) == null) return candidate
+            attempt++
+        }
     }
 }

@@ -7,7 +7,7 @@ class CriticalConsumer(
     private val matcher: CriticalMatcher
 ) : NotificationEventConsumer {
     override suspend fun consume(event: CapturedNotification, context: ProcessingContext) {
-        if (context.mode != ProcessingMode.POSTED) return
+        if (context.mode != ProcessingMode.POSTED || !context.allowSideEffects) return
         context.critical = context.critical || matcher.isCritical(event)
     }
 }

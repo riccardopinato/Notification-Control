@@ -19,7 +19,7 @@ class LuminousConsumer(
         event: CapturedNotification,
         context: ProcessingContext
     ) {
-        if (context.mode != ProcessingMode.POSTED) return
+        if (context.mode != ProcessingMode.POSTED || !context.allowSideEffects) return
 
         val profile = profileResolver.resolve(event)
         val flashEnabled =
