@@ -76,7 +76,7 @@ class GoogleAccountManager private constructor(context: Context) {
             )
             val google = GoogleIdTokenCredential.createFrom(credential.data)
             GoogleAccountProfile(
-                uniqueId = google.uniqueId,
+                uniqueId = google.id,
                 email = google.id,
                 displayName = google.displayName,
                 profilePictureUri = google.profilePictureUri?.toString()
