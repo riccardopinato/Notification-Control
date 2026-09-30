@@ -1,0 +1,11 @@
+<resources>
+    <string name="luminous_profiles_title">Profili Luminous Pro</string>
+    <string name="luminous_profiles_body">Assegna ad app o mittenti una firma visiva personalizzata. Luminous base resta disponibile in Free.</string>
+    <string name="luminous_profile_premium_required">Premium sblocca i profili Luminous personalizzati.</string>
+    <string name="luminous_profile_add">Aggiungi profilo Luminous</string>
+    <string name="luminous_profile_name">Nome profilo</string>
+    <string name="luminous_sender_contains">Mittente contiene (opzionale)</string>
+    <string name="luminous_color">Colore</string>
+    <string name="luminous_pulse_ms">Pulsazione: %1$d ms</string>
+    <string name="luminous_duration_seconds">Durata visualizzazione: %1$d s</string>
+</resources>

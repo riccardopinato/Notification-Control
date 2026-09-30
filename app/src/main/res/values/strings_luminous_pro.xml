@@ -1,0 +1,11 @@
+<resources>
+    <string name="luminous_profiles_title">Luminous Pro profiles</string>
+    <string name="luminous_profiles_body">Give selected apps or senders their own visual signature. Basic Luminous remains available in Free.</string>
+    <string name="luminous_profile_premium_required">Premium unlocks personalized Luminous profiles.</string>
+    <string name="luminous_profile_add">Add Luminous profile</string>
+    <string name="luminous_profile_name">Profile name</string>
+    <string name="luminous_sender_contains">Sender contains (optional)</string>
+    <string name="luminous_color">Color</string>
+    <string name="luminous_pulse_ms">Pulse: %1$d ms</string>
+    <string name="luminous_duration_seconds">Display duration: %1$d s</string>
+</resources>

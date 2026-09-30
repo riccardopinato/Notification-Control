@@ -12,6 +12,7 @@ import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
 import com.riccardopinato.notificationcontrol.data.FollowUpEntity
+import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
 import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
@@ -21,6 +22,7 @@ import com.riccardopinato.notificationcontrol.domain.MonitoredAppsPolicy
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 import com.riccardopinato.notificationcontrol.domain.VaultSearchQuery
 import com.riccardopinato.notificationcontrol.hardware.FlashCoordinator
+import com.riccardopinato.notificationcontrol.luminous.LuminousProfileRepository
 import com.riccardopinato.notificationcontrol.security.VaultSecurityManager
 import com.riccardopinato.notificationcontrol.storage.StorageStats
 import com.riccardopinato.notificationcontrol.storage.StorageStatsRepository
@@ -44,6 +46,7 @@ sealed interface NotificationControlUiEvent {
     data object RuleLimitReached : NotificationControlUiEvent
     data object CriticalLimitReached : NotificationControlUiEvent
     data object FollowUpLimitReached : NotificationControlUiEvent
+    data object LuminousProfileRequiresPremium : NotificationControlUiEvent
 }
 
 data class SettingsUiState(
@@ -77,6 +80,9 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     private val dao = database.notificationDao()
     private val automationDao = database.automationDao()
     private val automationRepository = AutomationRepository(application, settings, automationDao)
+    private val luminousProfileDao = database.luminousProfileDao()
+    private val luminousProfileRepository =
+        LuminousProfileRepository(settings, luminousProfileDao)
     private val storageRepository = StorageStatsRepository(application)
 
     val billingState: StateFlow<BillingUiState> = billingManager.state
@@ -155,6 +161,13 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
 
     val pickupCodes: StateFlow<List<PickupCodeEntity>> =
         automationDao.observePickupCodes().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
+
+    val luminousProfiles: StateFlow<List<LuminousProfileEntity>> =
+        luminousProfileDao.observeProfiles().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             emptyList()
@@ -354,6 +367,55 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     fun dismissPickupCode(id: Long) {
         viewModelScope.launch(Dispatchers.IO) {
             automationDao.dismissPickupCode(id)
+        }
+    }
+
+    fun createLuminousProfile(
+        name: String,
+        packageName: String?,
+        senderQuery: String?,
+        colorHex: String,
+        flashEnabled: Boolean,
+        overlayEnabled: Boolean,
+        strobeCycles: Int,
+        strobeSpeedMs: Long,
+        circleThickness: Float,
+        circleGlow: Float,
+        pulseSpeedMs: Long,
+        displayDurationMs: Long
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val created = luminousProfileRepository.create(
+                name = name,
+                packageName = packageName,
+                senderQuery = senderQuery,
+                colorHex = colorHex,
+                flashEnabled = flashEnabled,
+                overlayEnabled = overlayEnabled,
+                strobeCycles = strobeCycles,
+                strobeSpeedMs = strobeSpeedMs,
+                circleThickness = circleThickness,
+                circleGlow = circleGlow,
+                pulseSpeedMs = pulseSpeedMs,
+                displayDurationMs = displayDurationMs
+            )
+            if (!created) {
+                _events.tryEmit(
+                    NotificationControlUiEvent.LuminousProfileRequiresPremium
+                )
+            }
+        }
+    }
+
+    fun setLuminousProfileEnabled(id: Long, enabled: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            luminousProfileDao.setEnabled(id, enabled)
+        }
+    }
+
+    fun deleteLuminousProfile(id: Long) {
+        viewModelScope.launch(Dispatchers.IO) {
+            luminousProfileDao.delete(id)
         }
     }
 

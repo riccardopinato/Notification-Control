@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v0.5
+NOTIFICATION CONTROL — ROADMAP v0.7
 Date: 2026-09-30
 Status: IN ESECUZIONE
 
@@ -35,28 +35,40 @@ IMPLEMENTED / VALIDATION
 STEP 8 — PREMIUM ENGINE
 IMPLEMENTED / VALIDATION
 - centralized entitlement source
-- Google Play Billing integration
+- Google Play Billing
 - subscription + lifetime products
 - restore purchases
-- local offline entitlement grace
-- Profile Premium surface
-- Free remains useful; Premium unlocks scale/automation
+- offline entitlement grace
+- contextual Profile Premium surface
 
 STEP 9 — GOOGLE PROFILE + BACKUP
-NEXT
-- optional Google identity
-- identity remains separate from Vault security
-- local encrypted export/restore
-- optional cloud destination only when user explicitly configures it
+IMPLEMENTED / VALIDATION
+- optional Credential Manager Sign in with Google
+- stable Credential Manager 1.6.0 + Google ID 1.2.1
+- Google identity does not unlock Vault or grant Premium
+- OAuth Web client ID remains external configuration
+- manual encrypted backup/export and restore
+- AES-GCM + password-derived key
+- pre-restore validation and Room transaction
+- Vault, messages, revisions, rules, Critical, Follow Up, Pickup Code and media previews
+- selected non-sensitive settings
+- Android Storage Access Framework supports local or user-chosen compatible cloud document providers
+- automatic Android cloud backup remains disabled
 
 STEP 10 — LUMINOUS PRO
-- per-app/sender profiles
-- colors/patterns/timing
-- Critical integration
-- OEM/battery hardening
+IMPLEMENTED / VALIDATION
+- Premium per-app / sender profiles
+- profile-specific colors, flash/overlay modes and timing
+- Critical visual escalation
+- main-thread overlay lifecycle
+- touch-safe overlay behavior
+- interactive-screen transparency
+- torch failure backoff for OEM/camera contention
+- profile backup/restore support
 
 STEP 11 — RELEASE & DEPLOY PIPELINE
-- release APK + AAB
+- release APK
+- release AAB
 - signing hooks
 - versioning
 - R8 mapping
@@ -65,12 +77,17 @@ STEP 11 — RELEASE & DEPLOY PIPELINE
 
 STEP 12 — CERTIFIED QA
 - parser/lifecycle/database/migration tests
-- rules/critical/follow-up/pickup/billing tests
+- rules/critical/follow-up/pickup/billing/backup tests
 - release QA
 - device validation
 - privacy/accessibility/performance/store readiness
 
-IMMEDIATE NEXT ACTION:
-Close CI for Steps 4–8, merge in order, then implement Steps 9–12 without changing the local-first baseline.
+EXTERNAL CONFIGURATION STILL REQUIRED:
+- Google OAuth Web client ID for live Sign in with Google
+- Google Play product configuration for live Premium purchase flows
+- Play signing/service credentials for automatic Internal Testing publication
 
-END ROADMAP v0.5
+IMMEDIATE NEXT ACTION:
+Close CI in order, merge stable steps, then implement release pipeline and Certified QA.
+
+END ROADMAP v0.6
