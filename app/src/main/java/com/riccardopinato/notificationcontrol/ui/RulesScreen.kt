@@ -92,6 +92,8 @@ fun RulesScreen(
     onDeleteLuminousProfile: (Long) -> Unit,
     onPausePingEnabled: (Boolean) -> Unit,
     onPausePingCooldown: (Int) -> Unit,
+    onPausePingAppCooldown: (String, Int) -> Unit,
+    onRemovePausePingAppCooldown: (String) -> Unit,
     setFlash: (Boolean) -> Unit,
     setOverlay: (Boolean) -> Unit,
     setScreenOffOnly: (Boolean) -> Unit,
@@ -108,6 +110,8 @@ fun RulesScreen(
     var criticalKeyword by remember { mutableStateOf("") }
     var criticalSender by remember { mutableStateOf("") }
     var selectedCriticalApp by remember { mutableStateOf<InstalledApp?>(null) }
+    var pausePingApp by remember { mutableStateOf<InstalledApp?>(null) }
+    var pausePingAppSeconds by remember { mutableStateOf(30f) }
 
     if (showLuminous) {
         Column(
@@ -287,6 +291,96 @@ fun RulesScreen(
                         onValueChange = { onPausePingCooldown(it.toInt()) },
                         valueRange = 5f..120f
                     )
+
+                    if (state.isPremium) {
+                        Text(
+                            stringResource(R.string.pause_ping_per_app_title),
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(top = 12.dp)
+                        )
+                        Text(
+                            stringResource(R.string.pause_ping_per_app_body),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        SearchableAppPickerButton(
+                            apps = apps,
+                            selected = pausePingApp,
+                            placeholder = stringResource(R.string.choose_app),
+                            allowNone = false,
+                            onSelected = {
+                                pausePingApp = it
+                                pausePingAppSeconds =
+                                    it?.packageName
+                                        ?.let(state.pausePingPerAppCooldowns::get)
+                                        ?.toFloat()
+                                        ?: 30f
+                            }
+                        )
+                        pausePingApp?.let { selected ->
+                            Text(
+                                if (pausePingAppSeconds.toInt() == 0) {
+                                    stringResource(R.string.pause_ping_no_cooldown)
+                                } else {
+                                    stringResource(
+                                        R.string.pause_ping_cooldown,
+                                        pausePingAppSeconds.toInt()
+                                    )
+                                },
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                            Slider(
+                                value = pausePingAppSeconds,
+                                onValueChange = { pausePingAppSeconds = it },
+                                valueRange = 0f..120f
+                            )
+                            FilledTonalButton(
+                                onClick = {
+                                    onPausePingAppCooldown(
+                                        selected.packageName,
+                                        pausePingAppSeconds.toInt()
+                                    )
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(stringResource(R.string.save))
+                            }
+                        }
+
+                        state.pausePingPerAppCooldowns.forEach { (packageName, seconds) ->
+                            val label = apps.firstOrNull {
+                                it.packageName == packageName
+                            }?.label ?: packageName
+                            Row(
+                                Modifier.fillMaxWidth().padding(top = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(label, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        if (seconds == 0) {
+                                            stringResource(R.string.pause_ping_no_cooldown)
+                                        } else {
+                                            stringResource(
+                                                R.string.pause_ping_cooldown,
+                                                seconds
+                                            )
+                                        },
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                                TextButton(
+                                    onClick = {
+                                        onRemovePausePingAppCooldown(packageName)
+                                        if (pausePingApp?.packageName == packageName) {
+                                            pausePingApp = null
+                                        }
+                                    }
+                                ) {
+                                    Text(stringResource(R.string.delete))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

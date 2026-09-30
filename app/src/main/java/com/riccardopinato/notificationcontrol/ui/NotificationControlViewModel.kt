@@ -86,6 +86,7 @@ data class SettingsUiState(
     val sensitiveProtectionEnabled: Boolean = true,
     val pausePingEnabled: Boolean = true,
     val pausePingCooldownSeconds: Int = 20,
+    val pausePingPerAppCooldowns: Map<String, Int> = emptyMap(),
     val criticalBypassQuietHours: Boolean = true
 )
 
@@ -354,6 +355,24 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         refresh()
     }
 
+    fun setPausePingAppCooldown(packageName: String, seconds: Int) {
+        if (!settings.isPremium) return
+        settings.pausePingPerAppCooldowns =
+            settings.pausePingPerAppCooldowns.toMutableMap().apply {
+                put(packageName, seconds.coerceIn(0, 300))
+            }
+        refresh()
+    }
+
+    fun removePausePingAppCooldown(packageName: String) {
+        if (!settings.isPremium) return
+        settings.pausePingPerAppCooldowns =
+            settings.pausePingPerAppCooldowns.toMutableMap().apply {
+                remove(packageName)
+            }
+        refresh()
+    }
+
     fun createRule(
         name: String,
         packageName: String?,
@@ -607,6 +626,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         sensitiveProtectionEnabled = settings.sensitiveProtectionEnabled,
         pausePingEnabled = settings.pausePingEnabled,
         pausePingCooldownSeconds = settings.pausePingCooldownSeconds,
+        pausePingPerAppCooldowns = settings.pausePingPerAppCooldowns,
         criticalBypassQuietHours = settings.criticalBypassQuietHours
     )
 

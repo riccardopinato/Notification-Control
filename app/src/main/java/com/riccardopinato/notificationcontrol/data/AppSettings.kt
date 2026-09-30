@@ -100,6 +100,29 @@ class AppSettings(context: Context) {
         get() = prefs.getInt(KEY_PAUSE_PING_COOLDOWN, 20)
         set(value) = prefs.edit { putInt(KEY_PAUSE_PING_COOLDOWN, value.coerceIn(1, 300)) }
 
+    var pausePingPerAppCooldowns: Map<String, Int>
+        get() = prefs.getStringSet(KEY_PAUSE_PING_PER_APP, emptySet())
+            .orEmpty()
+            .mapNotNull { entry ->
+                val separator = entry.lastIndexOf('=')
+                if (separator <= 0 || separator >= entry.lastIndex) {
+                    null
+                } else {
+                    val packageName = entry.substring(0, separator)
+                    val seconds = entry.substring(separator + 1).toIntOrNull()
+                    seconds?.let { packageName to it.coerceIn(0, 300) }
+                }
+            }
+            .toMap()
+        set(value) = prefs.edit {
+            putStringSet(
+                KEY_PAUSE_PING_PER_APP,
+                value.map { (packageName, seconds) ->
+                    packageName + "=" + seconds.coerceIn(0, 300)
+                }.toSet()
+            )
+        }
+
     var criticalBypassQuietHours: Boolean
         get() = prefs.getBoolean(KEY_CRITICAL_BYPASS_QUIET, true)
         set(value) = prefs.edit { putBoolean(KEY_CRITICAL_BYPASS_QUIET, value) }
@@ -132,6 +155,7 @@ class AppSettings(context: Context) {
         private const val KEY_SENSITIVE_PROTECTION = "sensitive_protection_enabled"
         private const val KEY_PAUSE_PING_ENABLED = "pause_ping_enabled"
         private const val KEY_PAUSE_PING_COOLDOWN = "pause_ping_cooldown_seconds"
+        private const val KEY_PAUSE_PING_PER_APP = "pause_ping_per_app_cooldowns"
         private const val KEY_CRITICAL_BYPASS_QUIET = "critical_bypass_quiet_hours"
     }
 }

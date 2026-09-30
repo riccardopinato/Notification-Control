@@ -1,0 +1,5 @@
+<resources>
+    <string name="pause_ping_per_app_title">Per-app cooldown</string>
+    <string name="pause_ping_per_app_body">Premium can override the global cooldown for individual apps. Set 0 to exempt an app from Pausa Ping.</string>
+    <string name="pause_ping_no_cooldown">No cooldown</string>
+</resources>

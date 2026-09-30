@@ -232,6 +232,8 @@ fun NotificationControlApp(
                 onDeleteLuminousProfile = viewModel::deleteLuminousProfile,
                 onPausePingEnabled = viewModel::setPausePingEnabled,
                 onPausePingCooldown = viewModel::setPausePingCooldownSeconds,
+                onPausePingAppCooldown = viewModel::setPausePingAppCooldown,
+                onRemovePausePingAppCooldown = viewModel::removePausePingAppCooldown,
                 setFlash = viewModel::setFlashEnabled,
                 setOverlay = viewModel::setOverlayEnabled,
                 setScreenOffOnly = viewModel::setScreenOffOnly,
