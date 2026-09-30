@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v0.6
+NOTIFICATION CONTROL — ROADMAP v0.7
 Date: 2026-09-30
 Status: IN ESECUZIONE
 
@@ -56,11 +56,15 @@ IMPLEMENTED / VALIDATION
 - automatic Android cloud backup remains disabled
 
 STEP 10 — LUMINOUS PRO
-NEXT
-- per-app / sender profiles
-- colors/patterns/timing
-- Critical integration
-- OEM/battery hardening
+IMPLEMENTED / VALIDATION
+- Premium per-app / sender profiles
+- profile-specific colors, flash/overlay modes and timing
+- Critical visual escalation
+- main-thread overlay lifecycle
+- touch-safe overlay behavior
+- interactive-screen transparency
+- torch failure backoff for OEM/camera contention
+- profile backup/restore support
 
 STEP 11 — RELEASE & DEPLOY PIPELINE
 - release APK
@@ -84,6 +88,6 @@ EXTERNAL CONFIGURATION STILL REQUIRED:
 - Play signing/service credentials for automatic Internal Testing publication
 
 IMMEDIATE NEXT ACTION:
-Close CI in order, merge stable steps, then implement Luminous Pro, release pipeline and Certified QA.
+Close CI in order, merge stable steps, then implement release pipeline and Certified QA.
 
 END ROADMAP v0.6

@@ -9,6 +9,7 @@ import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
 import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.MessageEntity
+import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
 import com.riccardopinato.notificationcontrol.data.NotificationFtsEntity
@@ -44,6 +45,7 @@ class BackupRepository(context: Context) {
         val critical = backupDao.allCriticalPatterns()
         val followUps = backupDao.allFollowUps()
         val pickupCodes = backupDao.allPickupCodes()
+        val luminousProfiles = database.luminousProfileDao().allProfiles()
 
         val root = JSONObject()
             .put("format", FORMAT_VERSION)
@@ -71,6 +73,9 @@ class BackupRepository(context: Context) {
             })
             .put("pickupCodes", JSONArray().apply {
                 pickupCodes.forEach { put(pickupJson(it)) }
+            })
+            .put("luminousProfiles", JSONArray().apply {
+                luminousProfiles.forEach { put(luminousProfileJson(it)) }
             })
             .put("media", JSONArray().apply {
                 notifications.forEach { notification ->
@@ -118,6 +123,9 @@ class BackupRepository(context: Context) {
         val critical = parseCritical(root.getJSONArray("criticalPatterns"))
         val followUps = parseFollowUps(root.getJSONArray("followUps"))
         val pickupCodes = parsePickupCodes(root.getJSONArray("pickupCodes"))
+        val luminousProfiles = parseLuminousProfiles(
+            root.optJSONArray("luminousProfiles") ?: JSONArray()
+        )
         val settingsObject = root.optJSONObject("settings")
 
         validateReferences(notifications, messages, revisions, rules, actions)
@@ -133,6 +141,7 @@ class BackupRepository(context: Context) {
 
         try {
             database.withTransaction {
+                database.luminousProfileDao().deleteAll()
                 backupDao.deletePickupCodes()
                 backupDao.deleteFollowUps()
                 backupDao.deleteCriticalPatterns()
@@ -153,6 +162,9 @@ class BackupRepository(context: Context) {
                 if (critical.isNotEmpty()) backupDao.insertCriticalPatterns(critical)
                 if (followUps.isNotEmpty()) backupDao.insertFollowUps(followUps)
                 if (pickupCodes.isNotEmpty()) backupDao.insertPickupCodes(pickupCodes)
+                if (luminousProfiles.isNotEmpty()) {
+                    database.luminousProfileDao().insertAll(luminousProfiles)
+                }
 
                 val messagesByNotification = messages.groupBy { it.notificationKey }
                 notificationsWithMedia.forEach { notification ->
@@ -342,6 +354,32 @@ class BackupRepository(context: Context) {
         }
     }
 
+    private fun parseLuminousProfiles(array: JSONArray): List<LuminousProfileEntity> = buildList {
+        for (i in 0 until array.length()) {
+            val o = array.getJSONObject(i)
+            add(
+                LuminousProfileEntity(
+                    id = o.getLong("id"),
+                    name = o.getString("name"),
+                    enabled = o.getBoolean("enabled"),
+                    packageName = o.stringOrNull("packageName"),
+                    senderQuery = o.stringOrNull("senderQuery"),
+                    colorHex = o.getString("colorHex"),
+                    flashEnabled = o.getBoolean("flashEnabled"),
+                    overlayEnabled = o.getBoolean("overlayEnabled"),
+                    strobeCycles = o.getInt("strobeCycles"),
+                    strobeSpeedMs = o.getLong("strobeSpeedMs"),
+                    circleThickness = o.getDouble("circleThickness").toFloat(),
+                    circleGlow = o.getDouble("circleGlow").toFloat(),
+                    pulseSpeedMs = o.getLong("pulseSpeedMs"),
+                    displayDurationMs = o.getLong("displayDurationMs"),
+                    priority = o.getInt("priority"),
+                    createdAt = o.getLong("createdAt")
+                )
+            )
+        }
+    }
+
     private fun parseMedia(array: JSONArray): Map<String, ByteArray> = buildMap {
         for (i in 0 until array.length()) {
             val o = array.getJSONObject(i)
@@ -484,6 +522,25 @@ class BackupRepository(context: Context) {
         "createdAt" to p.createdAt,
         "expiresAt" to p.expiresAt,
         "dismissed" to p.dismissed
+    ))
+
+    private fun luminousProfileJson(p: LuminousProfileEntity) = JSONObject(mapOf(
+        "id" to p.id,
+        "name" to p.name,
+        "enabled" to p.enabled,
+        "packageName" to p.packageName,
+        "senderQuery" to p.senderQuery,
+        "colorHex" to p.colorHex,
+        "flashEnabled" to p.flashEnabled,
+        "overlayEnabled" to p.overlayEnabled,
+        "strobeCycles" to p.strobeCycles,
+        "strobeSpeedMs" to p.strobeSpeedMs,
+        "circleThickness" to p.circleThickness.toDouble(),
+        "circleGlow" to p.circleGlow.toDouble(),
+        "pulseSpeedMs" to p.pulseSpeedMs,
+        "displayDurationMs" to p.displayDurationMs,
+        "priority" to p.priority,
+        "createdAt" to p.createdAt
     ))
 
     private fun settingsJson() = JSONObject()
