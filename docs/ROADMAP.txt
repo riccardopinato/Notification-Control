@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v0.7
+NOTIFICATION CONTROL — ROADMAP v0.8
 Date: 2026-09-30
 Status: IN ESECUZIONE
 
@@ -67,20 +67,25 @@ IMPLEMENTED / VALIDATION
 - profile backup/restore support
 
 STEP 11 — RELEASE & DEPLOY PIPELINE
-- release APK
-- release AAB
-- signing hooks
-- versioning
-- R8 mapping
-- GitHub Release
-- Play Internal Testing hook where credentials exist
+IMPLEMENTED / VALIDATION
+- release APK + AAB build
+- optional signing from repository secrets
+- VERSION_NAME / VERSION_CODE injection
+- R8 mapping + SHA-256 checksums
+- GitHub Release on v* tags
+- optional Play Internal Testing upload when signing and service-account credentials exist
 
 STEP 12 — CERTIFIED QA
-- parser/lifecycle/database/migration tests
-- rules/critical/follow-up/pickup/billing/backup tests
-- release QA
-- device validation
-- privacy/accessibility/performance/store readiness
+IMPLEMENTED / AUTOMATED VALIDATION
+- unit-test, lint and release-build gates
+- privacy manifest gates
+- localization gates
+- dependency evidence
+- release binary/checksum evidence
+- Certified Evidence Bundle artifact
+- rule / Critical / Pickup / Pausa Ping / Luminous / backup pure-domain regression coverage
+- physical-device validation remains MANUAL_REQUIRED
+- final CERTIFIED verdict remains BLOCKED until intended-release external config and device checks are completed
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Google OAuth Web client ID for live Sign in with Google
@@ -88,6 +93,6 @@ EXTERNAL CONFIGURATION STILL REQUIRED:
 - Play signing/service credentials for automatic Internal Testing publication
 
 IMMEDIATE NEXT ACTION:
-Close CI in order, merge stable steps, then implement release pipeline and Certified QA.
+Close consolidated integration CI. If green, merge to main. Then run the Certified QA workflow and complete the manual device/store configuration gates for the intended release.
 
-END ROADMAP v0.6
+END ROADMAP v0.8
