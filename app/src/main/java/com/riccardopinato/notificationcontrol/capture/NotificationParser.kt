@@ -40,6 +40,8 @@ class NotificationParser(
                 }
         }.getOrDefault(emptyList())
 
+        val mediaStableKey = sbn.key + "\u0000" + sbn.postTime
+
         return CapturedNotification(
             sbnKey = sbn.key,
             packageName = sbn.packageName,
@@ -48,13 +50,22 @@ class NotificationParser(
             tag = sbn.tag,
             groupKey = sbn.groupKey,
             category = notification.category,
-            channelId = if (android.os.Build.VERSION.SDK_INT >= 26) notification.channelId else null,
+            channelId = if (android.os.Build.VERSION.SDK_INT >= 26) {
+                notification.channelId
+            } else {
+                null
+            },
             title = extras?.getCharSequence(Notification.EXTRA_TITLE)?.toString(),
             text = extras?.getCharSequence(Notification.EXTRA_TEXT)?.toString(),
             bigText = extras?.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString(),
             subText = extras?.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString(),
-            conversationTitle = extras?.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString(),
-            thumbnailPath = if (captureThumbnail) mediaStore.savePicture(notification, sbn.key) else null,
+            conversationTitle =
+                extras?.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString(),
+            thumbnailPath = if (captureThumbnail) {
+                mediaStore.savePicture(notification, mediaStableKey)
+            } else {
+                null
+            },
             postedAt = sbn.postTime,
             capturedAt = now,
             isOngoing = sbn.isOngoing,

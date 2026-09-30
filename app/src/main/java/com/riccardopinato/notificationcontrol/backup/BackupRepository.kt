@@ -205,6 +205,7 @@ class BackupRepository(context: Context) {
             add(
                 NotificationEntity(
                     sbnKey = o.getString("sbnKey"),
+                    platformKey = o.optString("platformKey", o.getString("sbnKey")),
                     packageName = o.getString("packageName"),
                     appLabel = o.getString("appLabel"),
                     notificationId = o.getInt("notificationId"),
@@ -428,6 +429,7 @@ class BackupRepository(context: Context) {
 
     private fun notificationJson(n: NotificationEntity) = JSONObject(mapOf(
         "sbnKey" to n.sbnKey,
+        "platformKey" to n.platformKey,
         "packageName" to n.packageName,
         "appLabel" to n.appLabel,
         "notificationId" to n.notificationId,

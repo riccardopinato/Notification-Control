@@ -4,9 +4,24 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "notifications", indices = [Index("packageName"), Index("postedAt"), Index("removedAt"), Index("protected")])
+@Entity(
+    tableName = "notifications",
+    indices = [
+        Index("platformKey"),
+        Index("packageName"),
+        Index("postedAt"),
+        Index("removedAt"),
+        Index("protected")
+    ]
+)
 data class NotificationEntity(
+    /**
+     * Immutable Vault event id. The historic name is kept for migration compatibility:
+     * from schema v6 onward this is NOT the Android StatusBarNotification key.
+     */
     @PrimaryKey val sbnKey: String,
+    /** Android StatusBarNotification key for the currently active platform notification. */
+    val platformKey: String,
     val packageName: String,
     val appLabel: String,
     val notificationId: Int,

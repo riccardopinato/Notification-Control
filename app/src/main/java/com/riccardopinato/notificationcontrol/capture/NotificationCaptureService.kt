@@ -22,7 +22,6 @@ import com.riccardopinato.notificationcontrol.processing.PausePingConsumer
 import com.riccardopinato.notificationcontrol.processing.PickupCodeConsumer
 import com.riccardopinato.notificationcontrol.processing.ProcessingMode
 import com.riccardopinato.notificationcontrol.processing.RulesConsumer
-import com.riccardopinato.notificationcontrol.processing.VaultConsumer
 import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +64,6 @@ class NotificationCaptureService : NotificationListenerService() {
         processor = NotificationEventProcessor(
             vaultRepository = vaultRepository,
             consumers = listOf(
-                VaultConsumer(vaultRepository),
                 RulesConsumer(RuleEngine(database.automationDao())),
                 CriticalConsumer(CriticalMatcher(database.automationDao())),
                 PausePingConsumer(PausePingController(settings)),
