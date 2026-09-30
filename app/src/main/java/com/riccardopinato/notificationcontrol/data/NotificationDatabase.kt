@@ -17,15 +17,17 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RuleActionEntity::class,
         CriticalPatternEntity::class,
         FollowUpEntity::class,
-        PickupCodeEntity::class
+        PickupCodeEntity::class,
+        LuminousProfileEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class NotificationDatabase : RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
     abstract fun automationDao(): AutomationDao
     abstract fun backupDao(): BackupDao
+    abstract fun luminousProfileDao(): LuminousProfileDao
 
     companion object {
         @Volatile
@@ -192,13 +194,43 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS luminous_profiles (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        name TEXT NOT NULL,
+                        enabled INTEGER NOT NULL,
+                        packageName TEXT,
+                        senderQuery TEXT,
+                        colorHex TEXT NOT NULL,
+                        flashEnabled INTEGER NOT NULL,
+                        overlayEnabled INTEGER NOT NULL,
+                        strobeCycles INTEGER NOT NULL,
+                        strobeSpeedMs INTEGER NOT NULL,
+                        circleThickness REAL NOT NULL,
+                        circleGlow REAL NOT NULL,
+                        pulseSpeedMs INTEGER NOT NULL,
+                        displayDurationMs INTEGER NOT NULL,
+                        priority INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_luminous_profiles_enabled ON luminous_profiles(enabled)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_luminous_profiles_packageName ON luminous_profiles(packageName)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_luminous_profiles_priority ON luminous_profiles(priority)")
+            }
+        }
+
         fun get(context: Context): NotificationDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 NotificationDatabase::class.java,
                 "notification_control.db"
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
                 .also { instance = it }
         }
