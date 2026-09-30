@@ -616,12 +616,16 @@ private fun ruleSummary(rule: RuleWithActions): String {
         rule.rule.senderQuery,
         rule.rule.textQuery
     ).joinToString(" · ")
+    val flashLabel = stringResource(R.string.rule_action_flash)
+    val overlayLabel = stringResource(R.string.rule_action_overlay)
+    val criticalLabel = stringResource(R.string.rule_action_critical)
+    val followUpLabel = stringResource(R.string.rule_action_follow_up)
     val actions = rule.actions.joinToString(", ") {
         when (it.actionType) {
-            RuleActionType.FLASH -> stringResource(R.string.rule_action_flash)
-            RuleActionType.OVERLAY -> stringResource(R.string.rule_action_overlay)
-            RuleActionType.CRITICAL -> stringResource(R.string.rule_action_critical)
-            RuleActionType.FOLLOW_UP -> stringResource(R.string.rule_action_follow_up)
+            RuleActionType.FLASH -> flashLabel
+            RuleActionType.OVERLAY -> overlayLabel
+            RuleActionType.CRITICAL -> criticalLabel
+            RuleActionType.FOLLOW_UP -> followUpLabel
             else -> it.actionType
         }
     }
