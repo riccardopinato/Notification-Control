@@ -19,19 +19,67 @@ interface NotificationDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertRevision(revision: NotificationRevisionEntity)
 
+    @Insert
+    suspend fun insertFts(entity: NotificationFtsEntity)
+
+    @Query("DELETE FROM notification_fts WHERE sbnKey = :sbnKey")
+    suspend fun deleteFts(sbnKey: String)
+
     @Transaction
     suspend fun upsert(
         entity: NotificationEntity,
         messages: List<MessageEntity>,
-        revision: NotificationRevisionEntity
+        revision: NotificationRevisionEntity,
+        fts: NotificationFtsEntity
     ) {
         upsertNotification(entity)
         insertRevision(revision)
         if (messages.isNotEmpty()) insertMessages(messages)
+        deleteFts(entity.sbnKey)
+        insertFts(fts)
     }
 
     @Query("SELECT * FROM notifications ORDER BY updatedAt DESC LIMIT :limit")
     fun observeRecent(limit: Int = 250): Flow<List<NotificationEntity>>
+
+    @Query(
+        """
+        SELECT * FROM notifications
+        WHERE (:packageName IS NULL OR packageName = :packageName)
+        ORDER BY updatedAt DESC
+        LIMIT :limit
+        """
+    )
+    fun observeFilteredByApp(
+        packageName: String?,
+        limit: Int
+    ): Flow<List<NotificationEntity>>
+
+    @Query(
+        """
+        SELECT DISTINCT n.* FROM notifications n
+        INNER JOIN notification_fts f ON f.sbnKey = n.sbnKey
+        WHERE (:packageName IS NULL OR n.packageName = :packageName)
+          AND notification_fts MATCH :ftsQuery
+        ORDER BY n.updatedAt DESC
+        LIMIT :limit
+        """
+    )
+    fun observeSearch(
+        ftsQuery: String,
+        packageName: String?,
+        limit: Int
+    ): Flow<List<NotificationEntity>>
+
+    @Query(
+        """
+        SELECT packageName, MAX(appLabel) AS appLabel, COUNT(*) AS count
+        FROM notifications
+        GROUP BY packageName
+        ORDER BY appLabel COLLATE NOCASE ASC
+        """
+    )
+    fun observeAppFilters(): Flow<List<VaultAppFilter>>
 
     @Query("SELECT COUNT(*) FROM notifications")
     fun observeCount(): Flow<Int>
@@ -60,6 +108,15 @@ interface NotificationDao {
         deleteOlderThan(cutoffMillis)
         return media
     }
+
+    @Transaction
+    suspend fun deleteEverything() {
+        deleteAllFts()
+        deleteAll()
+    }
+
+    @Query("DELETE FROM notification_fts")
+    suspend fun deleteAllFts()
 
     @Query("DELETE FROM notifications")
     suspend fun deleteAll()
