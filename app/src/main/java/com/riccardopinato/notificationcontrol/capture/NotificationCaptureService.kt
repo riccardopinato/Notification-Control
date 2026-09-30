@@ -12,6 +12,7 @@ import com.riccardopinato.notificationcontrol.domain.RuleEngine
 import com.riccardopinato.notificationcontrol.domain.SuppressionPolicy
 import com.riccardopinato.notificationcontrol.hardware.DevicePostureMonitor
 import com.riccardopinato.notificationcontrol.hardware.FlashCoordinator
+import com.riccardopinato.notificationcontrol.luminous.LuminousProfileResolver
 import com.riccardopinato.notificationcontrol.processing.CriticalConsumer
 import com.riccardopinato.notificationcontrol.processing.FollowUpConsumer
 import com.riccardopinato.notificationcontrol.processing.LuminousConsumer
@@ -74,7 +75,11 @@ class NotificationCaptureService : NotificationListenerService() {
                     settings = settings,
                     suppressionPolicy = suppressionPolicy,
                     flash = flash,
-                    overlay = overlay
+                    overlay = overlay,
+                    profileResolver = LuminousProfileResolver(
+                        settings,
+                        database.luminousProfileDao()
+                    )
                 )
             )
         )
