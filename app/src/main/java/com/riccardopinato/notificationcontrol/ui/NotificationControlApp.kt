@@ -54,6 +54,7 @@ fun NotificationControlApp(
     val criticalPatterns by viewModel.criticalPatterns.collectAsStateWithLifecycle()
     val followUps by viewModel.followUps.collectAsStateWithLifecycle()
     val pickupCodes by viewModel.pickupCodes.collectAsStateWithLifecycle()
+    val luminousProfiles by viewModel.luminousProfiles.collectAsStateWithLifecycle()
 
     permissionEpoch.hashCode()
     vaultUnlockEpoch.hashCode()
@@ -82,6 +83,8 @@ fun NotificationControlApp(
     val ruleLimitMessage = stringResource(R.string.rule_limit_reached)
     val criticalLimitMessage = stringResource(R.string.critical_limit_reached)
     val followUpLimitMessage = stringResource(R.string.follow_up_limit_reached)
+    val luminousProfilePremiumMessage =
+        stringResource(R.string.luminous_profile_premium_required)
 
     LaunchedEffect(Unit) {
         viewModel.events.collect { event ->
@@ -90,6 +93,8 @@ fun NotificationControlApp(
                 NotificationControlUiEvent.RuleLimitReached -> ruleLimitMessage
                 NotificationControlUiEvent.CriticalLimitReached -> criticalLimitMessage
                 NotificationControlUiEvent.FollowUpLimitReached -> followUpLimitMessage
+                NotificationControlUiEvent.LuminousProfileRequiresPremium ->
+                    luminousProfilePremiumMessage
             }
             snackbar.showSnackbar(message)
         }
@@ -191,6 +196,7 @@ fun NotificationControlApp(
                 apps = apps,
                 rules = rules,
                 criticalPatterns = criticalPatterns,
+                luminousProfiles = luminousProfiles,
                 requestCameraPermission = requestCameraPermission,
                 requestOverlayPermission = requestOverlayPermission,
                 onCreateRule = viewModel::createRule,
@@ -198,6 +204,9 @@ fun NotificationControlApp(
                 onDeleteRule = viewModel::deleteRule,
                 onAddCriticalPattern = viewModel::addCriticalPattern,
                 onDeleteCriticalPattern = viewModel::deleteCriticalPattern,
+                onCreateLuminousProfile = viewModel::createLuminousProfile,
+                onLuminousProfileEnabled = viewModel::setLuminousProfileEnabled,
+                onDeleteLuminousProfile = viewModel::deleteLuminousProfile,
                 onPausePingEnabled = viewModel::setPausePingEnabled,
                 onPausePingCooldown = viewModel::setPausePingCooldownSeconds,
                 setFlash = viewModel::setFlashEnabled,
