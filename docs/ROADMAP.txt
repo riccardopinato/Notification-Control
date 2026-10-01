@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v0.9
+NOTIFICATION CONTROL — ROADMAP v1.0
 Date: 2026-10-01
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
@@ -139,6 +139,24 @@ Source PR: #11 roadmap-hardening-message-vault
 - Credential Manager error hardening
 - localization parity enforced by Certified QA
 
+MAXI STEP 14 — STREAMLINED ONBOARDING & PERFORMANCE HARDENING
+IMPLEMENTED / VALIDATION
+- onboarding ridotto al core: accesso notifiche + scelta app monitorate
+- Luminous, flash, biometria e opzioni avanzate spostati a setup contestuale
+- recovery guidato quando Android blocca Notification Access su APK sideload
+- collegamento diretto a Informazioni app per "impostazioni con limitazioni"
+- visual alerts disattivati di default sulle nuove installazioni, permessi progressivi
+- Installed Apps loading rinviato finché onboarding/Rules/Profile/App Picker lo richiedono
+- Billing/Play connection rinviata alla schermata Profilo o a un acquisto/ripristino
+- Room/automation repositories e relativi flow inizializzati lazy
+- cleanup runtime differito al post-onboarding
+- root Compose non colleziona più tutti i flow contemporaneamente: subscription per schermata attiva
+- StorageStats rimosso dal refresh di ogni impostazione e calcolato solo quando necessario
+- ricerca Vault con debounce breve per evitare query FTS a ogni singolo frame di digitazione
+- slider Pausa Ping/Battery/Quiet Hours con commit solo a fine trascinamento
+- cache RAM LRU per thumbnail Vault e timestamp di riga memoizzati
+- obiettivo device validation: scrolling Vault, cambio tab, apertura Rules/Profile, resume da Settings
+
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Google OAuth Web client ID for live Sign in with Google
 - Google Play product configuration for live Premium purchase flows
@@ -152,10 +170,11 @@ LIVE GOOGLE/PLAY CONFIG: REQUIRED
 FINAL INTENDED-RELEASE VERDICT: BLOCKED until manual/device/store gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Validate the merged post-hardening baseline on a real Android ARM64 device.
-2. Exercise Notification Access, Vault/Message history, Rules, Critical, Pausa Ping, Follow Up, Pickup Code and Luminous end-to-end.
-3. Verify retention/Smart Cleanup and encrypted backup/restore with real local data.
-4. Configure live Google OAuth and Play products when preparing the release candidate.
-5. Build the intended release candidate only after the physical-device gate is green.
+1. Close Android CI + Certified QA for MAXI STEP 14.
+2. Install the new debug APK on a real Android/Xiaomi device.
+3. Validate first-run onboarding and restricted-settings recovery.
+4. Compare perceived fluidity on tab changes, Vault scroll/search and slider interactions.
+5. Re-run functional checks for Notification Access, Rules, Critical, Follow Up, Pickup Code and Luminous.
+6. Configure live Google OAuth and Play products only when preparing the release candidate.
 
-END ROADMAP v0.9
+END ROADMAP v1.0
