@@ -22,9 +22,11 @@ class StorageStatsRepository(context: Context) {
         ).sumOf { if (it.exists()) it.length() else 0L }
 
         val mediaDir = File(appContext.filesDir, "notification_thumbnails")
-        val mediaBytes = mediaDir.walkTopDown()
-            .filter { it.isFile }
-            .sumOf { it.length() }
+        val mediaBytes = mediaDir.listFiles()
+            ?.asSequence()
+            ?.filter { it.isFile }
+            ?.sumOf { it.length() }
+            ?: 0L
 
         return StorageStats(databaseBytes = databaseBytes, mediaBytes = mediaBytes)
     }
