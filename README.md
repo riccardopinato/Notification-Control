@@ -10,7 +10,7 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - Notification Undo history semantics without falsely treating every removal as sender deletion
 - Rules Engine, Critical Alert, Pausa Ping, Follow Up and Pickup Code
 - Luminous visual-alert module with Free baseline and Premium app/sender profiles
-- optional Google profile identity via Credential Manager/Google ID 1.2.1, separated from Vault security and Premium
+- optional Google profile identity via Credential Manager/Google ID 1.1.1 + stable sub/email token claims, separated from Vault security and Premium
 - biometric/device-credential Vault gate
 - streamlined core-only onboarding with sideload/restricted-settings recovery
 - lazy screen-scoped data subscriptions and deferred heavy initialization for smoother runtime
