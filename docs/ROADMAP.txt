@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v1.2
+NOTIFICATION CONTROL — ROADMAP v1.2.1
 Date: 2026-10-01
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
@@ -216,6 +216,14 @@ PERFORMANCE ACCEPTANCE GATE:
 4. device test su Xiaomi: tab switch, Vault scroll/search, Rules/Profile, burst notifiche.
 5. macrobenchmark cold startup + frame timing da eseguire su device/emulatore controllato dopo onboarding one-time.
 
+MAXI STEP 16.1 — FINAL CORRECTNESS HARDENING
+IMPLEMENTED / VALIDATION
+- Luminous overlay compatibile anche con Android 7.x: TYPE_PHONE su API 24-25, TYPE_APPLICATION_OVERLAY da API 26
+- Google Sign-In Compose host migrato a LocalActivity, senza cast/risalita manuale del Context
+- formattazione dimensioni/orari con Locale esplicita
+- ListenerHealthStore usa SharedPreferences KTX
+- nessun upgrade massivo AGP/Kotlin/dependency in questo passaggio: warning di disponibilità versioni non trattati come bug
+
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Google Auth Platform Web client ID must exist in repository variable/secret GOOGLE_WEB_CLIENT_ID for live Sign in with Google
 - Android OAuth client/package signing configuration must match the intended signed build
@@ -237,4 +245,4 @@ IMMEDIATE NEXT ACTION:
 5. Run final physical regression for Vault, Rules, Critical, Follow Up, Pickup Code and Luminous.
 6. Execute Macrobenchmark runtime when a controlled Android benchmark device is available.
 
-END ROADMAP v1.2
+END ROADMAP v1.2.1
