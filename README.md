@@ -14,13 +14,17 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - biometric/device-credential Vault gate
 - streamlined core-only onboarding with sideload/restricted-settings recovery
 - lazy screen-scoped data subscriptions and deferred heavy initialization for smoother runtime
+- serialized notification hot path with reactive Rules/Critical/Luminous caches
+- Paging 3 Vault with indexed Room v9 queries and incremental message FTS
+- hardware-friendly Luminous renderer and on-demand WorkManager startup
+- optimized installable `perfTest` APK plus Macrobenchmark performance harness
 - encrypted manual backup/restore through Android Storage Access Framework
 - Google Play Billing entitlement engine with subscription/lifetime support
 - EN/IT/ES/FR/PT resources and per-app language override
 - automatic Android cloud backup disabled
 
 ## Release and QA
-- `.github/workflows/android.yml`: standard PR/main CI
+- `.github/workflows/android.yml`: standard PR/main CI plus debug/perfTest APKs and benchmark compile gate
 - `.github/workflows/release.yml`: APK/AAB release build, optional signing, GitHub Release and optional Play Internal Testing upload
 - `.github/workflows/certified.yml`: SHOS-style Certified Evidence Bundle with tests, lint, release binaries, privacy/localization gates, checksums and dependency evidence
 
