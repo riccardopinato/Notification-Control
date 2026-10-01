@@ -421,6 +421,9 @@ private fun StorageCard(
 ) {
     var retentionApp by remember { mutableStateOf<InstalledApp?>(null) }
     var retentionAppDays by remember { mutableStateOf(state.retentionDays) }
+    val appLabels = remember(apps) {
+        apps.associate { it.packageName to it.label }
+    }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -524,9 +527,7 @@ private fun StorageCard(
                 }
 
                 state.retentionDaysPerApp.forEach { (packageName, days) ->
-                    val label = apps.firstOrNull {
-                        it.packageName == packageName
-                    }?.label ?: packageName
+                    val label = appLabels[packageName] ?: packageName
                     Text(
                         stringResource(
                             R.string.retention_per_app_summary,
@@ -601,6 +602,9 @@ private fun DeviceBehaviorCard(
     }
     var quietEndDraft by remember(state.quietEndMinutes) {
         mutableStateOf(state.quietEndMinutes.coerceIn(0, 1410).toFloat())
+    }
+    val appLabels = remember(apps) {
+        apps.associate { it.packageName to it.label }
     }
 
     Card(Modifier.fillMaxWidth()) {
@@ -777,9 +781,7 @@ private fun DeviceBehaviorCard(
                         Text(stringResource(R.string.quiet_add_exception))
                     }
                     state.quietHoursExceptionPackages.forEach { packageName ->
-                        val label = apps.firstOrNull {
-                            it.packageName == packageName
-                        }?.label ?: packageName
+                        val label = appLabels[packageName] ?: packageName
                         Row(
                             Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
