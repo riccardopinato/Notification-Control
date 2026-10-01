@@ -237,7 +237,12 @@ class NotificationCaptureService : NotificationListenerService() {
     }
 
     private fun shouldConsider(sbn: StatusBarNotification): Boolean =
-        sbn.packageName != packageName && !sbn.isOngoing
+        NotificationAdmissionPolicy.shouldConsider(
+            packageName = sbn.packageName,
+            selfPackageName = packageName,
+            isOngoing = sbn.isOngoing,
+            flags = sbn.notification.flags
+        )
 
     companion object {
         private const val TAG = "NotificationCapture"

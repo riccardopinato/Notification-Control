@@ -2,6 +2,7 @@ package com.riccardopinato.notificationcontrol.billing
 
 import android.app.Activity
 import android.content.Context
+import com.riccardopinato.notificationcontrol.BuildConfig
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -46,6 +47,16 @@ class PlayBillingManager private constructor(context: Context) : PurchasesUpdate
     fun isPremiumCached(): Boolean = store.effectiveTier().isPremium
 
     fun connect() {
+        if (BuildConfig.QA_PREMIUM_UNLOCKED) {
+            _state.value = BillingUiState(
+                connected = false,
+                loading = false,
+                entitlement = EntitlementTier.PREMIUM_LIFETIME,
+                offers = emptyList(),
+                statusMessage = null
+            )
+            return
+        }
         if (client.isReady) {
             refresh()
             return
@@ -87,6 +98,16 @@ class PlayBillingManager private constructor(context: Context) : PurchasesUpdate
     }
 
     fun refresh() {
+        if (BuildConfig.QA_PREMIUM_UNLOCKED) {
+            _state.value = BillingUiState(
+                connected = false,
+                loading = false,
+                entitlement = EntitlementTier.PREMIUM_LIFETIME,
+                offers = emptyList(),
+                statusMessage = null
+            )
+            return
+        }
         if (!client.isReady) {
             connect()
             return
@@ -97,6 +118,7 @@ class PlayBillingManager private constructor(context: Context) : PurchasesUpdate
     }
 
     fun launchPurchase(activity: Activity, offerKey: String): BillingResult? {
+        if (BuildConfig.QA_PREMIUM_UNLOCKED) return null
         val launchData = synchronized(productLaunchData) {
             productLaunchData[offerKey]
         } ?: return null

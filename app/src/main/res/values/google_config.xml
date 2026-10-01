@@ -1,4 +1,0 @@
-<resources>
-    <!-- Configure with the OAuth Web client ID from Google Cloud/Play Services. -->
-    <string name="google_web_client_id" translatable="false"></string>
-</resources>

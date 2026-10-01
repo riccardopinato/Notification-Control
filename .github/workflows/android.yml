@@ -11,6 +11,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -38,6 +40,8 @@ jobs:
         run: gradle :app:assembleDebug --stacktrace --no-daemon
       - name: Build optimized perfTest APK and benchmark harness
         run: gradle :app:assemblePerfTest :benchmark:assemblePerfTest --stacktrace --no-daemon
+      - name: Build QA Premium APK
+        run: gradle :app:assembleQaPremium --stacktrace --no-daemon
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -49,4 +53,10 @@ jobs:
         with:
           name: notification-control-perf-test
           path: app/build/outputs/apk/perfTest/app-perfTest.apk
+          if-no-files-found: error
+      - name: Upload QA Premium APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: notification-control-qa-premium
+          path: app/build/outputs/apk/qaPremium/app-qaPremium.apk
           if-no-files-found: error

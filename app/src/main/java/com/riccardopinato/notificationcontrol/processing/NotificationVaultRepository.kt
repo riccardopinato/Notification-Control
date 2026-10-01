@@ -40,8 +40,47 @@ class NotificationVaultRepository(
 
         val dao = database.notificationDao()
         val active = dao.findActiveByPlatformKey(captured.sbnKey)
-        val vaultKey = active?.sbnKey ?: VaultEventKey.create(captured)
-        val revision = captured.toRevisionEntity(vaultKey)
+
+        val provisionalKey = active?.sbnKey ?: VaultEventKey.create(captured)
+        val provisionalRevision = captured.toRevisionEntity(provisionalKey)
+
+        val replay = if (active == null) {
+            dao.findRecentEquivalentEvent(
+                packageName = captured.packageName,
+                notificationId = captured.notificationId,
+                tag = captured.tag,
+                postedAt = captured.postedAt,
+                contentHash = provisionalRevision.contentHash,
+                cutoffMillis = captured.capturedAt - REPLAY_WINDOW_MS
+            )
+        } else {
+            null
+        }
+
+        if (replay != null) {
+            dao.rebindPlatformKey(
+                eventKey = replay.sbnKey,
+                platformKey = captured.sbnKey,
+                updatedAt = captured.capturedAt
+            )
+            if (
+                captured.thumbnailPath != null &&
+                captured.thumbnailPath != replay.thumbnailPath
+            ) {
+                mediaStore.delete(captured.thumbnailPath)
+            }
+            return VaultPersistResult(
+                kind = VaultPersistKind.DUPLICATE,
+                vaultKey = replay.sbnKey
+            )
+        }
+
+        val vaultKey = provisionalKey
+        val revision = if (vaultKey == provisionalKey) {
+            provisionalRevision
+        } else {
+            captured.toRevisionEntity(vaultKey)
+        }
         val previousRevision = active?.let { dao.latestRevisionFor(vaultKey) }
 
         if (previousRevision?.contentHash == revision.contentHash) {
@@ -92,5 +131,9 @@ class NotificationVaultRepository(
             removedAt = System.currentTimeMillis(),
             reason = reason
         )
+    }
+
+    companion object {
+        internal const val REPLAY_WINDOW_MS = 30_000L
     }
 }

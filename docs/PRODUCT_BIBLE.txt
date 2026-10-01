@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — PRODUCT BIBLE v0.2
+NOTIFICATION CONTROL — PRODUCT BIBLE v0.3
 Date: 2026-09-30
 Status: BASELINE APPROVATA
 
@@ -80,6 +80,7 @@ B. Local Event Vault
 C. Message Vault / Notification Undo
 - conserva il contenuto che Android espone tramite la notifica;
 - può mantenere messaggi non più presenti successivamente nell'app sorgente;
+- "Undo" nella v1 significa recuperabilità/storico dal Vault, non ripubblicazione nel notification shade;
 - non promette recupero retroattivo o accesso al database interno di WhatsApp/Telegram.
 
 D. Critical Alert
@@ -308,7 +309,8 @@ Principi:
 - AI generativa;
 - analisi semantica cloud del contenuto privato;
 - iOS;
-- web feature-complete per funzioni native Android.
+- web feature-complete per funzioni native Android;
+- True Notification Undo con ripubblicazione/ricreazione della notifica nel notification shade (deferred).
 
 ==================================================
 15. DONOR AUDIT DECISIONS
@@ -332,4 +334,4 @@ Correzioni:
 - RECEIVE_SMS / READ_CALL_LOG esclusi dall'architettura target;
 - entitlement non deve stare nei renderer Luminous.
 
-END PRODUCT BIBLE v0.2
+END PRODUCT BIBLE v0.3
