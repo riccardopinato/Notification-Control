@@ -64,7 +64,7 @@ class RetentionWorker(
             }
             val cutoff = RetentionPolicy.cutoffMillis(
                 nowMillis = now,
-                isPremium = settings.isPremium,
+                premium = settings.isPremium,
                 configuredDays = days
             )
             if (cutoff == Long.MIN_VALUE) return@forEach
