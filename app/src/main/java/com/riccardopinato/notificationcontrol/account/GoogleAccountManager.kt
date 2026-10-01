@@ -2,6 +2,7 @@ package com.riccardopinato.notificationcontrol.account
 
 import android.app.Activity
 import android.content.Context
+import android.util.Base64
 import androidx.core.content.edit
 import androidx.credentials.ClearCredentialStateRequest
 import androidx.credentials.CredentialManager
@@ -11,10 +12,12 @@ import androidx.credentials.exceptions.GetCredentialException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.riccardopinato.notificationcontrol.BuildConfig
 import com.riccardopinato.notificationcontrol.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import java.security.SecureRandom
 
 data class GoogleAccountProfile(
     val uniqueId: String,
@@ -62,7 +65,9 @@ class GoogleAccountManager private constructor(context: Context) {
 
         try {
             val credentialManager = CredentialManager.create(activity)
-            val option = GetSignInWithGoogleOption.Builder(clientId).build()
+            val option = GetSignInWithGoogleOption.Builder(clientId)
+                .setNonce(generateNonce())
+                .build()
             val request = GetCredentialRequest.Builder()
                 .addCredentialOption(option)
                 .build()
@@ -78,8 +83,8 @@ class GoogleAccountManager private constructor(context: Context) {
             )
             val google = GoogleIdTokenCredential.createFrom(credential.data)
             val profile = GoogleAccountProfile(
-                uniqueId = google.id,
-                email = google.id,
+                uniqueId = google.uniqueId,
+                email = google.email,
                 displayName = google.displayName,
                 profilePictureUri = google.profilePictureUri?.toString()
             )
@@ -123,7 +128,16 @@ class GoogleAccountManager private constructor(context: Context) {
     }
 
     private fun serverClientId(): String =
-        appContext.getString(R.string.google_web_client_id).trim()
+        BuildConfig.GOOGLE_WEB_CLIENT_ID.trim()
+
+    private fun generateNonce(): String {
+        val bytes = ByteArray(32)
+        SecureRandom().nextBytes(bytes)
+        return Base64.encodeToString(
+            bytes,
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
+        )
+    }
 
     private fun cacheProfile(profile: GoogleAccountProfile) {
         prefs.edit {
