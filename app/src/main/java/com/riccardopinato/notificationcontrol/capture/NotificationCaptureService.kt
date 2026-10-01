@@ -3,6 +3,7 @@ package com.riccardopinato.notificationcontrol.capture
 import android.content.ComponentName
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.util.Log
 import com.riccardopinato.notificationcontrol.automation.AutomationRepository
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.LuminousProfileDao
@@ -112,6 +113,13 @@ class NotificationCaptureService : NotificationListenerService() {
         serviceScope.launch {
             for (command in eventQueue) {
                 runCatching { processCommand(command) }
+                    .onFailure {
+                        Log.e(
+                            TAG,
+                            "Notification pipeline command failed",
+                            it
+                        )
+                    }
             }
         }
     }
@@ -230,6 +238,10 @@ class NotificationCaptureService : NotificationListenerService() {
 
     private fun shouldConsider(sbn: StatusBarNotification): Boolean =
         sbn.packageName != packageName && !sbn.isOngoing
+
+    companion object {
+        private const val TAG = "NotificationCapture"
+    }
 
     private sealed interface ListenerCommand {
         data class Posted(
