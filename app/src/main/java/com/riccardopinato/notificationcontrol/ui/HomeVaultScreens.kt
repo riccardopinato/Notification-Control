@@ -56,6 +56,7 @@ import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -556,7 +557,7 @@ private fun Thumbnail(path: String) {
 private fun formatBytes(bytes: Long): String {
     if (bytes < 1_024) return "$bytes B"
     val kb = bytes / 1_024.0
-    if (kb < 1_024) return String.format("%.1f KB", kb)
+    if (kb < 1_024) return String.format(Locale.getDefault(), "%.1f KB", kb)
     val mb = kb / 1_024.0
-    return String.format("%.1f MB", mb)
+    return String.format(Locale.getDefault(), "%.1f MB", mb)
 }
