@@ -53,6 +53,12 @@ android {
                 "proguard-rules.pro"
             )
         }
+        create("perfTest") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+        }
     }
 
     compileOptions {
@@ -92,6 +98,9 @@ dependencies {
     implementation(libs.googleid)
     implementation(libs.billing.ktx)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.paging.runtime)
+    implementation(libs.androidx.paging.compose)
+    implementation(libs.androidx.profileinstaller)
 
     ksp(libs.androidx.room.compiler)
 
