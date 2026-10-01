@@ -9,7 +9,6 @@ import androidx.benchmark.macro.junit4.measureRepeated
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import androidx.test.platform.app.InstrumentationRegistry
-import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import org.junit.Rule
 import org.junit.Test
@@ -50,10 +49,13 @@ class StartupAndJankBenchmark {
             startActivityAndWait()
         }
     ) {
-        device.findObject(By.text("Vault"))?.click()
-        device.waitForIdle()
         val width = device.displayWidth
         val height = device.displayHeight
+        val navigationY = (height * 0.93f).toInt()
+
+        // Requires one-time onboarding on the benchmark device.
+        device.click((width * 0.30f).toInt(), navigationY)
+        device.waitForIdle()
         repeat(4) {
             device.swipe(
                 width / 2,
@@ -63,9 +65,9 @@ class StartupAndJankBenchmark {
                 18
             )
         }
-        device.findObject(By.text("Rules"))?.click()
+        device.click((width * 0.70f).toInt(), navigationY)
         device.waitForIdle()
-        device.findObject(By.text("Profile"))?.click()
+        device.click((width * 0.90f).toInt(), navigationY)
         device.waitForIdle()
     }
 
