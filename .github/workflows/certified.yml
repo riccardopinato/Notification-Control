@@ -12,6 +12,8 @@ jobs:
   certified:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID }}
 
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +41,9 @@ jobs:
 
       - name: Compile performance harness
         run: gradle :app:assemblePerfTest :benchmark:assemblePerfTest --stacktrace --no-daemon
+
+      - name: Build QA Premium validation APK
+        run: gradle :app:assembleQaPremium --stacktrace --no-daemon
 
       - name: Dependency evidence
         shell: bash
@@ -133,6 +138,7 @@ jobs:
           find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -exec cp {} certified-evidence/ \;
           find app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -exec cp {} certified-evidence/ \;
           find app/build/outputs/apk/perfTest -maxdepth 1 -type f -name '*.apk' -exec cp {} certified-evidence/ \;
+          find app/build/outputs/apk/qaPremium -maxdepth 1 -type f -name '*.apk' -exec cp {} certified-evidence/ \;
           if [[ -f app/build/outputs/mapping/release/mapping.txt ]]; then
             cp app/build/outputs/mapping/release/mapping.txt certified-evidence/mapping.txt
           fi
@@ -144,7 +150,11 @@ jobs:
             echo "device_validation=MANUAL_REQUIRED"
             echo "macrobenchmark_runtime=MANUAL_REQUIRED"
             echo "play_configuration=EXTERNAL_REQUIRED"
-            echo "google_oauth_configuration=EXTERNAL_REQUIRED"
+            if [[ -n "${GOOGLE_WEB_CLIENT_ID:-}" ]]; then
+              echo "google_oauth_configuration=CLIENT_ID_INJECTED"
+            else
+              echo "google_oauth_configuration=CLIENT_ID_REQUIRED"
+            fi
           } > certified-evidence/VERDICT.txt
           find certified-evidence -type f -maxdepth 2 -print0 | sort -z | xargs -0 sha256sum > certified-evidence/SHA256SUMS.txt
           du -ah certified-evidence | sort -h > certified-evidence/SIZES.txt
