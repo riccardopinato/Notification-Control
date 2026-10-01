@@ -6,6 +6,10 @@ import android.content.pm.PackageManager
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.riccardopinato.notificationcontrol.automation.AutomationRepository
 import com.riccardopinato.notificationcontrol.automation.CriticalAlertScheduler
 import com.riccardopinato.notificationcontrol.automation.FollowUpScheduler
@@ -37,6 +41,7 @@ import com.riccardopinato.notificationcontrol.storage.StorageStats
 import com.riccardopinato.notificationcontrol.storage.StorageStatsRepository
 import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -150,9 +155,6 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     private val _vaultPackageFilter = MutableStateFlow<String?>(null)
     val vaultPackageFilter: StateFlow<String?> = _vaultPackageFilter.asStateFlow()
 
-    private val _vaultLimit = MutableStateFlow(100)
-    val vaultLimit: StateFlow<Int> = _vaultLimit.asStateFlow()
-
     private val _storageStats = MutableStateFlow(StorageStats())
     val storageStats: StateFlow<StorageStats> = _storageStats.asStateFlow()
 
@@ -162,26 +164,30 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     private val _events = MutableSharedFlow<NotificationControlUiEvent>(extraBufferCapacity = 8)
     val events = _events.asSharedFlow()
 
-    val notifications: StateFlow<List<NotificationEntity>> by lazy {
+    val vaultPaging: Flow<PagingData<NotificationEntity>> =
         combine(
             _vaultSearch.debounce(120L).distinctUntilChanged(),
-            _vaultPackageFilter,
-            _vaultLimit
-        ) { query, app, limit ->
-            Triple(query, app, limit)
-        }.flatMapLatest { (query, app, limit) ->
+            _vaultPackageFilter
+        ) { query, app ->
+            query to app
+        }.flatMapLatest { (query, app) ->
             val fts = VaultSearchQuery.toFtsQuery(query)
-            if (fts == null) {
-                dao.observeFilteredByApp(app, limit)
-            } else {
-                dao.observeSearch(fts, app, limit)
-            }
-        }.stateIn(
-            viewModelScope,
-            SharingStarted.WhileSubscribed(5_000),
-            emptyList()
-        )
-    }
+            Pager(
+                config = PagingConfig(
+                    pageSize = 50,
+                    initialLoadSize = 100,
+                    prefetchDistance = 12,
+                    enablePlaceholders = false
+                ),
+                pagingSourceFactory = {
+                    if (fts == null) {
+                        dao.pagingFilteredByApp(app)
+                    } else {
+                        dao.pagingSearch(fts, app)
+                    }
+                }
+            ).flow
+        }.cachedIn(viewModelScope)
 
     val vaultAppFilters: StateFlow<List<VaultAppFilter>> by lazy {
         dao.observeAppFilters().stateIn(
@@ -314,10 +320,6 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
 
     fun setVaultPackageFilter(packageName: String?) {
         _vaultPackageFilter.value = packageName
-    }
-
-    fun loadMoreVault() {
-        _vaultLimit.value = (_vaultLimit.value + 100).coerceAtMost(2_000)
     }
 
     fun setFlashEnabled(value: Boolean) {
@@ -710,7 +712,6 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
             _vaultDetail.value = null
             _vaultSearch.value = ""
             _vaultPackageFilter.value = null
-            _vaultLimit.value = 100
             _settingsState.value = readSettings()
             refreshStorageStats()
         }
