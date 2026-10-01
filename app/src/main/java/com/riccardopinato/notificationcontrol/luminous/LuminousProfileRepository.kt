@@ -4,6 +4,7 @@ import android.graphics.Color
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.LuminousProfileDao
 import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
+import java.util.Locale
 
 class LuminousProfileRepository(
     private val settings: AppSettings,
@@ -52,7 +53,7 @@ class LuminousProfileRepository(
     }
 
     private fun normalizeColor(value: String): String? {
-        val candidate = value.trim().uppercase()
+        val candidate = value.trim().uppercase(Locale.ROOT)
         return runCatching {
             Color.parseColor(candidate)
             candidate
