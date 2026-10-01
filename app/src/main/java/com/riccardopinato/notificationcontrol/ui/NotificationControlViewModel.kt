@@ -40,6 +40,7 @@ import com.riccardopinato.notificationcontrol.security.VaultSecurityManager
 import com.riccardopinato.notificationcontrol.storage.StorageStats
 import com.riccardopinato.notificationcontrol.storage.StorageStatsRepository
 import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
+import com.riccardopinato.notificationcontrol.workers.RetentionWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -257,6 +258,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         if (runtimeMaintenanceStarted) return
         runtimeMaintenanceStarted = true
         viewModelScope.launch(Dispatchers.IO) {
+            RetentionWorker.schedule(getApplication())
             automationRepository.cleanupPickupCodes()
         }
     }
