@@ -97,9 +97,10 @@ fun GoogleAccountCard() {
                         }
                     )
                 }
-                if (state.errorMessage != null) {
+                state.errorMessage?.let { error ->
                     Text(
-                        stringResource(R.string.google_sign_in_error),
+                        error.takeIf { it.isNotBlank() }
+                            ?: stringResource(R.string.google_sign_in_error),
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodySmall
                     )
