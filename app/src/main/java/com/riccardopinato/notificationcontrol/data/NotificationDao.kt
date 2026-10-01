@@ -201,6 +201,49 @@ interface NotificationDao {
 
     @Query(
         """
+        SELECT n.* FROM notifications n
+        INNER JOIN notification_revisions r
+            ON r.notificationKey = n.sbnKey
+        WHERE n.packageName = :packageName
+          AND n.notificationId = :notificationId
+          AND (
+            (n.tag IS NULL AND :tag IS NULL)
+            OR n.tag = :tag
+          )
+          AND n.postedAt = :postedAt
+          AND r.contentHash = :contentHash
+          AND n.updatedAt >= :cutoffMillis
+        ORDER BY n.updatedAt DESC
+        LIMIT 1
+        """
+    )
+    suspend fun findRecentEquivalentEvent(
+        packageName: String,
+        notificationId: Int,
+        tag: String?,
+        postedAt: Long,
+        contentHash: String,
+        cutoffMillis: Long
+    ): NotificationEntity?
+
+    @Query(
+        """
+        UPDATE notifications
+        SET platformKey = :platformKey,
+            updatedAt = :updatedAt,
+            removedAt = NULL,
+            removalReason = NULL
+        WHERE sbnKey = :eventKey
+        """
+    )
+    suspend fun rebindPlatformKey(
+        eventKey: String,
+        platformKey: String,
+        updatedAt: Long
+    )
+
+    @Query(
+        """
         UPDATE notifications
         SET removedAt = :removedAt,
             removalReason = :reason,
