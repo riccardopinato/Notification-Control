@@ -6,6 +6,7 @@ android {
     namespace = "com.riccardopinato.notificationcontrol.benchmark"
     compileSdk = 36
     targetProjectPath = ":app"
+    experimentalProperties["android.experimental.self-instrumenting"] = true
 
     defaultConfig {
         minSdk = 28
