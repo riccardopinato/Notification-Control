@@ -15,6 +15,14 @@ val releaseSigningReady = listOf(
     releaseKeyPassword
 ).all { !it.isNullOrBlank() }
 
+val googleWebClientId =
+    System.getenv("GOOGLE_WEB_CLIENT_ID")
+        ?.takeIf { it.isNotBlank() }
+        ?: providers.gradleProperty("GOOGLE_WEB_CLIENT_ID").orNull.orEmpty()
+
+fun String.asBuildConfigString(): String =
+    """ + replace("\\", "\\\\").replace(""", "\\"") + """
+
 android {
     namespace = "com.riccardopinato.notificationcontrol"
     compileSdk = 36
@@ -26,6 +34,12 @@ android {
         versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
         versionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField(
+            "String",
+            "GOOGLE_WEB_CLIENT_ID",
+            googleWebClientId.asBuildConfigString()
+        )
+        buildConfigField("boolean", "QA_PREMIUM_UNLOCKED", "false")
     }
 
     signingConfigs {
@@ -58,6 +72,14 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
             isDebuggable = false
+        }
+        create("qaPremium") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = false
+            versionNameSuffix = "-qa-premium"
+            buildConfigField("boolean", "QA_PREMIUM_UNLOCKED", "true")
         }
     }
 
