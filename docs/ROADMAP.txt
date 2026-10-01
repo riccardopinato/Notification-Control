@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v1.2.2
+NOTIFICATION CONTROL — ROADMAP v1.3.0
 Date: 2026-10-01
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
@@ -193,7 +193,10 @@ Source PR: #14 maxi-step15-performance-hardening
 - Certified QA #40: PASS
 
 MAXI STEP 16 — VAULT DEDUP + GOOGLE SIGN-IN + FINAL QA
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: 6e7a4e3424f705b51a35d2c97fb265fbc01f0387
+- Android CI #78: PASS
+- Certified QA #50: PASS
 - filtro capture-level delle Notification FLAG_GROUP_SUMMARY, con focus sul doppione WhatsApp
 - dedup logico dei replay recenti dello stesso evento anche quando Android cambia platformKey
 - replay deduplicati non rilanciano Rules/Critical/Follow Up/Pickup/Luminous
@@ -217,7 +220,10 @@ PERFORMANCE ACCEPTANCE GATE:
 5. macrobenchmark cold startup + frame timing da eseguire su device/emulatore controllato dopo onboarding one-time.
 
 MAXI STEP 16.1 — FINAL CORRECTNESS HARDENING
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: 6ca55e7822589302868be01f5cdca1d3f1f315ab
+- Android CI #80: PASS
+- Certified QA #51: PASS
 - Luminous overlay compatibile anche con Android 7.x: TYPE_PHONE su API 24-25, TYPE_APPLICATION_OVERLAY da API 26
 - Google Sign-In Compose host migrato a LocalActivity, senza cast/risalita manuale del Context
 - formattazione dimensioni/orari con Locale esplicita
@@ -225,14 +231,28 @@ IMPLEMENTED / VALIDATION
 - nessun upgrade massivo AGP/Kotlin/dependency in questo passaggio: warning di disponibilità versioni non trattati come bug
 
 STEP 16.2 — LINT CORRECTNESS CLOSEOUT
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: 2e21c7697a0602afbe92b938a407856e092d9357
+- Android CI #82: PASS
+- Certified QA #52: PASS
 - ultimo DefaultLocale corretto in RulesScreen
 - normalizzazione colore Luminous resa deterministica con Locale.ROOT
 - warning residui di lint classificati come non-bug: versioni disponibili, plural suggestion, risorse shrinkabili, compatibilità attributi XML
 
+STEP 17 — GOOGLE OAUTH LIVE CONFIG
+IMPLEMENTED / VALIDATION
+- Web OAuth Client ID configurato per Notification Control
+- client ID pubblico incorporato come fallback di build
+- override tramite GOOGLE_WEB_CLIENT_ID secret/variable/proprietà ancora supportato
+- Android CI / Certified / Release ricevono sempre un client ID valido
+- test automatico verifica ID non vuoto e dominio apps.googleusercontent.com
+- SHA-1 QA rilevato per l'APK owner-test: 21:1E:13:CF:5C:BA:AF:AA:F2:F3:08:C8:AA:A7:A3:6C:63:1D:A6:22
+- resta da creare in Google Auth Platform il client OAuth Android per package com.riccardopinato.notificationcontrol + SHA-1 QA
+- per Play/release servirà anche il client Android associato alla firma Play App Signing/release
+
 EXTERNAL CONFIGURATION STILL REQUIRED:
-- Google Auth Platform Web client ID must exist in repository variable/secret GOOGLE_WEB_CLIENT_ID for live Sign in with Google
 - Android OAuth client/package signing configuration must match the intended signed build
+- Google Play/release Android OAuth client must match Play App Signing/release SHA-1
 - Google Play product configuration for live Premium purchase flows
 - Play signing/service credentials for automatic Internal Testing publication
 
@@ -244,11 +264,11 @@ LIVE GOOGLE/PLAY CONFIG: REQUIRED
 FINAL INTENDED-RELEASE VERDICT: BLOCKED until manual/device/store gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Close Android CI + Certified QA for MAXI STEP 16.
-2. Verify whether GOOGLE_WEB_CLIENT_ID was injected by CI evidence.
-3. Install qaPremium APK on Xiaomi and retest WhatsApp Vault dedup from a clean/new capture.
-4. Validate Google Sign-In on the intended signing certificate when OAuth client configuration is available.
+1. Close Android CI + Certified QA for STEP 17.
+2. Create Google OAuth Android client for QA package + SHA-1.
+3. Install fresh qaPremium APK and validate Google Sign-In on Xiaomi.
+4. Retest WhatsApp Vault dedup from a clean/new capture.
 5. Run final physical regression for Vault, Rules, Critical, Follow Up, Pickup Code and Luminous.
 6. Execute Macrobenchmark runtime when a controlled Android benchmark device is available.
 
-END ROADMAP v1.2.2
+END ROADMAP v1.3.0
