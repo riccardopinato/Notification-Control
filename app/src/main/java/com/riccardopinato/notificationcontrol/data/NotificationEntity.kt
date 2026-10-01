@@ -11,7 +11,11 @@ import androidx.room.PrimaryKey
         Index("packageName"),
         Index("postedAt"),
         Index("removedAt"),
-        Index("protected")
+        Index("protected"),
+        Index("updatedAt"),
+        Index(value = ["packageName", "updatedAt"]),
+        Index(value = ["protected", "postedAt"]),
+        Index(value = ["platformKey", "removedAt", "updatedAt"])
     ]
 )
 data class NotificationEntity(
