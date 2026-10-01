@@ -5,3 +5,8 @@ Lcom/riccardopinato/notificationcontrol/ui/NotificationControlViewModel;
 Lcom/riccardopinato/notificationcontrol/ui/HomeVaultScreensKt;
 Lcom/riccardopinato/notificationcontrol/ui/OnboardingScreenKt;
 Lcom/riccardopinato/notificationcontrol/data/AppSettings;
+Lcom/riccardopinato/notificationcontrol/capture/NotificationCaptureService;
+Lcom/riccardopinato/notificationcontrol/capture/NotificationParser;
+Lcom/riccardopinato/notificationcontrol/processing/NotificationEventProcessor;
+Lcom/riccardopinato/notificationcontrol/processing/NotificationRuntimeCache;
+Lcom/riccardopinato/notificationcontrol/data/NotificationDatabase;
