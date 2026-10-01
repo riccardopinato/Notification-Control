@@ -49,6 +49,32 @@ class VaultReplayDedupQueryTest {
     }
 
     @Test
+    fun staleHistoricRevisionDoesNotCauseReplayCollapse() = runBlocking {
+        val dao = database.notificationDao()
+        dao.upsertNotification(notification())
+        dao.insertRevision(revision())
+        dao.insertRevision(
+            revision().copy(
+                revisionKey = "rev-2",
+                capturedAt = 2_500L,
+                text = "Changed",
+                contentHash = "new-content"
+            )
+        )
+
+        val found = dao.findRecentEquivalentEvent(
+            packageName = "com.whatsapp",
+            notificationId = 42,
+            tag = "chat-Anna",
+            postedAt = 1_000L,
+            contentHash = "same-content",
+            cutoffMillis = 1_500L
+        )
+
+        assertNull(found)
+    }
+
+    @Test
     fun differentPostTimeIsNotCollapsed() = runBlocking {
         val dao = database.notificationDao()
         dao.upsertNotification(notification())
