@@ -21,7 +21,7 @@ val googleWebClientId =
         ?: providers.gradleProperty("GOOGLE_WEB_CLIENT_ID").orNull.orEmpty()
 
 fun String.asBuildConfigString(): String =
-    """ + replace("\\", "\\\\").replace(""", "\\"") + """
+    "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
     namespace = "com.riccardopinato.notificationcontrol"
