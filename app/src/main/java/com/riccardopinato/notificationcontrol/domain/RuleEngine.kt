@@ -12,16 +12,20 @@ data class RuleEvaluation(
 )
 
 class RuleEngine(
-    private val dao: AutomationDao,
+    private val enabledRulesProvider: suspend () -> List<com.riccardopinato.notificationcontrol.data.RuleWithActions>,
     private val premiumProvider: () -> Boolean = { true }
 ) {
+    constructor(
+        dao: AutomationDao,
+        premiumProvider: () -> Boolean = { true }
+    ) : this(dao::enabledRules, premiumProvider)
     suspend fun evaluate(
         event: CapturedNotification,
         runtime: RuleRuntimeState
     ): RuleEvaluation {
         var result = RuleEvaluation()
         val premium = premiumProvider()
-        val enabled = dao.enabledRules()
+        val enabled = enabledRulesProvider()
         val eligible = if (premium) {
             enabled
         } else {
