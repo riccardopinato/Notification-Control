@@ -118,6 +118,9 @@ fun RulesScreen(
     var selectedCriticalApp by remember { mutableStateOf<InstalledApp?>(null) }
     var pausePingApp by remember { mutableStateOf<InstalledApp?>(null) }
     var pausePingAppSeconds by remember { mutableStateOf(30f) }
+    var pausePingGlobalSeconds by remember(state.pausePingCooldownSeconds) {
+        mutableStateOf(state.pausePingCooldownSeconds.toFloat())
+    }
 
     if (showLuminous) {
         Column(
@@ -289,12 +292,15 @@ fun RulesScreen(
                     Text(
                         stringResource(
                             R.string.pause_ping_cooldown,
-                            state.pausePingCooldownSeconds
+                            pausePingGlobalSeconds.toInt()
                         )
                     )
                     Slider(
-                        value = state.pausePingCooldownSeconds.toFloat(),
-                        onValueChange = { onPausePingCooldown(it.toInt()) },
+                        value = pausePingGlobalSeconds,
+                        onValueChange = { pausePingGlobalSeconds = it },
+                        onValueChangeFinished = {
+                            onPausePingCooldown(pausePingGlobalSeconds.toInt())
+                        },
                         valueRange = 5f..120f
                     )
 
