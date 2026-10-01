@@ -174,6 +174,19 @@ interface NotificationDao {
     @Query("SELECT thumbnailPath FROM notifications WHERE thumbnailPath IS NOT NULL")
     suspend fun allThumbnailPaths(): List<String>
 
+    @Query("SELECT DISTINCT packageName FROM notifications")
+    suspend fun packagesInVault(): List<String>
+
+    @Query(
+        "SELECT sbnKey FROM notifications " +
+            "WHERE packageName = :packageName AND protected = 0 " +
+            "AND postedAt < :cutoffMillis ORDER BY postedAt ASC"
+    )
+    suspend fun expiredKeysForPackage(
+        packageName: String,
+        cutoffMillis: Long
+    ): List<String>
+
     @Query(
         """
         SELECT COALESCE(SUM(

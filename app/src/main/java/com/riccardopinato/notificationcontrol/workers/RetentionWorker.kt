@@ -20,20 +20,16 @@ class RetentionWorker(
     override suspend fun doWork(): Result {
         val settings = AppSettings(applicationContext)
         val database = NotificationDatabase.get(applicationContext)
-        val cutoff = RetentionPolicy.cutoffMillis(
-            System.currentTimeMillis(),
-            settings.isPremium,
-            settings.retentionDays
-        )
-
+        val now = System.currentTimeMillis()
         val dao = database.notificationDao()
         val mediaStore = NotificationMediaStore(applicationContext)
 
-        if (cutoff != Long.MIN_VALUE) {
-            val mediaToDelete = dao.deleteExpiredAndReturnMedia(cutoff)
-            mediaToDelete.forEach(mediaStore::delete)
-            mediaStore.cleanupOrphans(dao.allThumbnailPaths())
-        }
+        enforceRetention(
+            now = now,
+            settings = settings,
+            dao = dao,
+            mediaStore = mediaStore
+        )
 
         if (settings.isPremium && settings.vaultMaxBytes != Long.MAX_VALUE) {
             enforceVaultBudget(
@@ -45,6 +41,45 @@ class RetentionWorker(
 
         database.automationDao().cleanupPickupCodes(System.currentTimeMillis())
         return Result.success()
+    }
+
+    private suspend fun enforceRetention(
+        now: Long,
+        settings: AppSettings,
+        dao: com.riccardopinato.notificationcontrol.data.NotificationDao,
+        mediaStore: NotificationMediaStore
+    ) {
+        val perApp = if (settings.isPremium) {
+            settings.retentionDaysPerApp
+        } else {
+            emptyMap()
+        }
+
+        val packages = dao.packagesInVault()
+        packages.forEach { packageName ->
+            val days = if (settings.isPremium) {
+                perApp[packageName] ?: settings.retentionDays
+            } else {
+                settings.retentionDays
+            }
+            val cutoff = RetentionPolicy.cutoffMillis(
+                nowMillis = now,
+                isPremium = settings.isPremium,
+                configuredDays = days
+            )
+            if (cutoff == Long.MIN_VALUE) return@forEach
+
+            val expiredKeys = dao.expiredKeysForPackage(
+                packageName = packageName,
+                cutoffMillis = cutoff
+            )
+            if (expiredKeys.isNotEmpty()) {
+                dao.deleteByKeysAndReturnMedia(expiredKeys)
+                    .forEach(mediaStore::delete)
+            }
+        }
+
+        mediaStore.cleanupOrphans(dao.allThumbnailPaths())
     }
 
     private suspend fun enforceVaultBudget(

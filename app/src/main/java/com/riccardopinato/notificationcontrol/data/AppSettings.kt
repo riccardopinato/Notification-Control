@@ -29,6 +29,32 @@ class AppSettings(context: Context) {
         get() = prefs.getInt(KEY_RETENTION_DAYS, 7)
         set(value) = prefs.edit { putInt(KEY_RETENTION_DAYS, value) }
 
+    var retentionDaysPerApp: Map<String, Int>
+        get() = prefs.getStringSet(KEY_RETENTION_PER_APP, emptySet())
+            .orEmpty()
+            .mapNotNull { entry ->
+                val separator = entry.lastIndexOf('=')
+                if (separator <= 0 || separator >= entry.lastIndex) {
+                    null
+                } else {
+                    val packageName = entry.substring(0, separator)
+                    val days = entry.substring(separator + 1).toIntOrNull()
+                    days?.let { packageName to normalizeRetentionDays(it) }
+                }
+            }
+            .toMap()
+        set(value) = prefs.edit {
+            putStringSet(
+                KEY_RETENTION_PER_APP,
+                value
+                    .filterKeys(String::isNotBlank)
+                    .map { (packageName, days) ->
+                        packageName + "=" + normalizeRetentionDays(days)
+                    }
+                    .toSet()
+            )
+        }
+
     var vaultMaxBytes: Long
         get() = prefs.getLong(KEY_VAULT_MAX_BYTES, 100L * 1024L * 1024L)
         set(value) = prefs.edit {
@@ -172,6 +198,13 @@ class AppSettings(context: Context) {
         get() = prefs.getBoolean(KEY_CRITICAL_BYPASS_QUIET, true)
         set(value) = prefs.edit { putBoolean(KEY_CRITICAL_BYPASS_QUIET, value) }
 
+    private fun normalizeRetentionDays(days: Int): Int =
+        if (days == Int.MAX_VALUE) {
+            Int.MAX_VALUE
+        } else {
+            days.coerceIn(1, 3650)
+        }
+
     fun resetToDefaults() {
         prefs.edit { clear() }
     }
@@ -181,6 +214,7 @@ class AppSettings(context: Context) {
         private const val KEY_ONBOARDING = "onboarding_completed"
         private const val KEY_MONITORED_PACKAGES = "monitored_packages"
         private const val KEY_RETENTION_DAYS = "retention_days"
+        private const val KEY_RETENTION_PER_APP = "retention_days_per_app"
         private const val KEY_VAULT_MAX_BYTES = "vault_max_bytes"
         private const val KEY_BATTERY_GUARD = "battery_guard_enabled"
         private const val KEY_BATTERY_THRESHOLD = "battery_guard_threshold"

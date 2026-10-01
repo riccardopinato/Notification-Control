@@ -70,6 +70,7 @@ data class SettingsUiState(
     val monitoredPackages: Set<String> = emptySet(),
     val isPremium: Boolean = false,
     val retentionDays: Int = 7,
+    val retentionDaysPerApp: Map<String, Int> = emptyMap(),
     val vaultMaxBytes: Long = 100L * 1024L * 1024L,
     val flashEnabled: Boolean = true,
     val overlayEnabled: Boolean = false,
@@ -368,6 +369,24 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     fun setRetentionDays(days: Int) {
         settings.retentionDays =
             if (settings.isPremium) days else ProductLimits.FREE_RETENTION_DAYS
+        refresh()
+    }
+
+    fun setRetentionDaysForApp(packageName: String, days: Int) {
+        if (!settings.isPremium || packageName.isBlank()) return
+        settings.retentionDaysPerApp =
+            settings.retentionDaysPerApp.toMutableMap().apply {
+                put(packageName, days)
+            }
+        refresh()
+    }
+
+    fun clearRetentionDaysForApp(packageName: String) {
+        if (!settings.isPremium) return
+        settings.retentionDaysPerApp =
+            settings.retentionDaysPerApp.toMutableMap().apply {
+                remove(packageName)
+            }
         refresh()
     }
 
@@ -679,6 +698,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         monitoredPackages = settings.monitoredPackages,
         isPremium = settings.isPremium,
         retentionDays = settings.retentionDays,
+        retentionDaysPerApp = settings.retentionDaysPerApp,
         vaultMaxBytes = settings.vaultMaxBytes,
         flashEnabled = settings.flashEnabled,
         overlayEnabled = settings.overlayEnabled,

@@ -63,6 +63,8 @@ fun ProfileScreen(
     onVaultTimeoutChanged: (Int) -> Unit,
     onSensitiveProtectionChanged: (Boolean) -> Unit,
     onRetentionDaysChanged: (Int) -> Unit,
+    onRetentionDaysForAppChanged: (String, Int) -> Unit,
+    onClearRetentionDaysForApp: (String) -> Unit,
     onVaultMaxBytesChanged: (Long) -> Unit,
     onBatteryGuardThresholdChanged: (Int) -> Unit,
     onQuietStartChanged: (Int) -> Unit,
@@ -128,7 +130,10 @@ fun ProfileScreen(
             StorageCard(
                 storageStats = storageStats,
                 state = state,
+                apps = apps,
                 onRetentionDaysChanged = onRetentionDaysChanged,
+                onRetentionDaysForAppChanged = onRetentionDaysForAppChanged,
+                onClearRetentionDaysForApp = onClearRetentionDaysForApp,
                 onVaultMaxBytesChanged = onVaultMaxBytesChanged
             )
         }
@@ -408,9 +413,15 @@ private fun SecurityCard(
 private fun StorageCard(
     storageStats: StorageStats,
     state: SettingsUiState,
+    apps: List<InstalledApp>,
     onRetentionDaysChanged: (Int) -> Unit,
+    onRetentionDaysForAppChanged: (String, Int) -> Unit,
+    onClearRetentionDaysForApp: (String) -> Unit,
     onVaultMaxBytesChanged: (Long) -> Unit
 ) {
+    var retentionApp by remember { mutableStateOf<InstalledApp?>(null) }
+    var retentionAppDays by remember { mutableStateOf(state.retentionDays) }
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(stringResource(R.string.storage_title), fontWeight = FontWeight.Bold)
@@ -449,6 +460,86 @@ private fun StorageCard(
                     ),
                     style = MaterialTheme.typography.bodySmall
                 )
+            }
+
+            if (state.isPremium) {
+                Text(
+                    stringResource(R.string.retention_per_app_title),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+                Text(
+                    stringResource(R.string.retention_per_app_body),
+                    style = MaterialTheme.typography.bodySmall
+                )
+                SearchableAppPickerButton(
+                    apps = apps,
+                    selected = retentionApp,
+                    placeholder = stringResource(R.string.choose_app),
+                    allowNone = false,
+                    onSelected = { selected ->
+                        retentionApp = selected
+                        retentionAppDays = selected?.packageName
+                            ?.let(state.retentionDaysPerApp::get)
+                            ?: state.retentionDays
+                    }
+                )
+                retentionApp?.let { selected ->
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(top = 6.dp)
+                    ) {
+                        items(ProductLimits.PREMIUM_RETENTION_OPTIONS_DAYS) { days ->
+                            FilterChip(
+                                selected = retentionAppDays == days,
+                                onClick = {
+                                    retentionAppDays = days
+                                    onRetentionDaysForAppChanged(
+                                        selected.packageName,
+                                        days
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        if (days == Int.MAX_VALUE) {
+                                            stringResource(R.string.retention_always)
+                                        } else {
+                                            stringResource(R.string.days_short, days)
+                                        }
+                                    )
+                                }
+                            )
+                        }
+                    }
+                    if (selected.packageName in state.retentionDaysPerApp) {
+                        TextButton(
+                            onClick = {
+                                onClearRetentionDaysForApp(selected.packageName)
+                                retentionAppDays = state.retentionDays
+                            }
+                        ) {
+                            Text(stringResource(R.string.retention_use_default))
+                        }
+                    }
+                }
+
+                state.retentionDaysPerApp.forEach { (packageName, days) ->
+                    val label = apps.firstOrNull {
+                        it.packageName == packageName
+                    }?.label ?: packageName
+                    Text(
+                        stringResource(
+                            R.string.retention_per_app_summary,
+                            label,
+                            if (days == Int.MAX_VALUE) {
+                                stringResource(R.string.retention_always)
+                            } else {
+                                stringResource(R.string.days_short, days)
+                            }
+                        ),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
 
             if (state.isPremium) {

@@ -612,6 +612,14 @@ class BackupRepository(context: Context) {
     private fun settingsJson() = JSONObject()
         .put("monitoredPackages", JSONArray(settings.monitoredPackages.toList()))
         .put("retentionDays", settings.retentionDays)
+        .put(
+            "retentionDaysPerApp",
+            JSONObject().apply {
+                settings.retentionDaysPerApp.forEach { (packageName, days) ->
+                    put(packageName, days)
+                }
+            }
+        )
         .put("vaultMaxBytes", settings.vaultMaxBytes)
         .put("flashEnabled", settings.flashEnabled)
         .put("overlayEnabled", settings.overlayEnabled)
@@ -675,6 +683,22 @@ class BackupRepository(context: Context) {
             ProductLimits.FREE_RETENTION_DAYS
         }
         if (settings.isPremium) {
+            val perAppRetention = o.optJSONObject("retentionDaysPerApp")
+            if (perAppRetention != null) {
+                settings.retentionDaysPerApp = buildMap {
+                    val keys = perAppRetention.keys()
+                    while (keys.hasNext()) {
+                        val packageName = keys.next()
+                        put(
+                            packageName,
+                            perAppRetention.optInt(
+                                packageName,
+                                settings.retentionDays
+                            )
+                        )
+                    }
+                }
+            }
             settings.vaultMaxBytes =
                 o.optLong("vaultMaxBytes", settings.vaultMaxBytes)
         }
