@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -41,6 +42,9 @@ fun VaultDetailDialog(
 ) {
     val notification = state.notification
     val context = LocalContext.current
+    val reversedRevisions = remember(state.revisions) {
+        state.revisions.asReversed()
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -154,7 +158,7 @@ fun VaultDetailDialog(
                             )
                         }
                         items(
-                            state.revisions.reversed(),
+                            reversedRevisions,
                             key = { it.revisionKey }
                         ) { revision ->
                             VaultRevisionRow(revision)
@@ -193,6 +197,13 @@ fun VaultDetailDialog(
 
 @Composable
 private fun VaultStatusCard(notification: NotificationEntity) {
+    val capturedAt = remember(notification.postedAt) {
+        formatDateTime(notification.postedAt)
+    }
+    val removedAt = remember(notification.removedAt) {
+        notification.removedAt?.let(::formatDateTime)
+    }
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Text(
@@ -206,15 +217,15 @@ private fun VaultStatusCard(notification: NotificationEntity) {
             Text(
                 stringResource(
                     R.string.vault_captured_at,
-                    formatDateTime(notification.postedAt)
+                    capturedAt
                 ),
                 style = MaterialTheme.typography.bodySmall
             )
-            notification.removedAt?.let {
+            removedAt?.let {
                 Text(
                     stringResource(
                         R.string.vault_removed_at,
-                        formatDateTime(it)
+                        it
                     ),
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -229,6 +240,9 @@ private fun VaultStatusCard(notification: NotificationEntity) {
 
 @Composable
 private fun VaultMessageRow(message: MessageEntity) {
+    val formattedTime = remember(message.timestamp) {
+        formatTime(message.timestamp)
+    }
     Column(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Row(
             Modifier.fillMaxWidth(),
@@ -241,7 +255,7 @@ private fun VaultMessageRow(message: MessageEntity) {
                 modifier = Modifier.weight(1f)
             )
             Text(
-                formatTime(message.timestamp),
+                formattedTime,
                 style = MaterialTheme.typography.labelSmall
             )
         }
@@ -251,10 +265,13 @@ private fun VaultMessageRow(message: MessageEntity) {
 
 @Composable
 private fun VaultRevisionRow(revision: NotificationRevisionEntity) {
+    val formattedCapturedAt = remember(revision.capturedAt) {
+        formatDateTime(revision.capturedAt)
+    }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(12.dp)) {
             Text(
-                formatDateTime(revision.capturedAt),
+                formattedCapturedAt,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold
             )
