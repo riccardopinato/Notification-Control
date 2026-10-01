@@ -69,13 +69,22 @@ class NotificationEventProcessorReplayTest {
         )
 
         val now = System.currentTimeMillis()
+        val postedAt = now - 1_000L
         processor.process(
-            event(platformKey = "whatsapp-old", capturedAt = now),
+            event(
+                platformKey = "whatsapp-old",
+                postedAt = postedAt,
+                capturedAt = now
+            ),
             ProcessingMode.POSTED
         )
         processor.markRemoved("whatsapp-old", 2)
         processor.process(
-            event(platformKey = "whatsapp-new", capturedAt = now + 100L),
+            event(
+                platformKey = "whatsapp-new",
+                postedAt = postedAt,
+                capturedAt = now + 100L
+            ),
             ProcessingMode.POSTED
         )
 
@@ -85,6 +94,7 @@ class NotificationEventProcessorReplayTest {
 
     private fun event(
         platformKey: String,
+        postedAt: Long,
         capturedAt: Long
     ) = CapturedNotification(
         sbnKey = platformKey,
@@ -101,7 +111,7 @@ class NotificationEventProcessorReplayTest {
         subText = null,
         conversationTitle = "Anna",
         thumbnailPath = null,
-        postedAt = capturedAt - 1_000L,
+        postedAt = postedAt,
         capturedAt = capturedAt,
         isOngoing = false,
         isClearable = true,
@@ -109,7 +119,7 @@ class NotificationEventProcessorReplayTest {
             CapturedMessage(
                 sender = "Anna",
                 text = "Svezia",
-                timestamp = capturedAt - 1_000L
+                timestamp = postedAt
             )
         )
     )
