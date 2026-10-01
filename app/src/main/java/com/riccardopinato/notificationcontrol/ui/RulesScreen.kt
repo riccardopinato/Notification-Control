@@ -41,6 +41,7 @@ import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
 import com.riccardopinato.notificationcontrol.data.RuleWithActions
 import com.riccardopinato.notificationcontrol.domain.CriticalPatternType
 import com.riccardopinato.notificationcontrol.domain.RuleActionType
+import java.util.Locale
 
 @Composable
 fun RulesScreen(
@@ -873,5 +874,5 @@ private fun ruleSummary(rule: RuleWithActions): String {
 
 private fun formatRuleMinutes(minutes: Int): String {
     val safe = minutes.coerceIn(0, 1439)
-    return String.format("%02d:%02d", safe / 60, safe % 60)
+    return String.format(Locale.getDefault(), "%02d:%02d", safe / 60, safe % 60)
 }
