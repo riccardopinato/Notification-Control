@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.security.SecureRandom
-import org.json.JSONObject
 
 data class GoogleAccountProfile(
     val uniqueId: String,
@@ -83,7 +82,7 @@ class GoogleAccountManager private constructor(context: Context) {
                     GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
             )
             val google = GoogleIdTokenCredential.createFrom(credential.data)
-            val claims = parseTokenClaims(google.idToken)
+            val claims = GoogleIdTokenClaimsParser.parse(google.idToken)
             val profile = GoogleAccountProfile(
                 uniqueId = claims.uniqueId ?: google.id,
                 email = claims.email ?: google.id,
@@ -140,27 +139,6 @@ class GoogleAccountManager private constructor(context: Context) {
             Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
         )
     }
-
-    private fun parseTokenClaims(idToken: String): TokenClaims {
-        return runCatching {
-            val payload = idToken.split('.').getOrNull(1)
-                ?: return@runCatching TokenClaims()
-            val decoded = Base64.decode(
-                payload,
-                Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
-            )
-            val json = JSONObject(decoded.toString(Charsets.UTF_8))
-            TokenClaims(
-                uniqueId = json.optString("sub").takeIf { it.isNotBlank() },
-                email = json.optString("email").takeIf { it.isNotBlank() }
-            )
-        }.getOrDefault(TokenClaims())
-    }
-
-    private data class TokenClaims(
-        val uniqueId: String? = null,
-        val email: String? = null
-    )
 
     private fun cacheProfile(profile: GoogleAccountProfile) {
         prefs.edit {
