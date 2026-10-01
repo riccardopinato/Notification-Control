@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -405,6 +406,11 @@ private fun NotificationVaultCard(
     onFollowUp: (NotificationEntity) -> Unit,
     onOpenDetail: (NotificationEntity) -> Unit
 ) {
+    val formattedTime = remember(notification.updatedAt) {
+        DateFormat.getTimeInstance(DateFormat.SHORT)
+            .format(Date(notification.updatedAt))
+    }
+
     Card(Modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().padding(16.dp),
@@ -418,8 +424,7 @@ private fun NotificationVaultCard(
                 ) {
                     Text(notification.appLabel, fontWeight = FontWeight.Bold)
                     Text(
-                        DateFormat.getTimeInstance(DateFormat.SHORT)
-                            .format(Date(notification.updatedAt)),
+                        formattedTime,
                         style = MaterialTheme.typography.labelMedium
                     )
                 }
@@ -463,11 +468,36 @@ private fun NotificationVaultCard(
     }
 }
 
+private object ThumbnailMemoryCache {
+    private const val MAX_KB = 8 * 1024
+
+    private val cache = object : LruCache<String, ImageBitmap>(MAX_KB) {
+        override fun sizeOf(key: String, value: ImageBitmap): Int =
+            ((value.width.toLong() * value.height.toLong() * 4L) / 1024L)
+                .coerceAtLeast(1L)
+                .coerceAtMost(Int.MAX_VALUE.toLong())
+                .toInt()
+    }
+
+    fun get(path: String): ImageBitmap? = cache.get(path)
+
+    fun put(path: String, image: ImageBitmap) {
+        cache.put(path, image)
+    }
+}
+
 @Composable
 private fun Thumbnail(path: String) {
-    val image by produceState<ImageBitmap?>(initialValue = null, path) {
-        value = withContext(Dispatchers.IO) {
-            runCatching { BitmapFactory.decodeFile(path)?.asImageBitmap() }.getOrNull()
+    val cached = remember(path) { ThumbnailMemoryCache.get(path) }
+    val image by produceState<ImageBitmap?>(initialValue = cached, path) {
+        if (value == null) {
+            value = withContext(Dispatchers.IO) {
+                runCatching {
+                    BitmapFactory.decodeFile(path)?.asImageBitmap()?.also {
+                        ThumbnailMemoryCache.put(path, it)
+                    }
+                }.getOrNull()
+            }
         }
     }
     image?.let {

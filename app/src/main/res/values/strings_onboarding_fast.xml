@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_core_only_title">Only the essentials</string>
+    <string name="onboarding_core_only_body">To get started, only notification access and at least one monitored app are required. Luminous, security and automations can be configured later.</string>
+    <string name="onboarding_access_recovery_title">Android will not let you enable access?</string>
+    <string name="onboarding_access_recovery_body">If you installed the APK manually, open App info, use the top-right menu and allow restricted settings, then return here and try again. The wording may vary by device.</string>
+    <string name="onboarding_open_app_info">Open app info</string>
+    <string name="onboarding_ready_body">Notification access is active. Choose at least one app to monitor.</string>
+    <string name="onboarding_optional_later">Luminous, flash, biometric protection and advanced options stay available after setup, when you actually need them.</string>
+</resources>

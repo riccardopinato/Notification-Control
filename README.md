@@ -12,6 +12,8 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - Luminous visual-alert module with Free baseline and Premium app/sender profiles
 - optional Google profile identity separated from Vault security and Premium
 - biometric/device-credential Vault gate
+- streamlined core-only onboarding with sideload/restricted-settings recovery
+- lazy screen-scoped data subscriptions and deferred heavy initialization for smoother runtime
 - encrypted manual backup/restore through Android Storage Access Framework
 - Google Play Billing entitlement engine with subscription/lifetime support
 - EN/IT/ES/FR/PT resources and per-app language override

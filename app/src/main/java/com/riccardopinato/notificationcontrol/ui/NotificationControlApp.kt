@@ -36,28 +36,13 @@ fun NotificationControlApp(
     requestCameraPermission: () -> Unit,
     requestOverlayPermission: () -> Unit,
     requestNotificationAccess: () -> Unit,
+    openAppInfo: () -> Unit,
     requestPostNotifications: () -> Unit,
     requestVaultUnlock: () -> Unit,
     setSecureWindow: (Boolean) -> Unit,
     purchasePremiumOffer: (String) -> Unit
 ) {
     val settings by viewModel.settingsState.collectAsStateWithLifecycle()
-    val billingState by viewModel.billingState.collectAsStateWithLifecycle()
-    val apps by viewModel.installedApps.collectAsStateWithLifecycle()
-    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
-    val count by viewModel.notificationCount.collectAsStateWithLifecycle()
-    val search by viewModel.vaultSearch.collectAsStateWithLifecycle()
-    val packageFilter by viewModel.vaultPackageFilter.collectAsStateWithLifecycle()
-    val vaultLimit by viewModel.vaultLimit.collectAsStateWithLifecycle()
-    val appFilters by viewModel.vaultAppFilters.collectAsStateWithLifecycle()
-    val storageStats by viewModel.storageStats.collectAsStateWithLifecycle()
-    val rules by viewModel.rules.collectAsStateWithLifecycle()
-    val criticalAlerts by viewModel.criticalAlerts.collectAsStateWithLifecycle()
-    val criticalPatterns by viewModel.criticalPatterns.collectAsStateWithLifecycle()
-    val followUps by viewModel.followUps.collectAsStateWithLifecycle()
-    val pickupCodes by viewModel.pickupCodes.collectAsStateWithLifecycle()
-    val luminousProfiles by viewModel.luminousProfiles.collectAsStateWithLifecycle()
-    val vaultDetail by viewModel.vaultDetail.collectAsStateWithLifecycle()
 
     permissionEpoch.hashCode()
     vaultUnlockEpoch.hashCode()
@@ -67,20 +52,24 @@ fun NotificationControlApp(
     }
 
     if (!settings.onboardingCompleted) {
+        LaunchedEffect(Unit) {
+            viewModel.ensureInstalledAppsLoaded()
+        }
+        val apps by viewModel.installedApps.collectAsStateWithLifecycle()
+
         OnboardingScreen(
             settings = settings,
             apps = apps,
             onToggleApp = viewModel::toggleMonitoredApp,
             requestNotificationAccess = requestNotificationAccess,
-            requestCameraPermission = requestCameraPermission,
-            requestOverlayPermission = requestOverlayPermission,
-            onFlashChanged = viewModel::setFlashEnabled,
-            onOverlayChanged = viewModel::setOverlayEnabled,
-            onVaultLockChanged = viewModel::setVaultLockEnabled,
-            onTestVisuals = viewModel::testVisualAlerts,
+            openAppInfo = openAppInfo,
             onDone = viewModel::completeOnboarding
         )
         return
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.ensureRuntimeMaintenance()
     }
 
     val context = LocalContext.current
@@ -110,6 +99,10 @@ fun NotificationControlApp(
 
     var tab by remember { mutableStateOf(MainTab.HOME) }
     var showPicker by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showPicker) {
+        if (showPicker) viewModel.ensureInstalledAppsLoaded()
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -149,21 +142,31 @@ fun NotificationControlApp(
         }
     ) { padding ->
         when (tab) {
-            MainTab.HOME -> HomeScreen(
-                modifier = Modifier,
-                contentPadding = padding,
-                settings = settings,
-                count = count,
-                criticalAlerts = criticalAlerts,
-                pickupCodes = pickupCodes,
-                sensitiveLocked = sensitiveLocked,
-                requestNotificationAccess = requestNotificationAccess,
-                onUnlockSensitive = requestVaultUnlock,
-                onHandleCritical = viewModel::handleCriticalAlert,
-                onDismissPickup = viewModel::dismissPickupCode
-            ) { showPicker = true }
+            MainTab.HOME -> {
+                val count by viewModel.notificationCount.collectAsStateWithLifecycle()
+                val criticalAlerts by viewModel.criticalAlerts.collectAsStateWithLifecycle()
+                val pickupCodes by viewModel.pickupCodes.collectAsStateWithLifecycle()
+
+                HomeScreen(
+                    modifier = Modifier,
+                    contentPadding = padding,
+                    settings = settings,
+                    count = count,
+                    criticalAlerts = criticalAlerts,
+                    pickupCodes = pickupCodes,
+                    sensitiveLocked = sensitiveLocked,
+                    requestNotificationAccess = requestNotificationAccess,
+                    onUnlockSensitive = requestVaultUnlock,
+                    onHandleCritical = viewModel::handleCriticalAlert,
+                    onDismissPickup = viewModel::dismissPickupCode
+                ) { showPicker = true }
+            }
 
             MainTab.VAULT -> {
+                LaunchedEffect(Unit) {
+                    viewModel.refreshStorageStats()
+                }
+
                 if (security.isLocked()) {
                     VaultLockedScreen(
                         modifier = Modifier,
@@ -171,6 +174,13 @@ fun NotificationControlApp(
                         onUnlock = requestVaultUnlock
                     )
                 } else {
+                    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+                    val search by viewModel.vaultSearch.collectAsStateWithLifecycle()
+                    val packageFilter by viewModel.vaultPackageFilter.collectAsStateWithLifecycle()
+                    val vaultLimit by viewModel.vaultLimit.collectAsStateWithLifecycle()
+                    val appFilters by viewModel.vaultAppFilters.collectAsStateWithLifecycle()
+                    val storageStats by viewModel.storageStats.collectAsStateWithLifecycle()
+
                     VaultScreen(
                         modifier = Modifier,
                         contentPadding = padding,
@@ -201,6 +211,7 @@ fun NotificationControlApp(
                         onUnlock = requestVaultUnlock
                     )
                 } else {
+                    val followUps by viewModel.followUps.collectAsStateWithLifecycle()
                     FollowUpScreen(
                         modifier = Modifier,
                         contentPadding = padding,
@@ -214,76 +225,98 @@ fun NotificationControlApp(
                 }
             }
 
-            MainTab.RULES -> RulesScreen(
-                modifier = Modifier,
-                contentPadding = padding,
-                state = settings,
-                apps = apps,
-                rules = rules,
-                criticalPatterns = criticalPatterns,
-                luminousProfiles = luminousProfiles,
-                requestCameraPermission = requestCameraPermission,
-                requestOverlayPermission = requestOverlayPermission,
-                onCreateRule = viewModel::createRule,
-                onUpdateRule = viewModel::updateRule,
-                onRuleEnabled = viewModel::setRuleEnabled,
-                onDeleteRule = viewModel::deleteRule,
-                onAddCriticalPattern = viewModel::addCriticalPattern,
-                onDeleteCriticalPattern = viewModel::deleteCriticalPattern,
-                onCreateLuminousProfile = viewModel::createLuminousProfile,
-                onLuminousProfileEnabled = viewModel::setLuminousProfileEnabled,
-                onDeleteLuminousProfile = viewModel::deleteLuminousProfile,
-                onPausePingEnabled = viewModel::setPausePingEnabled,
-                onPausePingCooldown = viewModel::setPausePingCooldownSeconds,
-                onPausePingAppCooldown = viewModel::setPausePingAppCooldown,
-                onRemovePausePingAppCooldown = viewModel::removePausePingAppCooldown,
-                setFlash = viewModel::setFlashEnabled,
-                setOverlay = viewModel::setOverlayEnabled,
-                setScreenOffOnly = viewModel::setScreenOffOnly,
-                setBatteryGuard = viewModel::setBatteryGuardEnabled,
-                setQuietHours = viewModel::setQuietHoursEnabled,
-                setCycles = viewModel::setStrobeCycles,
-                setSpeed = viewModel::setStrobeSpeed,
-                setThickness = viewModel::setCircleThickness,
-                setGlow = viewModel::setCircleGlow
-            )
+            MainTab.RULES -> {
+                LaunchedEffect(Unit) {
+                    viewModel.ensureInstalledAppsLoaded()
+                }
+                val apps by viewModel.installedApps.collectAsStateWithLifecycle()
+                val rules by viewModel.rules.collectAsStateWithLifecycle()
+                val criticalPatterns by viewModel.criticalPatterns.collectAsStateWithLifecycle()
+                val luminousProfiles by viewModel.luminousProfiles.collectAsStateWithLifecycle()
 
-            MainTab.PROFILE -> ProfileScreen(
-                modifier = Modifier,
-                contentPadding = padding,
-                state = settings,
-                apps = apps,
-                billingState = billingState,
-                storageStats = storageStats,
-                onConfigureApps = { showPicker = true },
-                onVaultLockChanged = viewModel::setVaultLockEnabled,
-                onVaultTimeoutChanged = viewModel::setVaultLockTimeoutMinutes,
-                onSensitiveProtectionChanged = viewModel::setSensitiveProtectionEnabled,
-                onRetentionDaysChanged = viewModel::setRetentionDays,
-                onRetentionDaysForAppChanged = viewModel::setRetentionDaysForApp,
-                onClearRetentionDaysForApp = viewModel::clearRetentionDaysForApp,
-                onVaultMaxBytesChanged = viewModel::setVaultMaxBytes,
-                onBatteryGuardThresholdChanged = viewModel::setBatteryGuardThreshold,
-                onQuietStartChanged = viewModel::setQuietStartMinutes,
-                onQuietEndChanged = viewModel::setQuietEndMinutes,
-                onAddQuietHoursBand = viewModel::addQuietHoursBand,
-                onRemoveQuietHoursBand = viewModel::removeQuietHoursBand,
-                onAddQuietHoursException = viewModel::addQuietHoursException,
-                onRemoveQuietHoursException = viewModel::removeQuietHoursException,
-                onCriticalBypassQuietHoursChanged = viewModel::setCriticalBypassQuietHours,
-                onDeleteAll = viewModel::deleteAllVault,
-                onResetLocalData = viewModel::resetLocalData,
-                onPurchasePremium = purchasePremiumOffer,
-                onRestorePurchases = viewModel::restorePurchases,
-                onBackupRestored = viewModel::refresh,
-                requestNotificationAccess = requestNotificationAccess,
-                requestPostNotifications = requestPostNotifications,
-                requestCameraPermission = requestCameraPermission,
-                requestOverlayPermission = requestOverlayPermission
-            )
+                RulesScreen(
+                    modifier = Modifier,
+                    contentPadding = padding,
+                    state = settings,
+                    apps = apps,
+                    rules = rules,
+                    criticalPatterns = criticalPatterns,
+                    luminousProfiles = luminousProfiles,
+                    requestCameraPermission = requestCameraPermission,
+                    requestOverlayPermission = requestOverlayPermission,
+                    onCreateRule = viewModel::createRule,
+                    onUpdateRule = viewModel::updateRule,
+                    onRuleEnabled = viewModel::setRuleEnabled,
+                    onDeleteRule = viewModel::deleteRule,
+                    onAddCriticalPattern = viewModel::addCriticalPattern,
+                    onDeleteCriticalPattern = viewModel::deleteCriticalPattern,
+                    onCreateLuminousProfile = viewModel::createLuminousProfile,
+                    onLuminousProfileEnabled = viewModel::setLuminousProfileEnabled,
+                    onDeleteLuminousProfile = viewModel::deleteLuminousProfile,
+                    onPausePingEnabled = viewModel::setPausePingEnabled,
+                    onPausePingCooldown = viewModel::setPausePingCooldownSeconds,
+                    onPausePingAppCooldown = viewModel::setPausePingAppCooldown,
+                    onRemovePausePingAppCooldown = viewModel::removePausePingAppCooldown,
+                    setFlash = viewModel::setFlashEnabled,
+                    setOverlay = viewModel::setOverlayEnabled,
+                    setScreenOffOnly = viewModel::setScreenOffOnly,
+                    setBatteryGuard = viewModel::setBatteryGuardEnabled,
+                    setQuietHours = viewModel::setQuietHoursEnabled,
+                    setCycles = viewModel::setStrobeCycles,
+                    setSpeed = viewModel::setStrobeSpeed,
+                    setThickness = viewModel::setCircleThickness,
+                    setGlow = viewModel::setCircleGlow
+                )
+            }
+
+            MainTab.PROFILE -> {
+                LaunchedEffect(Unit) {
+                    viewModel.ensureInstalledAppsLoaded()
+                    viewModel.ensureBillingReady()
+                    viewModel.refreshStorageStats()
+                }
+                val apps by viewModel.installedApps.collectAsStateWithLifecycle()
+                val billingState by viewModel.billingState.collectAsStateWithLifecycle()
+                val storageStats by viewModel.storageStats.collectAsStateWithLifecycle()
+
+                ProfileScreen(
+                    modifier = Modifier,
+                    contentPadding = padding,
+                    state = settings,
+                    apps = apps,
+                    billingState = billingState,
+                    storageStats = storageStats,
+                    onConfigureApps = { showPicker = true },
+                    onVaultLockChanged = viewModel::setVaultLockEnabled,
+                    onVaultTimeoutChanged = viewModel::setVaultLockTimeoutMinutes,
+                    onSensitiveProtectionChanged = viewModel::setSensitiveProtectionEnabled,
+                    onRetentionDaysChanged = viewModel::setRetentionDays,
+                    onRetentionDaysForAppChanged = viewModel::setRetentionDaysForApp,
+                    onClearRetentionDaysForApp = viewModel::clearRetentionDaysForApp,
+                    onVaultMaxBytesChanged = viewModel::setVaultMaxBytes,
+                    onBatteryGuardThresholdChanged = viewModel::setBatteryGuardThreshold,
+                    onQuietStartChanged = viewModel::setQuietStartMinutes,
+                    onQuietEndChanged = viewModel::setQuietEndMinutes,
+                    onAddQuietHoursBand = viewModel::addQuietHoursBand,
+                    onRemoveQuietHoursBand = viewModel::removeQuietHoursBand,
+                    onAddQuietHoursException = viewModel::addQuietHoursException,
+                    onRemoveQuietHoursException = viewModel::removeQuietHoursException,
+                    onCriticalBypassQuietHoursChanged = viewModel::setCriticalBypassQuietHours,
+                    onDeleteAll = viewModel::deleteAllVault,
+                    onResetLocalData = viewModel::resetLocalData,
+                    onPurchasePremium = purchasePremiumOffer,
+                    onRestorePurchases = viewModel::restorePurchases,
+                    onBackupRestored = viewModel::refreshAll,
+                    requestNotificationAccess = requestNotificationAccess,
+                    requestPostNotifications = requestPostNotifications,
+                    requestCameraPermission = requestCameraPermission,
+                    requestOverlayPermission = requestOverlayPermission
+                )
+            }
         }
     }
 
+    val vaultDetail by viewModel.vaultDetail.collectAsStateWithLifecycle()
     vaultDetail?.let { detail ->
         VaultDetailDialog(
             state = detail,
@@ -297,6 +330,7 @@ fun NotificationControlApp(
     }
 
     if (showPicker) {
+        val apps by viewModel.installedApps.collectAsStateWithLifecycle()
         AppPickerDialog(
             apps,
             settings.monitoredPackages,
