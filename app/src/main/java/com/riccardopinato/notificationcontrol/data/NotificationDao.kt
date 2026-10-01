@@ -202,8 +202,6 @@ interface NotificationDao {
     @Query(
         """
         SELECT n.* FROM notifications n
-        INNER JOIN notification_revisions r
-            ON r.notificationKey = n.sbnKey
         WHERE n.packageName = :packageName
           AND n.notificationId = :notificationId
           AND (
@@ -211,7 +209,13 @@ interface NotificationDao {
             OR n.tag = :tag
           )
           AND n.postedAt = :postedAt
-          AND r.contentHash = :contentHash
+          AND (
+            SELECT r.contentHash
+            FROM notification_revisions r
+            WHERE r.notificationKey = n.sbnKey
+            ORDER BY r.capturedAt DESC
+            LIMIT 1
+          ) = :contentHash
           AND n.updatedAt >= :cutoffMillis
         ORDER BY n.updatedAt DESC
         LIMIT 1
