@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_core_only_title">Seulement l’essentiel</string>
+    <string name="onboarding_core_only_body">Pour commencer, seuls l’accès aux notifications et au moins une application à surveiller sont nécessaires. Luminous, la sécurité et les automatisations se configurent ensuite.</string>
+    <string name="onboarding_access_recovery_title">Android refuse d’activer l’accès ?</string>
+    <string name="onboarding_access_recovery_body">Si vous avez installé l’APK manuellement, ouvrez les informations de l’application, utilisez le menu en haut à droite et autorisez les paramètres restreints. Revenez ensuite ici et réessayez. Le libellé peut varier selon l’appareil.</string>
+    <string name="onboarding_open_app_info">Ouvrir les informations de l’application</string>
+    <string name="onboarding_ready_body">L’accès aux notifications est actif. Choisissez au moins une application à surveiller.</string>
+    <string name="onboarding_optional_later">Luminous, le flash, la protection biométrique et les options avancées restent disponibles après la configuration, lorsque vous en avez réellement besoin.</string>
+</resources>
