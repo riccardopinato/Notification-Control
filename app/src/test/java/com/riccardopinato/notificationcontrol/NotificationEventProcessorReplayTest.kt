@@ -12,6 +12,7 @@ import com.riccardopinato.notificationcontrol.processing.NotificationEventProces
 import com.riccardopinato.notificationcontrol.processing.NotificationVaultRepository
 import com.riccardopinato.notificationcontrol.processing.ProcessingContext
 import com.riccardopinato.notificationcontrol.processing.ProcessingMode
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -78,7 +79,7 @@ class NotificationEventProcessorReplayTest {
             ProcessingMode.POSTED
         )
 
-        assertEquals(1, database.notificationDao().allForTest().size)
+        assertEquals(1, database.notificationDao().observeCount().first())
         assertEquals(1, dispatches)
     }
 
