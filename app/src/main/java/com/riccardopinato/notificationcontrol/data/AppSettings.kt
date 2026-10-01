@@ -62,7 +62,7 @@ class AppSettings(context: Context) {
         }
 
     var flashEnabled: Boolean
-        get() = prefs.getBoolean(KEY_FLASH_ENABLED, true)
+        get() = prefs.getBoolean(KEY_FLASH_ENABLED, false)
         set(value) = prefs.edit { putBoolean(KEY_FLASH_ENABLED, value) }
 
     var overlayEnabled: Boolean
