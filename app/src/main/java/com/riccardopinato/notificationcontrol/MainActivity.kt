@@ -66,6 +66,14 @@ class MainActivity : FragmentActivity() {
                     requestNotificationAccess = {
                         startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
                     },
+                    openAppInfo = {
+                        startActivity(
+                            Intent(
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                Uri.parse("package:$packageName")
+                            )
+                        )
+                    },
                     requestPostNotifications = {
                         if (Build.VERSION.SDK_INT >= 33) {
                             notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -87,7 +95,6 @@ class MainActivity : FragmentActivity() {
         super.onResume()
         permissionEpoch++
         viewModel.refresh()
-        billingManager.refresh()
     }
 
     private fun setSecureWindow(enabled: Boolean) {
