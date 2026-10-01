@@ -4,13 +4,13 @@ Android notification-control utility built around **Single Capture / Single Vaul
 
 ## Product baseline
 - Kotlin + Jetpack Compose + Material 3
-- one `NotificationListenerService` capture core
+- one `NotificationListenerService` capture core with group-summary and logical replay deduplication
 - Room local Vault with notification revisions, structured messaging content and FTS search
 - local-first retention and lightweight media previews
 - Notification Undo history semantics without falsely treating every removal as sender deletion
 - Rules Engine, Critical Alert, Pausa Ping, Follow Up and Pickup Code
 - Luminous visual-alert module with Free baseline and Premium app/sender profiles
-- optional Google profile identity separated from Vault security and Premium
+- optional Google profile identity via Credential Manager/Google ID 1.2.1, separated from Vault security and Premium
 - biometric/device-credential Vault gate
 - streamlined core-only onboarding with sideload/restricted-settings recovery
 - lazy screen-scoped data subscriptions and deferred heavy initialization for smoother runtime
@@ -18,6 +18,7 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - Paging 3 Vault with indexed Room v9 queries and incremental message FTS
 - hardware-friendly Luminous renderer and on-demand WorkManager startup
 - optimized installable `perfTest` APK plus Macrobenchmark performance harness
+- isolated `qaPremium` APK for owner testing; production entitlement remains Play Billing-only
 - encrypted manual backup/restore through Android Storage Access Framework
 - Google Play Billing entitlement engine with subscription/lifetime support
 - EN/IT/ES/FR/PT resources and per-app language override
