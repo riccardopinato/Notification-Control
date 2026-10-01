@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_core_only_title">Solo lo esencial</string>
+    <string name="onboarding_core_only_body">Para empezar solo necesitas acceso a las notificaciones y al menos una app para supervisar. Luminous, la seguridad y las automatizaciones se configuran después.</string>
+    <string name="onboarding_access_recovery_title">¿Android no te deja activar el acceso?</string>
+    <string name="onboarding_access_recovery_body">Si instalaste el APK manualmente, abre Información de la app, usa el menú superior derecho y permite los ajustes restringidos. Después vuelve aquí e inténtalo de nuevo. El nombre puede variar según el dispositivo.</string>
+    <string name="onboarding_open_app_info">Abrir información de la app</string>
+    <string name="onboarding_ready_body">El acceso a las notificaciones está activo. Elige al menos una app para supervisar.</string>
+    <string name="onboarding_optional_later">Luminous, el flash, la protección biométrica y las opciones avanzadas siguen disponibles después de la configuración, cuando realmente las necesites.</string>
+</resources>
