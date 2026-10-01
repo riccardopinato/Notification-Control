@@ -3,6 +3,7 @@ package com.riccardopinato.notificationcontrol.ui
 import android.app.Application
 import android.content.Intent
 import android.content.pm.PackageManager
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.riccardopinato.notificationcontrol.automation.AutomationRepository
@@ -42,13 +43,18 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+@Immutable
 data class InstalledApp(val packageName: String, val label: String)
 
+@Immutable
 data class VaultDetailUiState(
     val notification: NotificationEntity,
     val messages: List<MessageEntity> = emptyList(),
@@ -65,6 +71,7 @@ sealed interface NotificationControlUiEvent {
     data object LuminousProfileRequiresPremium : NotificationControlUiEvent
 }
 
+@Immutable
 data class SettingsUiState(
     val onboardingCompleted: Boolean = false,
     val monitoredPackages: Set<String> = emptySet(),
@@ -72,7 +79,7 @@ data class SettingsUiState(
     val retentionDays: Int = 7,
     val retentionDaysPerApp: Map<String, Int> = emptyMap(),
     val vaultMaxBytes: Long = 100L * 1024L * 1024L,
-    val flashEnabled: Boolean = true,
+    val flashEnabled: Boolean = false,
     val overlayEnabled: Boolean = false,
     val screenOffOnly: Boolean = true,
     val strobeSpeedMs: Long = 150L,
@@ -97,19 +104,39 @@ data class SettingsUiState(
     val criticalBypassQuietHours: Boolean = true
 )
 
+@OptIn(FlowPreview::class)
 class NotificationControlViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = AppSettings(application)
-    private val billingManager = PlayBillingManager.get(application)
-    private val database = NotificationDatabase.get(application)
-    private val dao = database.notificationDao()
-    private val automationDao = database.automationDao()
-    private val automationRepository = AutomationRepository(application, settings, automationDao)
-    private val luminousProfileDao = database.luminousProfileDao()
-    private val luminousProfileRepository =
+    private val billingManager by lazy {
+        PlayBillingManager.get(getApplication<Application>())
+    }
+    private val database by lazy {
+        NotificationDatabase.get(getApplication<Application>())
+    }
+    private val dao by lazy { database.notificationDao() }
+    private val automationDao by lazy { database.automationDao() }
+    private val automationRepository by lazy {
+        AutomationRepository(getApplication(), settings, automationDao)
+    }
+    private val luminousProfileDao by lazy { database.luminousProfileDao() }
+    private val luminousProfileRepository by lazy {
         LuminousProfileRepository(settings, luminousProfileDao)
-    private val storageRepository = StorageStatsRepository(application)
+    }
+    private val storageRepository by lazy {
+        StorageStatsRepository(getApplication<Application>())
+    }
 
-    val billingState: StateFlow<BillingUiState> = billingManager.state
+    @Volatile
+    private var installedAppsLoading = false
+
+    @Volatile
+    private var runtimeMaintenanceStarted = false
+
+    @Volatile
+    private var billingObservationStarted = false
+
+    val billingState: StateFlow<BillingUiState>
+        get() = billingManager.state
 
     private val _settingsState = MutableStateFlow(readSettings())
     val settingsState: StateFlow<SettingsUiState> = _settingsState.asStateFlow()
@@ -135,8 +162,12 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     private val _events = MutableSharedFlow<NotificationControlUiEvent>(extraBufferCapacity = 8)
     val events = _events.asSharedFlow()
 
-    val notifications: StateFlow<List<NotificationEntity>> =
-        combine(_vaultSearch, _vaultPackageFilter, _vaultLimit) { query, app, limit ->
+    val notifications: StateFlow<List<NotificationEntity>> by lazy {
+        combine(
+            _vaultSearch.debounce(120L).distinctUntilChanged(),
+            _vaultPackageFilter,
+            _vaultLimit
+        ) { query, app, limit ->
             Triple(query, app, limit)
         }.flatMapLatest { (query, app, limit) ->
             val fts = VaultSearchQuery.toFtsQuery(query)
@@ -150,83 +181,100 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
             SharingStarted.WhileSubscribed(5_000),
             emptyList()
         )
+    }
 
-    val vaultAppFilters: StateFlow<List<VaultAppFilter>> =
+    val vaultAppFilters: StateFlow<List<VaultAppFilter>> by lazy {
         dao.observeAppFilters().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             emptyList()
         )
+    }
 
-    val notificationCount: StateFlow<Int> =
+    val notificationCount: StateFlow<Int> by lazy {
         dao.observeCount().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             0
         )
+    }
 
-    val rules: StateFlow<List<RuleWithActions>> =
+    val rules: StateFlow<List<RuleWithActions>> by lazy {
         automationDao.observeRules().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             emptyList()
         )
+    }
 
-    val criticalAlerts: StateFlow<List<CriticalAlertEntity>> =
+    val criticalAlerts: StateFlow<List<CriticalAlertEntity>> by lazy {
         automationDao.observeActiveCriticalAlerts().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             emptyList()
         )
+    }
 
-    val criticalPatterns: StateFlow<List<CriticalPatternEntity>> =
+    val criticalPatterns: StateFlow<List<CriticalPatternEntity>> by lazy {
         automationDao.observeCriticalPatterns().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             emptyList()
         )
+    }
 
-    val followUps: StateFlow<List<FollowUpEntity>> =
+    val followUps: StateFlow<List<FollowUpEntity>> by lazy {
         automationDao.observeActiveFollowUps().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             emptyList()
         )
+    }
 
-    val pickupCodes: StateFlow<List<PickupCodeEntity>> =
+    val pickupCodes: StateFlow<List<PickupCodeEntity>> by lazy {
         automationDao.observePickupCodes().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             emptyList()
         )
+    }
 
-    val luminousProfiles: StateFlow<List<LuminousProfileEntity>> =
+    val luminousProfiles: StateFlow<List<LuminousProfileEntity>> by lazy {
         luminousProfileDao.observeProfiles().stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             emptyList()
         )
+    }
 
-    init {
-        loadInstalledApps()
-        refreshStorageStats()
-        viewModelScope.launch {
-            billingManager.state.collect {
-                _settingsState.value = readSettings()
-            }
-        }
+    fun ensureRuntimeMaintenance() {
+        if (runtimeMaintenanceStarted) return
+        runtimeMaintenanceStarted = true
         viewModelScope.launch(Dispatchers.IO) {
             automationRepository.cleanupPickupCodes()
         }
     }
 
-    fun restorePurchases() {
+    fun ensureBillingReady() {
+        if (!billingObservationStarted) {
+            billingObservationStarted = true
+            viewModelScope.launch {
+                billingManager.state.collect {
+                    _settingsState.value = readSettings()
+                }
+            }
+        }
         billingManager.refresh()
+    }
+
+    fun restorePurchases() {
+        ensureBillingReady()
     }
 
     fun completeOnboarding() {
         settings.onboardingCompleted = true
         refresh()
+        ensureRuntimeMaintenance()
     }
 
     fun toggleMonitoredApp(packageName: String): Boolean {
@@ -684,6 +732,10 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
 
     fun refresh() {
         _settingsState.value = readSettings()
+    }
+
+    fun refreshAll() {
+        refresh()
         refreshStorageStats()
     }
 
@@ -725,15 +777,32 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         criticalBypassQuietHours = settings.criticalBypassQuietHours
     )
 
-    private fun loadInstalledApps() {
+    fun ensureInstalledAppsLoaded(force: Boolean = false) {
+        if (installedAppsLoading) return
+        if (!force && _installedApps.value.isNotEmpty()) return
+
+        installedAppsLoading = true
         viewModelScope.launch(Dispatchers.IO) {
-            val pm = getApplication<Application>().packageManager
-            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-            _installedApps.value = pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
-                .map { InstalledApp(it.activityInfo.packageName, it.loadLabel(pm).toString()) }
-                .distinctBy { it.packageName }
-                .filterNot { it.packageName == getApplication<Application>().packageName }
-                .sortedBy { it.label.lowercase() }
+            try {
+                val app = getApplication<Application>()
+                val pm = app.packageManager
+                val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+                _installedApps.value =
+                    pm.queryIntentActivities(intent, PackageManager.MATCH_ALL)
+                        .asSequence()
+                        .map {
+                            InstalledApp(
+                                it.activityInfo.packageName,
+                                it.loadLabel(pm).toString()
+                            )
+                        }
+                        .distinctBy { it.packageName }
+                        .filterNot { it.packageName == app.packageName }
+                        .sortedBy { it.label.lowercase() }
+                        .toList()
+            } finally {
+                installedAppsLoading = false
+            }
         }
     }
 }
