@@ -1,15 +1,15 @@
-NOTIFICATION CONTROL — ROADMAP v0.8
-Date: 2026-09-30
-Status: IN ESECUZIONE
+NOTIFICATION CONTROL — ROADMAP v0.9
+Date: 2026-10-01
+Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
 PHASE 0 — DONOR AUDIT & BASELINE
-COMPLETED
+COMPLETED / MERGED
 
 MAXI STEP 0C — CORE CORRECTNESS HARDENING
-COMPLETED
+COMPLETED / MERGED
 
 MAXI STEP 0D — VAULT INTEGRITY & SECURITY BASELINE
-COMPLETED
+COMPLETED / MERGED
 
 STEP 1 — VAULT UX PRO
 COMPLETED / MERGED
@@ -21,42 +21,66 @@ STEP 3 — NOTIFICATION PROCESSING ENGINE
 COMPLETED / MERGED
 
 STEP 4 — RULES ENGINE V1
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+- persisted rules/actions
+- app, sender and text matching
+- centralized Free/Premium limits
+- Premium time-window and screen-state conditions
+- deterministic consumer order
 
 STEP 5 — CRITICAL ALERT + PAUSA PING
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+- critical app/sender/keyword patterns
+- Critical bypass of Pausa Ping
+- Premium escalation and pending-state handling
+- Premium per-app Pausa Ping cooldowns/exemptions
+- Luminous escalation integration
+- multiple Premium Quiet Hours + app exceptions
 
 STEP 6 — FOLLOW UP
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+- local WorkManager reminders
+- Free active-limit enforcement
+- snooze flows
+- Premium scheduling
+- repeat-until-handled support
+- restore/reschedule hardening
 
 STEP 7 — PICKUP CODE
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+- context-aware code extraction
+- local persistence and expiry
+- copy/dismiss flows
+- Free/Premium behavior aligned
+- improved notification text fallbacks
 
 STEP 8 — PREMIUM ENGINE
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
 - centralized entitlement source
 - Google Play Billing
 - subscription + lifetime products
 - restore purchases
 - offline entitlement grace
 - contextual Profile Premium surface
+- business limits centralized outside UI
 
 STEP 9 — GOOGLE PROFILE + BACKUP
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
 - optional Credential Manager Sign in with Google
 - stable Credential Manager 1.6.0 + Google ID 1.2.1
 - Google identity does not unlock Vault or grant Premium
+- hardened no-credential / sign-in failure handling
 - OAuth Web client ID remains external configuration
 - manual encrypted backup/export and restore
 - AES-GCM + password-derived key
 - pre-restore validation and Room transaction
-- Vault, messages, revisions, rules, Critical, Follow Up, Pickup Code and media previews
+- Vault, messages, revisions, rules, Critical, Follow Up, Pickup Code, Luminous profiles and media previews
 - selected non-sensitive settings
 - Android Storage Access Framework supports local or user-chosen compatible cloud document providers
 - automatic Android cloud backup remains disabled
 
 STEP 10 — LUMINOUS PRO
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
 - Premium per-app / sender profiles
 - profile-specific colors, flash/overlay modes and timing
 - Critical visual escalation
@@ -64,10 +88,11 @@ IMPLEMENTED / VALIDATION
 - touch-safe overlay behavior
 - interactive-screen transparency
 - torch failure backoff for OEM/camera contention
+- posture sensors active only when visual alerts may run
 - profile backup/restore support
 
 STEP 11 — RELEASE & DEPLOY PIPELINE
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
 - release APK + AAB build
 - optional signing from repository secrets
 - VERSION_NAME / VERSION_CODE injection
@@ -76,23 +101,61 @@ IMPLEMENTED / VALIDATION
 - optional Play Internal Testing upload when signing and service-account credentials exist
 
 STEP 12 — CERTIFIED QA
-IMPLEMENTED / AUTOMATED VALIDATION
+COMPLETED / AUTOMATED GATES GREEN
 - unit-test, lint and release-build gates
 - privacy manifest gates
-- localization gates
+- localization key-parity gates
 - dependency evidence
 - release binary/checksum evidence
 - Certified Evidence Bundle artifact
-- rule / Critical / Pickup / Pausa Ping / Luminous / backup pure-domain regression coverage
+- rule / Critical / Pickup / Pausa Ping / Luminous / backup regression coverage
+- Android CI #59: PASS on hardening head
+- Certified QA #35: PASS on hardening head
 - physical-device validation remains MANUAL_REQUIRED
-- final CERTIFIED verdict remains BLOCKED until intended-release external config and device checks are completed
+- final intended-release CERTIFIED verdict remains BLOCKED until external configuration and device checks are completed
+
+MAXI STEP 13 — DEEP HARDENING & MESSAGE VAULT
+COMPLETED / MERGED
+Merge baseline: ba900580341746387b65ee41d6fa0777ac54f9cc
+Source PR: #11 roadmap-hardening-message-vault
+- immutable Vault event identity separated from Android platform notification key
+- reused Android notification keys preserved as distinct historical events
+- action-level dedup before Rules/Critical/Follow Up/Pickup/Luminous
+- dedup reset after removal so legitimate later events are not suppressed
+- Message Vault detail timeline and captured versions
+- MessagingStyle historic-message capture before text fallbacks
+- FTS historical rebuild and retention cleanup
+- Room v5 -> v6 migration regression coverage
+- sensitive-data protection and local reset hardening
+- privacy, retention and permission controls completed
+- Smart Cleanup storage budget
+- Premium per-app Vault retention overrides
+- Premium multiple Quiet Hours and app exceptions
+- Premium Rules time/screen-state conditions
+- Premium Pausa Ping cooldown/exemption controls
+- Premium Critical escalation and pending state
+- Premium Follow Up scheduling/repeat behavior
+- Pickup Code Free/Premium alignment
+- Credential Manager error hardening
+- localization parity enforced by Certified QA
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Google OAuth Web client ID for live Sign in with Google
 - Google Play product configuration for live Premium purchase flows
 - Play signing/service credentials for automatic Internal Testing publication
 
-IMMEDIATE NEXT ACTION:
-Close consolidated integration CI. If green, merge to main. Then run the Certified QA workflow and complete the manual device/store configuration gates for the intended release.
+CURRENT RELEASE VERDICT:
+AUTOMATED CORE: PASS
+CERTIFIED AUTOMATION: PASS
+PHYSICAL DEVICE: MANUAL_REQUIRED
+LIVE GOOGLE/PLAY CONFIG: REQUIRED
+FINAL INTENDED-RELEASE VERDICT: BLOCKED until manual/device/store gates are completed
 
-END ROADMAP v0.8
+IMMEDIATE NEXT ACTION:
+1. Validate the merged post-hardening baseline on a real Android ARM64 device.
+2. Exercise Notification Access, Vault/Message history, Rules, Critical, Pausa Ping, Follow Up, Pickup Code and Luminous end-to-end.
+3. Verify retention/Smart Cleanup and encrypted backup/restore with real local data.
+4. Configure live Google OAuth and Play products when preparing the release candidate.
+5. Build the intended release candidate only after the physical-device gate is green.
+
+END ROADMAP v0.9
