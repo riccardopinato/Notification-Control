@@ -67,7 +67,7 @@ COMPLETED / MERGED
 STEP 9 — GOOGLE PROFILE + BACKUP
 COMPLETED / MERGED
 - optional Credential Manager Sign in with Google
-- stable Credential Manager 1.6.0 + Google ID 1.2.1
+- stable Credential Manager 1.6.0 + Google ID 1.1.1 + stable sub/email token claims
 - Google identity does not unlock Vault or grant Premium
 - hardened no-credential / sign-in failure handling
 - OAuth Web client ID remains external configuration
@@ -198,7 +198,7 @@ IMPLEMENTED / VALIDATION
 - dedup logico dei replay recenti dello stesso evento anche quando Android cambia platformKey
 - replay deduplicati non rilanciano Rules/Critical/Follow Up/Pickup/Luminous
 - regressioni dedicate su WhatsApp-style "Anna / Svezia"
-- Google ID SDK aggiornato a 1.2.1
+- Google ID SDK 1.1.1 mantenuto per compatibilità Kotlin; sub/email letti dall'ID token
 - Google profile usa uniqueId stabile ed email separata; rimosso google.id deprecato
 - nonce casuale per ogni richiesta Sign in with Google
 - GOOGLE_WEB_CLIENT_ID iniettato da build/CI, non hardcoded nel source
