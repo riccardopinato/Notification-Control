@@ -1,8 +1,6 @@
 package com.riccardopinato.notificationcontrol.ui
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -40,7 +38,7 @@ import kotlinx.coroutines.withContext
 @Composable
 fun GoogleAccountCard() {
     val context = LocalContext.current
-    val activity = context.findActivity()
+    val activity = LocalActivity.current
     val manager = remember(context) { GoogleAccountManager.get(context) }
     val state by manager.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -332,8 +330,3 @@ private fun BackupPassphraseDialog(
     )
 }
 
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}
