@@ -17,6 +17,7 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - serialized notification hot path with reactive Rules/Critical/Luminous caches
 - Paging 3 Vault with indexed Room v9 queries and incremental message FTS
 - hardware-friendly Luminous renderer and on-demand WorkManager startup
+- Luminous overlay compatibility preserved down to minSdk 24
 - optimized installable `perfTest` APK plus Macrobenchmark performance harness
 - isolated `qaPremium` APK for owner testing; production entitlement remains Play Billing-only
 - encrypted manual backup/restore through Android Storage Access Framework
