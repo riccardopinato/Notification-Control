@@ -49,6 +49,7 @@ import com.riccardopinato.notificationcontrol.capture.ListenerHealthStore
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 import com.riccardopinato.notificationcontrol.localization.LocaleController
 import com.riccardopinato.notificationcontrol.storage.StorageStats
+import java.util.Locale
 
 @Composable
 fun ProfileScreen(
@@ -999,12 +1000,12 @@ fun AppPickerDialog(
 
 private fun formatMinutesOfDay(minutes: Int): String {
     val safe = minutes.coerceIn(0, 1439)
-    return String.format("%02d:%02d", safe / 60, safe % 60)
+    return String.format(Locale.getDefault(), "%02d:%02d", safe / 60, safe % 60)
 }
 
 private fun formatBytesProfile(bytes: Long): String {
     if (bytes < 1_024) return "$bytes B"
     val kb = bytes / 1_024.0
-    if (kb < 1_024) return String.format("%.1f KB", kb)
-    return String.format("%.1f MB", kb / 1_024.0)
+    if (kb < 1_024) return String.format(Locale.getDefault(), "%.1f KB", kb)
+    return String.format(Locale.getDefault(), "%.1f MB", kb / 1_024.0)
 }
