@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v1.0
+NOTIFICATION CONTROL — ROADMAP v1.1
 Date: 2026-10-01
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
@@ -140,7 +140,9 @@ Source PR: #11 roadmap-hardening-message-vault
 - localization parity enforced by Certified QA
 
 MAXI STEP 14 — STREAMLINED ONBOARDING & PERFORMANCE HARDENING
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: d9402b01bcbba6bd8282af122ad8df42c01461b2
+Source PR: #13 maxi-onboarding-performance-v1
 - onboarding ridotto al core: accesso notifiche + scelta app monitorate
 - Luminous, flash, biometria e opzioni avanzate spostati a setup contestuale
 - recovery guidato quando Android blocca Notification Access su APK sideload
@@ -156,6 +158,42 @@ IMPLEMENTED / VALIDATION
 - slider Pausa Ping/Battery/Quiet Hours con commit solo a fine trascinamento
 - cache RAM LRU per thumbnail Vault e timestamp di riga memoizzati
 - obiettivo device validation: scrolling Vault, cambio tab, apertura Rules/Profile, resume da Settings
+- Android CI #63: PASS
+- Certified QA #37: PASS
+
+MAXI STEP 15 — END-TO-END PERFORMANCE HARDENING
+IMPLEMENTED / VALIDATION
+- build type perfTest: R8/shrink attivi, firma debug installabile, non-debuggable
+- Macrobenchmark harness per cold startup e frame timing su Vault/tab switching
+- baseline profile iniziale per startup/UI/capture hot classes
+- NotificationListenerService serializzato con una sola coda ordinata POSTED/REMOVED/RECONCILIATION
+- eliminata la concorrenza casuale di più coroutine per burst di notifiche
+- cache runtime reattive Room per regole abilitate, pattern Critical e profili Luminous
+- cache PackageManager per app label nel parser notifiche
+- posture monitoring usa la cache Luminous invece di query count per evento
+- Room schema v9
+- indici hot-path su updatedAt, packageName+updatedAt, protected+postedAt e platformKey+removedAt+updatedAt
+- message_fts separato e incrementale: niente ricostruzione completa dello storico messaggi a ogni notifica
+- migration 8->9 con backfill dell'indice messaggi
+- backup/restore ricostruisce sia notification_fts sia message_fts
+- Vault migrato a Paging 3 con page size 50, initial load 100 e prefetch controllato
+- rimosso il limite manuale 100->200->...->2000 dal Vault
+- Luminous glow spostato da layer software fullscreen a multi-stroke hardware-friendly
+- WorkManager configurato on-demand e retention scheduling differito/post-onboarding
+- retention periodic work registrato una sola volta per schedule version
+- StorageStats evita scansione ricorsiva delle thumbnail
+- lookup label app memoizzati in Rules/Profile
+- formattazioni date/versioni Vault memoizzate
+- Android CI deve compilare debug + perfTest + benchmark harness
+- Certified QA deve includere il perfTest APK nell'Evidence Bundle
+- macrobenchmark runtime e device Xiaomi restano MANUAL_REQUIRED
+
+PERFORMANCE ACCEPTANCE GATE:
+1. Android CI + Certified QA verdi sul branch Step 15.
+2. perfTest APK installabile su device reale.
+3. nessuna regressione Notification Access/Vault/Rules/Critical/Follow Up/Pickup/Luminous.
+4. device test su Xiaomi: tab switch, Vault scroll/search, Rules/Profile, burst notifiche.
+5. macrobenchmark cold startup + frame timing da eseguire su device/emulatore controllato dopo onboarding one-time.
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Google OAuth Web client ID for live Sign in with Google
@@ -170,11 +208,11 @@ LIVE GOOGLE/PLAY CONFIG: REQUIRED
 FINAL INTENDED-RELEASE VERDICT: BLOCKED until manual/device/store gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Close Android CI + Certified QA for MAXI STEP 14.
-2. Install the new debug APK on a real Android/Xiaomi device.
-3. Validate first-run onboarding and restricted-settings recovery.
-4. Compare perceived fluidity on tab changes, Vault scroll/search and slider interactions.
-5. Re-run functional checks for Notification Access, Rules, Critical, Follow Up, Pickup Code and Luminous.
+1. Close Android CI + Certified QA for MAXI STEP 15.
+2. Install the optimized perfTest APK on the Xiaomi test device.
+3. Validate tab switching, Vault scroll/search and burst-notification behavior.
+4. Run physical functional regression for Notification Access, Rules, Critical, Follow Up, Pickup Code and Luminous.
+5. Execute Macrobenchmark runtime after one-time onboarding on the benchmark device.
 6. Configure live Google OAuth and Play products only when preparing the release candidate.
 
-END ROADMAP v1.0
+END ROADMAP v1.1

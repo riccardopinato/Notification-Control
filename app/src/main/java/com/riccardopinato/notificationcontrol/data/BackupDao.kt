@@ -55,6 +55,9 @@ interface BackupDao {
     @Query("DELETE FROM notification_fts")
     suspend fun deleteFts()
 
+    @Query("DELETE FROM message_fts")
+    suspend fun deleteMessageFts()
+
     @Query("DELETE FROM notification_revisions")
     suspend fun deleteRevisions()
 
@@ -69,6 +72,9 @@ interface BackupDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessages(items: List<MessageEntity>)
+
+    @Insert
+    suspend fun insertMessageFts(items: List<MessageFtsEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRevisions(items: List<NotificationRevisionEntity>)

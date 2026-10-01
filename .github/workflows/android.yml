@@ -36,9 +36,17 @@ jobs:
           exit $status
       - name: Build debug APK
         run: gradle :app:assembleDebug --stacktrace --no-daemon
+      - name: Build optimized perfTest APK and benchmark harness
+        run: gradle :app:assemblePerfTest :benchmark:assemblePerfTest --stacktrace --no-daemon
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: notification-control-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Upload optimized perfTest APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: notification-control-perf-test
+          path: app/build/outputs/apk/perfTest/app-perfTest.apk
           if-no-files-found: error

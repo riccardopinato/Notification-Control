@@ -280,6 +280,134 @@ class NotificationDatabaseMigrationTest {
         context.deleteDatabase(databaseName)
     }
 
+    @Test
+    fun migration8To9AddsVaultIndexesAndBackfillsMessageSearch() {
+        val context = RuntimeEnvironment.getApplication()
+        val databaseName = "notification-control-migration-8-9.db"
+        context.deleteDatabase(databaseName)
+
+        val v8 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(8) {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            db.execSQL(
+                                """
+                                CREATE TABLE notifications (
+                                    sbnKey TEXT NOT NULL PRIMARY KEY,
+                                    platformKey TEXT NOT NULL,
+                                    packageName TEXT NOT NULL,
+                                    updatedAt INTEGER NOT NULL,
+                                    protected INTEGER NOT NULL,
+                                    postedAt INTEGER NOT NULL,
+                                    removedAt INTEGER
+                                )
+                                """.trimIndent()
+                            )
+                            db.execSQL(
+                                """
+                                CREATE TABLE messages (
+                                    messageKey TEXT NOT NULL PRIMARY KEY,
+                                    notificationKey TEXT NOT NULL,
+                                    sender TEXT,
+                                    text TEXT NOT NULL,
+                                    timestamp INTEGER NOT NULL,
+                                    mimeType TEXT,
+                                    dataUri TEXT
+                                )
+                                """.trimIndent()
+                            )
+                        }
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) = Unit
+                    }
+                )
+                .build()
+        )
+
+        v8.writableDatabase.execSQL(
+            """
+            INSERT INTO notifications(
+                sbnKey, platformKey, packageName, updatedAt,
+                protected, postedAt, removedAt
+            ) VALUES(
+                'event-1', 'platform-1', 'com.example', 200,
+                0, 100, NULL
+            )
+            """.trimIndent()
+        )
+        v8.writableDatabase.execSQL(
+            """
+            INSERT INTO messages(
+                messageKey, notificationKey, sender, text,
+                timestamp, mimeType, dataUri
+            ) VALUES(
+                'message-1', 'event-1', 'Anna', 'ciao mondo',
+                150, NULL, NULL
+            )
+            """.trimIndent()
+        )
+        v8.close()
+
+        val v9 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(9) {
+                        override fun onCreate(db: SupportSQLiteDatabase) = Unit
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) {
+                            assertEquals(8, oldVersion)
+                            assertEquals(9, newVersion)
+                            NotificationDatabase.MIGRATION_8_9.migrate(db)
+                        }
+                    }
+                )
+                .build()
+        )
+
+        val db = v9.writableDatabase
+        val expectedIndexes = setOf(
+            "index_notifications_updatedAt",
+            "index_notifications_packageName_updatedAt",
+            "index_notifications_protected_postedAt",
+            "index_notifications_platformKey_removedAt_updatedAt"
+        )
+        val actualIndexes = mutableSetOf<String>()
+        db.query("PRAGMA index_list('notifications')").use { cursor ->
+            val nameColumn = cursor.getColumnIndex("name")
+            while (cursor.moveToNext()) {
+                if (nameColumn >= 0) {
+                    actualIndexes += cursor.getString(nameColumn)
+                }
+            }
+        }
+        assertTrue(actualIndexes.containsAll(expectedIndexes))
+
+        db.query(
+            "SELECT messageKey, notificationKey, sender, text " +
+                "FROM message_fts WHERE message_fts MATCH 'mondo*'"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("message-1", cursor.getString(0))
+            assertEquals("event-1", cursor.getString(1))
+            assertEquals("Anna", cursor.getString(2))
+            assertEquals("ciao mondo", cursor.getString(3))
+        }
+
+        v9.close()
+        context.deleteDatabase(databaseName)
+    }
+
     private fun createNotificationsV5(db: SupportSQLiteDatabase) {
         db.execSQL(
             """

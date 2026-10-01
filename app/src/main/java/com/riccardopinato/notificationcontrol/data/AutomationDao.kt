@@ -18,6 +18,10 @@ interface AutomationDao {
     @Query("SELECT * FROM rules WHERE enabled = 1 ORDER BY priority DESC, id ASC")
     suspend fun enabledRules(): List<RuleWithActions>
 
+    @Transaction
+    @Query("SELECT * FROM rules WHERE enabled = 1 ORDER BY priority DESC, id ASC")
+    fun observeEnabledRules(): Flow<List<RuleWithActions>>
+
     @Query("SELECT COUNT(*) FROM rules")
     suspend fun ruleCount(): Int
 
@@ -80,6 +84,9 @@ interface AutomationDao {
 
     @Query("SELECT * FROM critical_patterns WHERE enabled = 1")
     suspend fun enabledCriticalPatterns(): List<CriticalPatternEntity>
+
+    @Query("SELECT * FROM critical_patterns WHERE enabled = 1")
+    fun observeEnabledCriticalPatterns(): Flow<List<CriticalPatternEntity>>
 
     @Query("SELECT COUNT(*) FROM critical_patterns WHERE type = :type")
     suspend fun criticalPatternCount(type: String): Int

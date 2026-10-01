@@ -6,6 +6,7 @@ import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import androidx.core.content.edit
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
@@ -106,16 +107,35 @@ class RetentionWorker(
 
     companion object {
         private const val UNIQUE_NAME = "notification_vault_retention"
+        private const val SCHEDULE_PREFS = "notification_control_worker_schedule"
+        private const val KEY_SCHEDULE_VERSION = "retention_schedule_version"
+        private const val SCHEDULE_VERSION = 1
 
         fun schedule(context: Context) {
-            val request = PeriodicWorkRequestBuilder<RetentionWorker>(24, TimeUnit.HOURS)
+            val appContext = context.applicationContext
+            val prefs = appContext.getSharedPreferences(
+                SCHEDULE_PREFS,
+                Context.MODE_PRIVATE
+            )
+            if (prefs.getInt(KEY_SCHEDULE_VERSION, 0) >= SCHEDULE_VERSION) {
+                return
+            }
+
+            val request = PeriodicWorkRequestBuilder<RetentionWorker>(
+                24,
+                TimeUnit.HOURS
+            )
                 .setInitialDelay(2, TimeUnit.HOURS)
                 .build()
-            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+
+            WorkManager.getInstance(appContext).enqueueUniquePeriodicWork(
                 UNIQUE_NAME,
                 ExistingPeriodicWorkPolicy.UPDATE,
                 request
             )
+            prefs.edit {
+                putInt(KEY_SCHEDULE_VERSION, SCHEDULE_VERSION)
+            }
         }
     }
 }

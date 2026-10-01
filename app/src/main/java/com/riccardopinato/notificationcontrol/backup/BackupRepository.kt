@@ -12,6 +12,7 @@ import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
 import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.MessageEntity
+import com.riccardopinato.notificationcontrol.data.MessageFtsEntity
 import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
@@ -159,6 +160,7 @@ class BackupRepository(context: Context) {
                 backupDao.deleteRuleActions()
                 backupDao.deleteRules()
                 backupDao.deleteFts()
+                backupDao.deleteMessageFts()
                 backupDao.deleteRevisions()
                 backupDao.deleteMessages()
                 backupDao.deleteNotifications()
@@ -166,7 +168,19 @@ class BackupRepository(context: Context) {
                 if (notificationsWithMedia.isNotEmpty()) {
                     backupDao.insertNotifications(notificationsWithMedia)
                 }
-                if (messages.isNotEmpty()) backupDao.insertMessages(messages)
+                if (messages.isNotEmpty()) {
+                    backupDao.insertMessages(messages)
+                    backupDao.insertMessageFts(
+                        messages.map {
+                            MessageFtsEntity(
+                                messageKey = it.messageKey,
+                                notificationKey = it.notificationKey,
+                                sender = it.sender,
+                                text = it.text
+                            )
+                        }
+                    )
+                }
                 if (revisions.isNotEmpty()) backupDao.insertRevisions(revisions)
                 if (rules.isNotEmpty()) backupDao.insertRules(rules)
                 if (actions.isNotEmpty()) backupDao.insertRuleActions(actions)
@@ -180,7 +194,6 @@ class BackupRepository(context: Context) {
                     database.luminousProfileDao().insertAll(luminousProfiles)
                 }
 
-                val messagesByNotification = messages.groupBy { it.notificationKey }
                 notificationsWithMedia.forEach { notification ->
                     notificationDao.insertFts(
                         NotificationFtsEntity(
@@ -190,9 +203,7 @@ class BackupRepository(context: Context) {
                             text = notification.text,
                             bigText = notification.bigText,
                             conversationTitle = notification.conversationTitle,
-                            messagesText = messagesByNotification[notification.sbnKey]
-                                .orEmpty()
-                                .joinToString(" ") { "${it.sender.orEmpty()} ${it.text}" }
+                            messagesText = ""
                         )
                     )
                 }

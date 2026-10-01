@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.collectAsLazyPagingItems
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.security.VaultSecurityManager
 
@@ -174,10 +175,9 @@ fun NotificationControlApp(
                         onUnlock = requestVaultUnlock
                     )
                 } else {
-                    val notifications by viewModel.notifications.collectAsStateWithLifecycle()
+                    val notifications = viewModel.vaultPaging.collectAsLazyPagingItems()
                     val search by viewModel.vaultSearch.collectAsStateWithLifecycle()
                     val packageFilter by viewModel.vaultPackageFilter.collectAsStateWithLifecycle()
-                    val vaultLimit by viewModel.vaultLimit.collectAsStateWithLifecycle()
                     val appFilters by viewModel.vaultAppFilters.collectAsStateWithLifecycle()
                     val storageStats by viewModel.storageStats.collectAsStateWithLifecycle()
 
@@ -189,10 +189,8 @@ fun NotificationControlApp(
                         packageFilter = packageFilter,
                         appFilters = appFilters,
                         storageStats = storageStats,
-                        currentLimit = vaultLimit,
                         onSearchChange = viewModel::setVaultSearch,
                         onPackageFilterChange = viewModel::setVaultPackageFilter,
-                        onLoadMore = viewModel::loadMoreVault,
                         onProtect = viewModel::setProtected,
                         onFollowUp = {
                             requestPostNotifications()

@@ -13,6 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MessageEntity::class,
         NotificationRevisionEntity::class,
         NotificationFtsEntity::class,
+        MessageFtsEntity::class,
         RuleEntity::class,
         RuleActionEntity::class,
         CriticalPatternEntity::class,
@@ -21,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PickupCodeEntity::class,
         LuminousProfileEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = true
 )
 abstract class NotificationDatabase : RoomDatabase() {
@@ -286,6 +287,54 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_notifications_updatedAt " +
+                        "ON notifications(updatedAt)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_notifications_packageName_updatedAt " +
+                        "ON notifications(packageName, updatedAt)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_notifications_protected_postedAt " +
+                        "ON notifications(protected, postedAt)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_notifications_platformKey_removedAt_updatedAt " +
+                        "ON notifications(platformKey, removedAt, updatedAt)"
+                )
+                db.execSQL(
+                    """
+                    CREATE VIRTUAL TABLE IF NOT EXISTS message_fts
+                    USING FTS4(
+                        messageKey,
+                        notificationKey,
+                        sender,
+                        text
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO message_fts(
+                        messageKey,
+                        notificationKey,
+                        sender,
+                        text
+                    )
+                    SELECT
+                        messageKey,
+                        notificationKey,
+                        sender,
+                        text
+                    FROM messages
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun get(context: Context): NotificationDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -299,7 +348,8 @@ abstract class NotificationDatabase : RoomDatabase() {
                     MIGRATION_4_5,
                     MIGRATION_5_6,
                     MIGRATION_6_7,
-                    MIGRATION_7_8
+                    MIGRATION_7_8,
+                    MIGRATION_8_9
                 )
                 .build()
                 .also { instance = it }

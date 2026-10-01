@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Notification Control"
 include(":app")
+include(":benchmark")

@@ -3,6 +3,7 @@ package com.riccardopinato.notificationcontrol.capture
 import android.content.ComponentName
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
+import android.util.Log
 import com.riccardopinato.notificationcontrol.automation.AutomationRepository
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.LuminousProfileDao
@@ -19,6 +20,7 @@ import com.riccardopinato.notificationcontrol.processing.CriticalConsumer
 import com.riccardopinato.notificationcontrol.processing.FollowUpConsumer
 import com.riccardopinato.notificationcontrol.processing.LuminousConsumer
 import com.riccardopinato.notificationcontrol.processing.NotificationEventProcessor
+import com.riccardopinato.notificationcontrol.processing.NotificationRuntimeCache
 import com.riccardopinato.notificationcontrol.processing.NotificationVaultRepository
 import com.riccardopinato.notificationcontrol.processing.PausePingConsumer
 import com.riccardopinato.notificationcontrol.processing.PickupCodeConsumer
@@ -29,15 +31,19 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 
 class NotificationCaptureService : NotificationListenerService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val eventQueue = Channel<ListenerCommand>(Channel.UNLIMITED)
+
     private lateinit var settings: AppSettings
     private lateinit var parser: NotificationParser
     private lateinit var health: ListenerHealthStore
     private lateinit var posture: DevicePostureMonitor
     private lateinit var luminousProfileDao: LuminousProfileDao
+    private lateinit var runtimeCache: NotificationRuntimeCache
     private lateinit var processor: NotificationEventProcessor
     private lateinit var overlay: LuminousCircleOverlay
 
@@ -51,6 +57,12 @@ class NotificationCaptureService : NotificationListenerService() {
 
         val database = NotificationDatabase.get(this)
         luminousProfileDao = database.luminousProfileDao()
+        runtimeCache = NotificationRuntimeCache(
+            scope = serviceScope,
+            automationDao = database.automationDao(),
+            luminousProfileDao = luminousProfileDao
+        )
+
         val vaultRepository = NotificationVaultRepository(
             settings = settings,
             database = database,
@@ -70,13 +82,15 @@ class NotificationCaptureService : NotificationListenerService() {
             consumers = listOf(
                 RulesConsumer(
                     ruleEngine = RuleEngine(
-                        dao = database.automationDao(),
+                        enabledRulesProvider = runtimeCache::enabledRules,
                         premiumProvider = { settings.isPremium }
                     ),
                     runtimeStateProvider = RuleRuntimeStateProvider(this)
                 ),
                 CriticalConsumer(
-                    matcher = CriticalMatcher(database.automationDao()),
+                    matcher = CriticalMatcher(
+                        runtimeCache::enabledCriticalPatterns
+                    ),
                     automationRepository = automationRepository
                 ),
                 PausePingConsumer(PausePingController(settings)),
@@ -89,19 +103,32 @@ class NotificationCaptureService : NotificationListenerService() {
                     overlay = overlay,
                     profileResolver = LuminousProfileResolver(
                         settings = settings,
-                        dao = luminousProfileDao
+                        enabledProfilesProvider =
+                            runtimeCache::enabledLuminousProfiles
                     )
                 )
             )
         )
+
+        serviceScope.launch {
+            for (command in eventQueue) {
+                runCatching { processCommand(command) }
+                    .onFailure {
+                        Log.e(
+                            TAG,
+                            "Notification pipeline command failed",
+                            it
+                        )
+                    }
+            }
+        }
     }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
         health.connected = true
         health.lastConnectedAt = System.currentTimeMillis()
-        serviceScope.launch { updatePostureMonitoring() }
-        reconcileActiveNotifications()
+        eventQueue.trySend(ListenerCommand.Reconcile)
     }
 
     override fun onListenerDisconnected() {
@@ -115,6 +142,7 @@ class NotificationCaptureService : NotificationListenerService() {
         health.connected = false
         posture.stop()
         overlay.hide()
+        eventQueue.close()
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -122,21 +150,18 @@ class NotificationCaptureService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         val notification = sbn ?: return
         if (!shouldConsider(notification)) return
-
         health.lastEventAt = System.currentTimeMillis()
-        serviceScope.launch {
-            updatePostureMonitoring()
-            val captured = parser.parse(
-                notification,
-                captureThumbnail = processor.shouldCaptureThumbnail(notification.packageName)
-            )
-            processor.process(captured, ProcessingMode.POSTED)
-        }
+        eventQueue.trySend(ListenerCommand.Posted(notification))
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         val notification = sbn ?: return
-        serviceScope.launch { processor.markRemoved(notification.key, null) }
+        eventQueue.trySend(
+            ListenerCommand.Removed(
+                platformKey = notification.key,
+                reason = null
+            )
+        )
     }
 
     override fun onNotificationRemoved(
@@ -145,22 +170,53 @@ class NotificationCaptureService : NotificationListenerService() {
         reason: Int
     ) {
         val notification = sbn ?: return
-        serviceScope.launch { processor.markRemoved(notification.key, reason) }
+        eventQueue.trySend(
+            ListenerCommand.Removed(
+                platformKey = notification.key,
+                reason = reason
+            )
+        )
     }
 
-    private fun reconcileActiveNotifications() {
-        serviceScope.launch {
-            updatePostureMonitoring()
-            val notifications = runCatching { activeNotifications.orEmpty().toList() }
-                .getOrDefault(emptyList())
-            notifications.filter(::shouldConsider).forEach { sbn ->
+    private suspend fun processCommand(command: ListenerCommand) {
+        when (command) {
+            is ListenerCommand.Posted -> {
+                updatePostureMonitoring()
+                val notification = command.notification
                 val captured = parser.parse(
-                    sbn,
-                    captureThumbnail = processor.shouldCaptureThumbnail(sbn.packageName)
+                    notification,
+                    captureThumbnail =
+                        processor.shouldCaptureThumbnail(notification.packageName)
                 )
-                processor.process(captured, ProcessingMode.RECONCILIATION)
+                processor.process(captured, ProcessingMode.POSTED)
             }
-            health.lastReconciliationAt = System.currentTimeMillis()
+
+            is ListenerCommand.Removed -> {
+                processor.markRemoved(command.platformKey, command.reason)
+            }
+
+            ListenerCommand.Reconcile -> {
+                updatePostureMonitoring()
+                val notifications = runCatching {
+                    activeNotifications.orEmpty().toList()
+                }.getOrDefault(emptyList())
+
+                notifications
+                    .asSequence()
+                    .filter(::shouldConsider)
+                    .forEach { sbn ->
+                        val captured = parser.parse(
+                            sbn,
+                            captureThumbnail =
+                                processor.shouldCaptureThumbnail(sbn.packageName)
+                        )
+                        processor.process(
+                            captured,
+                            ProcessingMode.RECONCILIATION
+                        )
+                    }
+                health.lastReconciliationAt = System.currentTimeMillis()
+            }
         }
     }
 
@@ -168,7 +224,10 @@ class NotificationCaptureService : NotificationListenerService() {
         val visualAlertsMayRun =
             settings.flashEnabled ||
                 settings.overlayEnabled ||
-                (settings.isPremium && luminousProfileDao.enabledProfileCount() > 0)
+                (
+                    settings.isPremium &&
+                        runtimeCache.hasEnabledLuminousProfiles()
+                )
 
         if (visualAlertsMayRun) {
             posture.start()
@@ -179,4 +238,21 @@ class NotificationCaptureService : NotificationListenerService() {
 
     private fun shouldConsider(sbn: StatusBarNotification): Boolean =
         sbn.packageName != packageName && !sbn.isOngoing
+
+    companion object {
+        private const val TAG = "NotificationCapture"
+    }
+
+    private sealed interface ListenerCommand {
+        data class Posted(
+            val notification: StatusBarNotification
+        ) : ListenerCommand
+
+        data class Removed(
+            val platformKey: String,
+            val reason: Int?
+        ) : ListenerCommand
+
+        data object Reconcile : ListenerCommand
+    }
 }

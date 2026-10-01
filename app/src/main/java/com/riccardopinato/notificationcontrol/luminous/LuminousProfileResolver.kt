@@ -7,11 +7,16 @@ import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
 
 class LuminousProfileResolver(
     private val settings: AppSettings,
-    private val dao: LuminousProfileDao
+    private val enabledProfilesProvider: suspend () -> List<LuminousProfileEntity>
 ) {
+    constructor(
+        settings: AppSettings,
+        dao: LuminousProfileDao
+    ) : this(settings, dao::enabledProfiles)
+
     suspend fun resolve(event: CapturedNotification): LuminousProfileEntity? {
         if (!settings.isPremium) return null
-        return dao.enabledProfiles().firstOrNull {
+        return enabledProfilesProvider().firstOrNull {
             LuminousProfileMatcher.matches(it, event)
         }
     }

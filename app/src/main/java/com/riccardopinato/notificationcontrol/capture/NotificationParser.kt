@@ -3,12 +3,16 @@ package com.riccardopinato.notificationcontrol.capture
 import android.app.Notification
 import android.content.Context
 import android.service.notification.StatusBarNotification
+import android.util.LruCache
 import androidx.core.app.NotificationCompat
 
 class NotificationParser(
     private val context: Context,
     private val mediaStore: NotificationMediaStore = NotificationMediaStore(context)
 ) {
+    private val packageManager = context.applicationContext.packageManager
+    private val appLabelCache = LruCache<String, String>(96)
+
     fun parse(
         sbn: StatusBarNotification,
         now: Long = System.currentTimeMillis(),
@@ -16,10 +20,12 @@ class NotificationParser(
     ): CapturedNotification {
         val notification = sbn.notification
         val extras = notification.extras
-        val appLabel = runCatching {
-            val info = context.packageManager.getApplicationInfo(sbn.packageName, 0)
-            context.packageManager.getApplicationLabel(info).toString()
-        }.getOrDefault(sbn.packageName)
+        val appLabel = appLabelCache.get(sbn.packageName) ?: runCatching {
+            val info = packageManager.getApplicationInfo(sbn.packageName, 0)
+            packageManager.getApplicationLabel(info).toString()
+        }.getOrDefault(sbn.packageName).also {
+            appLabelCache.put(sbn.packageName, it)
+        }
 
         val messagingStyle = runCatching {
             NotificationCompat.MessagingStyle

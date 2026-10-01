@@ -1,5 +1,6 @@
 package com.riccardopinato.notificationcontrol.data
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -14,7 +15,7 @@ interface NotificationDao {
     suspend fun upsertNotification(entity: NotificationEntity)
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertMessages(messages: List<MessageEntity>)
+    suspend fun insertMessages(messages: List<MessageEntity>): List<Long>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertRevision(revision: NotificationRevisionEntity)
@@ -22,8 +23,14 @@ interface NotificationDao {
     @Insert
     suspend fun insertFts(entity: NotificationFtsEntity)
 
+    @Insert
+    suspend fun insertMessageFts(entities: List<MessageFtsEntity>)
+
     @Query("DELETE FROM notification_fts WHERE sbnKey = :eventKey")
     suspend fun deleteFts(eventKey: String)
+
+    @Query("DELETE FROM message_fts WHERE notificationKey = :eventKey")
+    suspend fun deleteMessageFts(eventKey: String)
 
     @Query("SELECT * FROM messages WHERE notificationKey = :eventKey ORDER BY timestamp ASC")
     suspend fun messagesFor(eventKey: String): List<MessageEntity>
@@ -51,9 +58,26 @@ interface NotificationDao {
     ) {
         upsertNotification(entity)
         insertRevision(revision)
-        if (messages.isNotEmpty()) insertMessages(messages)
 
-        val historicMessages = messagesFor(entity.sbnKey)
+        if (messages.isNotEmpty()) {
+            val results = insertMessages(messages)
+            val newlyInserted = messages.filterIndexed { index, _ ->
+                results.getOrNull(index)?.let { it != -1L } == true
+            }
+            if (newlyInserted.isNotEmpty()) {
+                insertMessageFts(
+                    newlyInserted.map {
+                        MessageFtsEntity(
+                            messageKey = it.messageKey,
+                            notificationKey = it.notificationKey,
+                            sender = it.sender,
+                            text = it.text
+                        )
+                    }
+                )
+            }
+        }
+
         deleteFts(entity.sbnKey)
         insertFts(
             NotificationFtsEntity(
@@ -63,9 +87,7 @@ interface NotificationDao {
                 text = entity.text,
                 bigText = entity.bigText,
                 conversationTitle = entity.conversationTitle,
-                messagesText = historicMessages.joinToString(" ") {
-                    it.sender.orEmpty() + " " + it.text
-                }
+                messagesText = ""
             )
         )
     }
@@ -88,10 +110,49 @@ interface NotificationDao {
 
     @Query(
         """
+        SELECT * FROM notifications
+        WHERE (:packageName IS NULL OR packageName = :packageName)
+        ORDER BY updatedAt DESC
+        """
+    )
+    fun pagingFilteredByApp(packageName: String?): PagingSource<Int, NotificationEntity>
+
+    @Query(
+        """
         SELECT DISTINCT n.* FROM notifications n
-        INNER JOIN notification_fts f ON f.sbnKey = n.sbnKey
         WHERE (:packageName IS NULL OR n.packageName = :packageName)
-          AND notification_fts MATCH :ftsQuery
+          AND (
+            n.sbnKey IN (
+                SELECT sbnKey FROM notification_fts
+                WHERE notification_fts MATCH :ftsQuery
+            )
+            OR n.sbnKey IN (
+                SELECT notificationKey FROM message_fts
+                WHERE message_fts MATCH :ftsQuery
+            )
+          )
+        ORDER BY n.updatedAt DESC
+        """
+    )
+    fun pagingSearch(
+        ftsQuery: String,
+        packageName: String?
+    ): PagingSource<Int, NotificationEntity>
+
+    @Query(
+        """
+        SELECT DISTINCT n.* FROM notifications n
+        WHERE (:packageName IS NULL OR n.packageName = :packageName)
+          AND (
+            n.sbnKey IN (
+                SELECT sbnKey FROM notification_fts
+                WHERE notification_fts MATCH :ftsQuery
+            )
+            OR n.sbnKey IN (
+                SELECT notificationKey FROM message_fts
+                WHERE message_fts MATCH :ftsQuery
+            )
+          )
         ORDER BY n.updatedAt DESC
         LIMIT :limit
         """
@@ -233,6 +294,9 @@ interface NotificationDao {
     @Query("DELETE FROM notification_fts WHERE sbnKey IN (:keys)")
     suspend fun deleteFtsByKeys(keys: List<String>)
 
+    @Query("DELETE FROM message_fts WHERE notificationKey IN (:keys)")
+    suspend fun deleteMessageFtsByKeys(keys: List<String>)
+
     @Query("DELETE FROM notifications WHERE sbnKey IN (:keys)")
     suspend fun deleteNotificationsByKeys(keys: List<String>)
 
@@ -241,6 +305,7 @@ interface NotificationDao {
         if (keys.isEmpty()) return emptyList()
         val media = thumbnailPathsForKeys(keys)
         deleteFtsByKeys(keys)
+        deleteMessageFtsByKeys(keys)
         deleteNotificationsByKeys(keys)
         return media
     }
@@ -256,6 +321,17 @@ interface NotificationDao {
     )
     suspend fun deleteFtsOlderThan(cutoffMillis: Long)
 
+    @Query(
+        """
+        DELETE FROM message_fts
+        WHERE notificationKey IN (
+            SELECT sbnKey FROM notifications
+            WHERE protected = 0 AND postedAt < :cutoffMillis
+        )
+        """
+    )
+    suspend fun deleteMessageFtsOlderThan(cutoffMillis: Long)
+
     @Query("DELETE FROM notifications WHERE protected = 0 AND postedAt < :cutoffMillis")
     suspend fun deleteOlderThan(cutoffMillis: Long): Int
 
@@ -263,6 +339,7 @@ interface NotificationDao {
     suspend fun deleteExpiredAndReturnMedia(cutoffMillis: Long): List<String> {
         val media = thumbnailPathsOlderThan(cutoffMillis)
         deleteFtsOlderThan(cutoffMillis)
+        deleteMessageFtsOlderThan(cutoffMillis)
         deleteOlderThan(cutoffMillis)
         return media
     }
@@ -270,11 +347,15 @@ interface NotificationDao {
     @Transaction
     suspend fun deleteEverything() {
         deleteAllFts()
+        deleteAllMessageFts()
         deleteAll()
     }
 
     @Query("DELETE FROM notification_fts")
     suspend fun deleteAllFts()
+
+    @Query("DELETE FROM message_fts")
+    suspend fun deleteAllMessageFts()
 
     @Query("DELETE FROM notifications")
     suspend fun deleteAll()
