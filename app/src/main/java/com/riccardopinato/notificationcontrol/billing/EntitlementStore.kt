@@ -2,12 +2,16 @@ package com.riccardopinato.notificationcontrol.billing
 
 import android.content.Context
 import androidx.core.content.edit
+import com.riccardopinato.notificationcontrol.BuildConfig
 
 class EntitlementStore(context: Context) {
     private val prefs =
         context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun effectiveTier(now: Long = System.currentTimeMillis()): EntitlementTier {
+        if (BuildConfig.QA_PREMIUM_UNLOCKED) {
+            return EntitlementTier.PREMIUM_LIFETIME
+        }
         val stored = storedTier()
         if (stored == EntitlementTier.PREMIUM_LIFETIME) return stored
         if (stored == EntitlementTier.PREMIUM_SUBSCRIPTION) {
@@ -20,6 +24,7 @@ class EntitlementStore(context: Context) {
     }
 
     fun updateVerified(tier: EntitlementTier, now: Long = System.currentTimeMillis()) {
+        if (BuildConfig.QA_PREMIUM_UNLOCKED) return
         prefs.edit {
             putString(KEY_TIER, tier.name)
             putLong(KEY_VERIFIED_AT, now)
