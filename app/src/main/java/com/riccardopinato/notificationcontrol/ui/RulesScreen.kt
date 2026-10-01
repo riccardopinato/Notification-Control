@@ -121,6 +121,9 @@ fun RulesScreen(
     var pausePingGlobalSeconds by remember(state.pausePingCooldownSeconds) {
         mutableStateOf(state.pausePingCooldownSeconds.toFloat())
     }
+    val appLabels = remember(apps) {
+        apps.associate { it.packageName to it.label }
+    }
 
     if (showLuminous) {
         Column(
@@ -359,9 +362,7 @@ fun RulesScreen(
                         }
 
                         state.pausePingPerAppCooldowns.forEach { (packageName, seconds) ->
-                            val label = apps.firstOrNull {
-                                it.packageName == packageName
-                            }?.label ?: packageName
+                            val label = appLabels[packageName] ?: packageName
                             Row(
                                 Modifier.fillMaxWidth().padding(top = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
