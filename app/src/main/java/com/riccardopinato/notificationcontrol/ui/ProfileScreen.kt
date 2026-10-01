@@ -593,6 +593,15 @@ private fun DeviceBehaviorCard(
     var extraStart by remember { mutableStateOf(12 * 60f) }
     var extraEnd by remember { mutableStateOf(13 * 60f) }
     var exceptionApp by remember { mutableStateOf<InstalledApp?>(null) }
+    var batteryThresholdDraft by remember(state.batteryGuardThreshold) {
+        mutableStateOf(state.batteryGuardThreshold.toFloat())
+    }
+    var quietStartDraft by remember(state.quietStartMinutes) {
+        mutableStateOf(state.quietStartMinutes.coerceIn(0, 1410).toFloat())
+    }
+    var quietEndDraft by remember(state.quietEndMinutes) {
+        mutableStateOf(state.quietEndMinutes.coerceIn(0, 1410).toFloat())
+    }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -604,13 +613,16 @@ private fun DeviceBehaviorCard(
             Text(
                 stringResource(
                     R.string.battery_threshold_value,
-                    state.batteryGuardThreshold
+                    batteryThresholdDraft.toInt()
                 ),
                 modifier = Modifier.padding(top = 8.dp)
             )
             Slider(
-                value = state.batteryGuardThreshold.toFloat(),
-                onValueChange = { onBatteryThresholdChanged(it.toInt()) },
+                value = batteryThresholdDraft,
+                onValueChange = { batteryThresholdDraft = it },
+                onValueChangeFinished = {
+                    onBatteryThresholdChanged(batteryThresholdDraft.toInt())
+                },
                 valueRange = 5f..50f,
                 enabled = state.isPremium && state.batteryGuardEnabled
             )
@@ -625,14 +637,19 @@ private fun DeviceBehaviorCard(
                 Text(
                     stringResource(
                         R.string.quiet_start_value,
-                        formatMinutesOfDay(state.quietStartMinutes)
+                        formatMinutesOfDay(quietStartDraft.toInt())
                     ),
                     modifier = Modifier.padding(top = 8.dp)
                 )
                 Slider(
-                    value = state.quietStartMinutes.coerceIn(0, 1410).toFloat(),
+                    value = quietStartDraft,
                     onValueChange = {
-                        onQuietStartChanged(((it.toInt() / 30) * 30).coerceIn(0, 1410))
+                        quietStartDraft = ((it.toInt() / 30) * 30)
+                            .coerceIn(0, 1410)
+                            .toFloat()
+                    },
+                    onValueChangeFinished = {
+                        onQuietStartChanged(quietStartDraft.toInt())
                     },
                     valueRange = 0f..1410f,
                     steps = 46
@@ -640,13 +657,18 @@ private fun DeviceBehaviorCard(
                 Text(
                     stringResource(
                         R.string.quiet_end_value,
-                        formatMinutesOfDay(state.quietEndMinutes)
+                        formatMinutesOfDay(quietEndDraft.toInt())
                     )
                 )
                 Slider(
-                    value = state.quietEndMinutes.coerceIn(0, 1410).toFloat(),
+                    value = quietEndDraft,
                     onValueChange = {
-                        onQuietEndChanged(((it.toInt() / 30) * 30).coerceIn(0, 1410))
+                        quietEndDraft = ((it.toInt() / 30) * 30)
+                            .coerceIn(0, 1410)
+                            .toFloat()
+                    },
+                    onValueChangeFinished = {
+                        onQuietEndChanged(quietEndDraft.toInt())
                     },
                     valueRange = 0f..1410f,
                     steps = 46
