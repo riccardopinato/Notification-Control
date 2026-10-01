@@ -1,0 +1,12 @@
+<resources>
+    <string name="follow_up_customize">Personalizar</string>
+    <string name="follow_up_schedule_title">Agendamento Follow Up</string>
+    <string name="choose_date">Data</string>
+    <string name="choose_time">Hora</string>
+    <string name="follow_up_repeat_title">Repetir até ser tratado</string>
+    <string name="follow_up_repeat_off">Desativado</string>
+    <string name="follow_up_repeat_hour">1 h</string>
+    <string name="follow_up_repeat_day">1 d</string>
+    <string name="follow_up_repeat_every">Repete a cada %1$s até o marcar como concluído.</string>
+    <string name="follow_up_future_required">Escolha uma data e hora futuras.</string>
+</resources>

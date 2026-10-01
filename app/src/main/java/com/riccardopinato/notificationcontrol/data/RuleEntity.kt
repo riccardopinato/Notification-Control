@@ -16,6 +16,9 @@ data class RuleEntity(
     val senderQuery: String? = null,
     val textQuery: String? = null,
     val matchMode: String = "ALL",
+    val timeStartMinutes: Int? = null,
+    val timeEndMinutes: Int? = null,
+    val screenState: String = "ANY",
     val priority: Int = 0,
     val createdAt: Long = System.currentTimeMillis()
 )

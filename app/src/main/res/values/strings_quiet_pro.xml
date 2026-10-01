@@ -1,0 +1,8 @@
+<resources>
+    <string name="quiet_additional_title">Additional Quiet Hours</string>
+    <string name="quiet_band_value">%1$s–%2$s</string>
+    <string name="quiet_add_band">Add time band</string>
+    <string name="quiet_exceptions_title">App exceptions</string>
+    <string name="quiet_exceptions_body">These Premium apps may still use visual alerts during Quiet Hours.</string>
+    <string name="quiet_add_exception">Add exception</string>
+</resources>

@@ -1,0 +1,26 @@
+<resources>
+    <string name="sensitive_content_locked">Sensitive content locked</string>
+    <string name="sensitive_content_locked_body">Unlock the Vault to reveal pickup codes and other private content.</string>
+    <string name="sensitive_screen_protection">Protect screenshots and Recents</string>
+    <string name="sensitive_screen_protection_body">Blocks screenshots and app-preview capture while Notification Control is open.</string>
+    <string name="reset_local_data">Reset local app data</string>
+    <string name="reset_local_data_confirm">Deletes the local Vault, rules, Follow Ups, Critical patterns, Luminous profiles and settings. Google/Play accounts and purchases are not deleted.</string>
+    <string name="reset">Reset</string>
+    <string name="retention_title">Vault retention</string>
+    <string name="retention_always">Always</string>
+    <string name="days_short">%1$d d</string>
+    <string name="retention_free_fixed">Free keeps up to %1$d days.</string>
+    <string name="behavior_controls_title">Battery &amp; quiet controls</string>
+    <string name="battery_threshold_value">Battery Guard threshold: %1$d%%</string>
+    <string name="battery_threshold_premium">Premium unlocks a configurable Battery Guard threshold.</string>
+    <string name="quiet_start_value">Quiet Hours start: %1$s</string>
+    <string name="quiet_end_value">Quiet Hours end: %1$s</string>
+    <string name="critical_bypass_quiet">Critical alerts can bypass Quiet Hours</string>
+    <string name="critical_bypass_quiet_body">Keeps genuinely critical visual alerts available while normal alerts stay quiet.</string>
+    <string name="follow_up_notification_permission">Follow Up reminders</string>
+    <string name="status_not_needed">Not needed</string>
+    <string name="grant_camera_for_flash">Grant camera access for flash</string>
+    <string name="grant_overlay_for_luminous">Grant overlay access for Luminous</string>
+    <string name="selected_visual_permissions_required">Grant the permission required by each selected visual alert before continuing.</string>
+    <string name="search_apps">Search apps</string>
+</resources>

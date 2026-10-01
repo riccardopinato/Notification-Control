@@ -1,0 +1,4 @@
+<resources>
+    <string name="google_no_credential">No hay ninguna credencial de Google disponible en este dispositivo.</string>
+    <string name="google_sign_in_failed">No se pudo completar el acceso con Google.</string>
+</resources>

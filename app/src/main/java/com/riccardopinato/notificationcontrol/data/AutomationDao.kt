@@ -21,6 +21,9 @@ interface AutomationDao {
     @Query("SELECT COUNT(*) FROM rules")
     suspend fun ruleCount(): Int
 
+    @Query("SELECT * FROM rules WHERE id = :id LIMIT 1")
+    suspend fun ruleById(id: Long): RuleEntity?
+
     @Insert
     suspend fun insertRule(rule: RuleEntity): Long
 
@@ -38,6 +41,32 @@ interface AutomationDao {
             )
         }
         return id
+    }
+
+    @Update
+    suspend fun updateRule(rule: RuleEntity)
+
+    @Query("DELETE FROM rule_actions WHERE ruleId = :ruleId")
+    suspend fun deleteRuleActions(ruleId: Long)
+
+    @Transaction
+    suspend fun replaceRule(
+        rule: RuleEntity,
+        actionTypes: List<Pair<String, String?>>
+    ) {
+        updateRule(rule)
+        deleteRuleActions(rule.id)
+        if (actionTypes.isNotEmpty()) {
+            insertRuleActions(
+                actionTypes.map { (type, value) ->
+                    RuleActionEntity(
+                        ruleId = rule.id,
+                        actionType = type,
+                        actionValue = value
+                    )
+                }
+            )
+        }
     }
 
     @Query("UPDATE rules SET enabled = :enabled WHERE id = :id")
@@ -61,6 +90,32 @@ interface AutomationDao {
     @Query("DELETE FROM critical_patterns WHERE id = :id")
     suspend fun deleteCriticalPattern(id: Long)
 
+    @Query("SELECT * FROM critical_alerts WHERE status = 'ACTIVE' ORDER BY createdAt DESC")
+    fun observeActiveCriticalAlerts(): Flow<List<CriticalAlertEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertCriticalAlert(entity: CriticalAlertEntity): Long
+
+    @Query("SELECT * FROM critical_alerts WHERE id = :id LIMIT 1")
+    suspend fun criticalAlertById(id: Long): CriticalAlertEntity?
+
+    @Query(
+        "UPDATE critical_alerts SET status = 'HANDLED', updatedAt = :now " +
+            "WHERE id = :id"
+    )
+    suspend fun handleCriticalAlert(id: Long, now: Long)
+
+    @Query(
+        "UPDATE critical_alerts SET escalationStep = :step, nextAt = :nextAt, " +
+            "updatedAt = :now WHERE id = :id AND status = 'ACTIVE'"
+    )
+    suspend fun advanceCriticalAlert(
+        id: Long,
+        step: Int,
+        nextAt: Long,
+        now: Long
+    )
+
     @Query("SELECT * FROM follow_ups WHERE status = 'ACTIVE' ORDER BY dueAt ASC")
     fun observeActiveFollowUps(): Flow<List<FollowUpEntity>>
 
@@ -81,6 +136,17 @@ interface AutomationDao {
 
     @Query("UPDATE follow_ups SET dueAt = :dueAt, updatedAt = :now WHERE id = :id AND status = 'ACTIVE'")
     suspend fun snoozeFollowUp(id: Long, dueAt: Long, now: Long)
+
+    @Query(
+        "UPDATE follow_ups SET dueAt = :dueAt, repeatMinutes = :repeatMinutes, " +
+            "updatedAt = :now WHERE id = :id AND status = 'ACTIVE'"
+    )
+    suspend fun updateFollowUpSchedule(
+        id: Long,
+        dueAt: Long,
+        repeatMinutes: Int?,
+        now: Long
+    )
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPickupCode(entity: PickupCodeEntity): Long

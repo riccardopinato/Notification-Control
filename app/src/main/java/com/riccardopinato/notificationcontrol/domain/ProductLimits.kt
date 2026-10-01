@@ -11,4 +11,11 @@ object ProductLimits {
     const val FREE_CRITICAL_APPS = 1
 
     val PREMIUM_RETENTION_OPTIONS_DAYS = listOf(1, 3, 7, 30, Int.MAX_VALUE)
+    val PREMIUM_VAULT_MAX_BYTES_OPTIONS = listOf(
+        25L * 1024L * 1024L,
+        50L * 1024L * 1024L,
+        100L * 1024L * 1024L,
+        250L * 1024L * 1024L,
+        Long.MAX_VALUE
+    )
 }

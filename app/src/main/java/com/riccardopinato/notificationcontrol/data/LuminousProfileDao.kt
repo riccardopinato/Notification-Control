@@ -14,6 +14,9 @@ interface LuminousProfileDao {
     @Query("SELECT * FROM luminous_profiles WHERE enabled = 1 ORDER BY priority DESC, createdAt DESC")
     suspend fun enabledProfiles(): List<LuminousProfileEntity>
 
+    @Query("SELECT COUNT(*) FROM luminous_profiles WHERE enabled = 1")
+    suspend fun enabledProfileCount(): Int
+
     @Query("SELECT * FROM luminous_profiles ORDER BY id ASC")
     suspend fun allProfiles(): List<LuminousProfileEntity>
 

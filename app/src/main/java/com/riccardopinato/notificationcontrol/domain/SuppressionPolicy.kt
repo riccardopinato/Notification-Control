@@ -15,17 +15,37 @@ class SuppressionPolicy(
     private val settings: AppSettings,
     private val postureMonitor: DevicePostureMonitor
 ) {
-    fun evaluate(critical: Boolean = false): SuppressionDecision {
+    fun evaluate(
+        critical: Boolean = false,
+        packageName: String? = null
+    ): SuppressionDecision {
         if (postureMonitor.isCoveredOrFaceDown()) {
             return SuppressionDecision(true, "covered_or_face_down")
         }
 
-        val quiet = QuietHoursPolicy.isActive(
+        val nowMinutes = QuietHoursPolicy.nowMinutes()
+        val primaryQuiet = QuietHoursPolicy.isActive(
             settings.quietHoursEnabled,
             settings.quietStartMinutes,
             settings.quietEndMinutes,
-            QuietHoursPolicy.nowMinutes()
+            nowMinutes
         )
+        val additionalQuiet =
+            settings.quietHoursEnabled &&
+                settings.isPremium &&
+                settings.additionalQuietHours.any { band ->
+                    QuietHoursPolicy.isActive(
+                        enabled = true,
+                        startMinutes = band.startMinutes,
+                        endMinutes = band.endMinutes,
+                        nowMinutes = nowMinutes
+                    )
+                }
+        val quietException =
+            settings.isPremium &&
+                packageName != null &&
+                packageName in settings.quietHoursExceptionPackages
+        val quiet = (primaryQuiet || additionalQuiet) && !quietException
         val mayBypassQuiet =
             critical && settings.isPremium && settings.criticalBypassQuietHours
         if (quiet && !mayBypassQuiet) {

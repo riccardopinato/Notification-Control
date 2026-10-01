@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.capture.ListenerHealthStore
+import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
 import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
 import com.riccardopinato.notificationcontrol.data.VaultAppFilter
@@ -58,8 +59,12 @@ fun HomeScreen(
     contentPadding: PaddingValues,
     settings: SettingsUiState,
     count: Int,
+    criticalAlerts: List<CriticalAlertEntity>,
     pickupCodes: List<PickupCodeEntity>,
+    sensitiveLocked: Boolean,
     requestNotificationAccess: () -> Unit,
+    onUnlockSensitive: () -> Unit,
+    onHandleCritical: (Long) -> Unit,
     onDismissPickup: (Long) -> Unit,
     onConfigureApps: () -> Unit
 ) {
@@ -100,11 +105,24 @@ fun HomeScreen(
                 }
             }
         }
+        criticalAlerts.firstOrNull()?.let { alert ->
+            item {
+                CriticalAlertCard(
+                    alert = alert,
+                    sensitiveLocked = sensitiveLocked,
+                    onHandle = { onHandleCritical(alert.id) }
+                )
+            }
+        }
+
         activeCode?.let { code ->
             item {
-                PickupCodeCard(
-                    code = code,
-                    onCopy = {
+                if (sensitiveLocked) {
+                    SensitiveContentLockedCard(onUnlockSensitive)
+                } else {
+                    PickupCodeCard(
+                        code = code,
+                        onCopy = {
                         val clipboard =
                             context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(
@@ -113,9 +131,10 @@ fun HomeScreen(
                                 code.code
                             )
                         )
-                    },
-                    onDismiss = { onDismissPickup(code.id) }
-                )
+                        },
+                        onDismiss = { onDismissPickup(code.id) }
+                    )
+                }
             }
         }
         item {
@@ -149,6 +168,60 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.configure_apps))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CriticalAlertCard(
+    alert: CriticalAlertEntity,
+    sensitiveLocked: Boolean,
+    onHandle: () -> Unit
+) {
+    Card(
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer
+        )
+    ) {
+        Column(Modifier.padding(18.dp)) {
+            Text(
+                stringResource(R.string.critical_pending_title),
+                fontWeight = FontWeight.Bold
+            )
+            if (!sensitiveLocked) {
+                Text(alert.sourceLabel, fontWeight = FontWeight.SemiBold)
+                alert.title?.takeIf { it.isNotBlank() }?.let { Text(it) }
+            } else {
+                Text(stringResource(R.string.critical_pending_locked))
+            }
+            Text(
+                stringResource(
+                    R.string.critical_next_escalation,
+                    DateFormat.getTimeInstance(DateFormat.SHORT)
+                        .format(Date(alert.nextAt))
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
+            TextButton(onClick = onHandle) {
+                Text(stringResource(R.string.mark_handled))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SensitiveContentLockedCard(onUnlock: () -> Unit) {
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(18.dp)) {
+            Text(
+                stringResource(R.string.sensitive_content_locked),
+                fontWeight = FontWeight.Bold
+            )
+            Text(stringResource(R.string.sensitive_content_locked_body))
+            TextButton(onClick = onUnlock) {
+                Text(stringResource(R.string.unlock_vault))
             }
         }
     }
@@ -235,7 +308,8 @@ fun VaultScreen(
     onPackageFilterChange: (String?) -> Unit,
     onLoadMore: () -> Unit,
     onProtect: (String, Boolean) -> Unit,
-    onFollowUp: (NotificationEntity) -> Unit
+    onFollowUp: (NotificationEntity) -> Unit,
+    onOpenDetail: (NotificationEntity) -> Unit
 ) {
     LazyColumn(
         modifier.fillMaxSize().padding(contentPadding).padding(16.dp),
@@ -308,7 +382,7 @@ fun VaultScreen(
         }
 
         items(notifications, key = { it.sbnKey }) { n ->
-            NotificationVaultCard(n, onProtect, onFollowUp)
+            NotificationVaultCard(n, onProtect, onFollowUp, onOpenDetail)
         }
 
         if (notifications.size >= currentLimit) {
@@ -328,7 +402,8 @@ fun VaultScreen(
 private fun NotificationVaultCard(
     notification: NotificationEntity,
     onProtect: (String, Boolean) -> Unit,
-    onFollowUp: (NotificationEntity) -> Unit
+    onFollowUp: (NotificationEntity) -> Unit,
+    onOpenDetail: (NotificationEntity) -> Unit
 ) {
     Card(Modifier.fillMaxWidth()) {
         Row(
@@ -378,6 +453,9 @@ private fun NotificationVaultCard(
                     }
                     TextButton(onClick = { onFollowUp(notification) }) {
                         Text(stringResource(R.string.follow_up))
+                    }
+                    TextButton(onClick = { onOpenDetail(notification) }) {
+                        Text(stringResource(R.string.vault_details))
                     }
                 }
             }

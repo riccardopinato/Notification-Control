@@ -4,8 +4,11 @@ import android.content.Context
 import android.net.Uri
 import android.util.Base64
 import androidx.room.withTransaction
+import com.riccardopinato.notificationcontrol.automation.CriticalAlertScheduler
+import com.riccardopinato.notificationcontrol.automation.FollowUpScheduler
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
+import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
 import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.MessageEntity
@@ -43,6 +46,7 @@ class BackupRepository(context: Context) {
         val rules = backupDao.allRules()
         val actions = backupDao.allRuleActions()
         val critical = backupDao.allCriticalPatterns()
+        val criticalAlerts = backupDao.allCriticalAlerts()
         val followUps = backupDao.allFollowUps()
         val pickupCodes = backupDao.allPickupCodes()
         val luminousProfiles = database.luminousProfileDao().allProfiles()
@@ -67,6 +71,9 @@ class BackupRepository(context: Context) {
             })
             .put("criticalPatterns", JSONArray().apply {
                 critical.forEach { put(criticalJson(it)) }
+            })
+            .put("criticalAlerts", JSONArray().apply {
+                criticalAlerts.forEach { put(criticalAlertJson(it)) }
             })
             .put("followUps", JSONArray().apply {
                 followUps.forEach { put(followUpJson(it)) }
@@ -121,6 +128,9 @@ class BackupRepository(context: Context) {
         val rules = parseRules(root.getJSONArray("rules"))
         val actions = parseRuleActions(root.getJSONArray("ruleActions"))
         val critical = parseCritical(root.getJSONArray("criticalPatterns"))
+        val criticalAlerts = parseCriticalAlerts(
+            root.optJSONArray("criticalAlerts") ?: JSONArray()
+        )
         val followUps = parseFollowUps(root.getJSONArray("followUps"))
         val pickupCodes = parsePickupCodes(root.getJSONArray("pickupCodes"))
         val luminousProfiles = parseLuminousProfiles(
@@ -144,6 +154,7 @@ class BackupRepository(context: Context) {
                 database.luminousProfileDao().deleteAll()
                 backupDao.deletePickupCodes()
                 backupDao.deleteFollowUps()
+                backupDao.deleteCriticalAlerts()
                 backupDao.deleteCriticalPatterns()
                 backupDao.deleteRuleActions()
                 backupDao.deleteRules()
@@ -160,6 +171,9 @@ class BackupRepository(context: Context) {
                 if (rules.isNotEmpty()) backupDao.insertRules(rules)
                 if (actions.isNotEmpty()) backupDao.insertRuleActions(actions)
                 if (critical.isNotEmpty()) backupDao.insertCriticalPatterns(critical)
+                if (criticalAlerts.isNotEmpty()) {
+                    backupDao.insertCriticalAlerts(criticalAlerts)
+                }
                 if (followUps.isNotEmpty()) backupDao.insertFollowUps(followUps)
                 if (pickupCodes.isNotEmpty()) backupDao.insertPickupCodes(pickupCodes)
                 if (luminousProfiles.isNotEmpty()) {
@@ -192,6 +206,15 @@ class BackupRepository(context: Context) {
         mediaStore.cleanupOrphans(restoredMedia)
         settingsObject?.let(::restoreSettings)
 
+        FollowUpScheduler.cancelAll(appContext)
+        followUps.filter { it.status == "ACTIVE" }.forEach {
+            FollowUpScheduler.schedule(appContext, it.id, it.dueAt)
+        }
+        CriticalAlertScheduler.cancelAll(appContext)
+        criticalAlerts.filter { it.status == "ACTIVE" }.forEach {
+            CriticalAlertScheduler.schedule(appContext, it.id, it.nextAt)
+        }
+
         BackupSummary(
             notifications = notificationsWithMedia.size,
             rules = rules.size,
@@ -205,6 +228,7 @@ class BackupRepository(context: Context) {
             add(
                 NotificationEntity(
                     sbnKey = o.getString("sbnKey"),
+                    platformKey = o.optString("platformKey", o.getString("sbnKey")),
                     packageName = o.getString("packageName"),
                     appLabel = o.getString("appLabel"),
                     notificationId = o.getInt("notificationId"),
@@ -278,6 +302,9 @@ class BackupRepository(context: Context) {
                     senderQuery = o.stringOrNull("senderQuery"),
                     textQuery = o.stringOrNull("textQuery"),
                     matchMode = o.getString("matchMode"),
+                    timeStartMinutes = o.intOrNull("timeStartMinutes"),
+                    timeEndMinutes = o.intOrNull("timeEndMinutes"),
+                    screenState = o.optString("screenState", "ANY"),
                     priority = o.getInt("priority"),
                     createdAt = o.getLong("createdAt")
                 )
@@ -309,6 +336,28 @@ class BackupRepository(context: Context) {
                     value = o.getString("value"),
                     enabled = o.getBoolean("enabled"),
                     createdAt = o.getLong("createdAt")
+                )
+            )
+        }
+    }
+
+    private fun parseCriticalAlerts(
+        array: JSONArray
+    ): List<CriticalAlertEntity> = buildList {
+        for (i in 0 until array.length()) {
+            val o = array.getJSONObject(i)
+            add(
+                CriticalAlertEntity(
+                    id = o.getLong("id"),
+                    eventKey = o.getString("eventKey"),
+                    sourcePackage = o.getString("sourcePackage"),
+                    sourceLabel = o.getString("sourceLabel"),
+                    title = o.stringOrNull("title"),
+                    createdAt = o.getLong("createdAt"),
+                    updatedAt = o.getLong("updatedAt"),
+                    status = o.getString("status"),
+                    escalationStep = o.getInt("escalationStep"),
+                    nextAt = o.getLong("nextAt")
                 )
             )
         }
@@ -428,6 +477,7 @@ class BackupRepository(context: Context) {
 
     private fun notificationJson(n: NotificationEntity) = JSONObject(mapOf(
         "sbnKey" to n.sbnKey,
+        "platformKey" to n.platformKey,
         "packageName" to n.packageName,
         "appLabel" to n.appLabel,
         "notificationId" to n.notificationId,
@@ -479,6 +529,9 @@ class BackupRepository(context: Context) {
         "senderQuery" to r.senderQuery,
         "textQuery" to r.textQuery,
         "matchMode" to r.matchMode,
+        "timeStartMinutes" to r.timeStartMinutes,
+        "timeEndMinutes" to r.timeEndMinutes,
+        "screenState" to r.screenState,
         "priority" to r.priority,
         "createdAt" to r.createdAt
     ))
@@ -496,6 +549,19 @@ class BackupRepository(context: Context) {
         "value" to c.value,
         "enabled" to c.enabled,
         "createdAt" to c.createdAt
+    ))
+
+    private fun criticalAlertJson(c: CriticalAlertEntity) = JSONObject(mapOf(
+        "id" to c.id,
+        "eventKey" to c.eventKey,
+        "sourcePackage" to c.sourcePackage,
+        "sourceLabel" to c.sourceLabel,
+        "title" to c.title,
+        "createdAt" to c.createdAt,
+        "updatedAt" to c.updatedAt,
+        "status" to c.status,
+        "escalationStep" to c.escalationStep,
+        "nextAt" to c.nextAt
     ))
 
     private fun followUpJson(f: FollowUpEntity) = JSONObject(mapOf(
@@ -546,6 +612,15 @@ class BackupRepository(context: Context) {
     private fun settingsJson() = JSONObject()
         .put("monitoredPackages", JSONArray(settings.monitoredPackages.toList()))
         .put("retentionDays", settings.retentionDays)
+        .put(
+            "retentionDaysPerApp",
+            JSONObject().apply {
+                settings.retentionDaysPerApp.forEach { (packageName, days) ->
+                    put(packageName, days)
+                }
+            }
+        )
+        .put("vaultMaxBytes", settings.vaultMaxBytes)
         .put("flashEnabled", settings.flashEnabled)
         .put("overlayEnabled", settings.overlayEnabled)
         .put("batteryGuardEnabled", settings.batteryGuardEnabled)
@@ -553,6 +628,22 @@ class BackupRepository(context: Context) {
         .put("quietHoursEnabled", settings.quietHoursEnabled)
         .put("quietStartMinutes", settings.quietStartMinutes)
         .put("quietEndMinutes", settings.quietEndMinutes)
+        .put(
+            "additionalQuietHours",
+            JSONArray().apply {
+                settings.additionalQuietHours.forEach { band ->
+                    put(
+                        JSONObject()
+                            .put("startMinutes", band.startMinutes)
+                            .put("endMinutes", band.endMinutes)
+                    )
+                }
+            }
+        )
+        .put(
+            "quietHoursExceptionPackages",
+            JSONArray(settings.quietHoursExceptionPackages.toList())
+        )
         .put("screenOffOnly", settings.screenOffOnly)
         .put("strobeSpeedMs", settings.strobeSpeedMs)
         .put("strobeCycles", settings.strobeCycles)
@@ -560,8 +651,17 @@ class BackupRepository(context: Context) {
         .put("circleThickness", settings.circleThickness.toDouble())
         .put("circleGlow", settings.circleGlow.toDouble())
         .put("pulseSpeedMs", settings.pulseSpeedMs)
+        .put("sensitiveProtectionEnabled", settings.sensitiveProtectionEnabled)
         .put("pausePingEnabled", settings.pausePingEnabled)
         .put("pausePingCooldownSeconds", settings.pausePingCooldownSeconds)
+        .put(
+            "pausePingPerAppCooldowns",
+            JSONObject().apply {
+                settings.pausePingPerAppCooldowns.forEach { (packageName, seconds) ->
+                    put(packageName, seconds)
+                }
+            }
+        )
         .put("criticalBypassQuietHours", settings.criticalBypassQuietHours)
 
     private fun restoreSettings(o: JSONObject) {
@@ -582,6 +682,26 @@ class BackupRepository(context: Context) {
         } else {
             ProductLimits.FREE_RETENTION_DAYS
         }
+        if (settings.isPremium) {
+            val perAppRetention = o.optJSONObject("retentionDaysPerApp")
+            if (perAppRetention != null) {
+                settings.retentionDaysPerApp = buildMap {
+                    val keys = perAppRetention.keys()
+                    while (keys.hasNext()) {
+                        val packageName = keys.next()
+                        put(
+                            packageName,
+                            perAppRetention.optInt(
+                                packageName,
+                                settings.retentionDays
+                            )
+                        )
+                    }
+                }
+            }
+            settings.vaultMaxBytes =
+                o.optLong("vaultMaxBytes", settings.vaultMaxBytes)
+        }
         settings.flashEnabled = o.optBoolean("flashEnabled", settings.flashEnabled)
         settings.overlayEnabled = o.optBoolean("overlayEnabled", settings.overlayEnabled)
         settings.batteryGuardEnabled =
@@ -594,6 +714,31 @@ class BackupRepository(context: Context) {
             o.optInt("quietStartMinutes", settings.quietStartMinutes)
         settings.quietEndMinutes =
             o.optInt("quietEndMinutes", settings.quietEndMinutes)
+        if (settings.isPremium) {
+            val bands = o.optJSONArray("additionalQuietHours")
+            if (bands != null) {
+                settings.additionalQuietHours = buildList {
+                    for (i in 0 until bands.length()) {
+                        val band = bands.optJSONObject(i) ?: continue
+                        add(
+                            com.riccardopinato.notificationcontrol.data.QuietHoursBand(
+                                startMinutes = band.optInt("startMinutes", 0),
+                                endMinutes = band.optInt("endMinutes", 0)
+                            )
+                        )
+                    }
+                }
+            }
+            val exceptions = o.optJSONArray("quietHoursExceptionPackages")
+            if (exceptions != null) {
+                settings.quietHoursExceptionPackages = buildSet {
+                    for (i in 0 until exceptions.length()) {
+                        val packageName = exceptions.optString(i)
+                        if (packageName.isNotBlank()) add(packageName)
+                    }
+                }
+            }
+        }
         settings.screenOffOnly = o.optBoolean("screenOffOnly", settings.screenOffOnly)
         settings.strobeSpeedMs = o.optLong("strobeSpeedMs", settings.strobeSpeedMs)
         settings.strobeCycles = o.optInt("strobeCycles", settings.strobeCycles)
@@ -603,10 +748,28 @@ class BackupRepository(context: Context) {
         settings.circleGlow =
             o.optDouble("circleGlow", settings.circleGlow.toDouble()).toFloat()
         settings.pulseSpeedMs = o.optLong("pulseSpeedMs", settings.pulseSpeedMs)
+        settings.sensitiveProtectionEnabled =
+            o.optBoolean(
+                "sensitiveProtectionEnabled",
+                settings.sensitiveProtectionEnabled
+            )
         settings.pausePingEnabled =
             o.optBoolean("pausePingEnabled", settings.pausePingEnabled)
         settings.pausePingCooldownSeconds =
             o.optInt("pausePingCooldownSeconds", settings.pausePingCooldownSeconds)
+        if (settings.isPremium) {
+            val perApp = o.optJSONObject("pausePingPerAppCooldowns")
+            if (perApp != null) {
+                val restored = buildMap<String, Int> {
+                    val keys = perApp.keys()
+                    while (keys.hasNext()) {
+                        val packageName = keys.next()
+                        put(packageName, perApp.optInt(packageName, 0))
+                    }
+                }
+                settings.pausePingPerAppCooldowns = restored
+            }
+        }
         settings.criticalBypassQuietHours =
             o.optBoolean("criticalBypassQuietHours", settings.criticalBypassQuietHours)
     }

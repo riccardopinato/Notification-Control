@@ -16,11 +16,12 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RuleEntity::class,
         RuleActionEntity::class,
         CriticalPatternEntity::class,
+        CriticalAlertEntity::class,
         FollowUpEntity::class,
         PickupCodeEntity::class,
         LuminousProfileEntity::class
     ],
-    version = 5,
+    version = 8,
     exportSchema = true
 )
 abstract class NotificationDatabase : RoomDatabase() {
@@ -224,13 +225,82 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE notifications " +
+                        "ADD COLUMN platformKey TEXT NOT NULL DEFAULT ''"
+                )
+                db.execSQL("UPDATE notifications SET platformKey = sbnKey")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_notifications_platformKey " +
+                        "ON notifications(platformKey)"
+                )
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS critical_alerts (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        eventKey TEXT NOT NULL,
+                        sourcePackage TEXT NOT NULL,
+                        sourceLabel TEXT NOT NULL,
+                        title TEXT,
+                        createdAt INTEGER NOT NULL,
+                        updatedAt INTEGER NOT NULL,
+                        status TEXT NOT NULL,
+                        escalationStep INTEGER NOT NULL,
+                        nextAt INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS " +
+                        "index_critical_alerts_eventKey ON critical_alerts(eventKey)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "index_critical_alerts_status ON critical_alerts(status)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS " +
+                        "index_critical_alerts_nextAt ON critical_alerts(nextAt)"
+                )
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE rules ADD COLUMN timeStartMinutes INTEGER"
+                )
+                db.execSQL(
+                    "ALTER TABLE rules ADD COLUMN timeEndMinutes INTEGER"
+                )
+                db.execSQL(
+                    "ALTER TABLE rules ADD COLUMN screenState TEXT NOT NULL DEFAULT 'ANY'"
+                )
+            }
+        }
+
         fun get(context: Context): NotificationDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 NotificationDatabase::class.java,
                 "notification_control.db"
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                    MIGRATION_7_8
+                )
                 .build()
                 .also { instance = it }
         }

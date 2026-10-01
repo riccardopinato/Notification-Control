@@ -38,6 +38,7 @@ fun NotificationControlApp(
     requestNotificationAccess: () -> Unit,
     requestPostNotifications: () -> Unit,
     requestVaultUnlock: () -> Unit,
+    setSecureWindow: (Boolean) -> Unit,
     purchasePremiumOffer: (String) -> Unit
 ) {
     val settings by viewModel.settingsState.collectAsStateWithLifecycle()
@@ -51,13 +52,19 @@ fun NotificationControlApp(
     val appFilters by viewModel.vaultAppFilters.collectAsStateWithLifecycle()
     val storageStats by viewModel.storageStats.collectAsStateWithLifecycle()
     val rules by viewModel.rules.collectAsStateWithLifecycle()
+    val criticalAlerts by viewModel.criticalAlerts.collectAsStateWithLifecycle()
     val criticalPatterns by viewModel.criticalPatterns.collectAsStateWithLifecycle()
     val followUps by viewModel.followUps.collectAsStateWithLifecycle()
     val pickupCodes by viewModel.pickupCodes.collectAsStateWithLifecycle()
     val luminousProfiles by viewModel.luminousProfiles.collectAsStateWithLifecycle()
+    val vaultDetail by viewModel.vaultDetail.collectAsStateWithLifecycle()
 
     permissionEpoch.hashCode()
     vaultUnlockEpoch.hashCode()
+
+    LaunchedEffect(settings.sensitiveProtectionEnabled) {
+        setSecureWindow(settings.sensitiveProtectionEnabled)
+    }
 
     if (!settings.onboardingCompleted) {
         OnboardingScreen(
@@ -78,6 +85,7 @@ fun NotificationControlApp(
 
     val context = LocalContext.current
     val security = remember { VaultSecurityManager(context) }
+    val sensitiveLocked = security.isLocked()
     val snackbar = remember { SnackbarHostState() }
     val protectedLimitMessage = stringResource(R.string.protected_limit_reached)
     val ruleLimitMessage = stringResource(R.string.rule_limit_reached)
@@ -146,8 +154,12 @@ fun NotificationControlApp(
                 contentPadding = padding,
                 settings = settings,
                 count = count,
+                criticalAlerts = criticalAlerts,
                 pickupCodes = pickupCodes,
+                sensitiveLocked = sensitiveLocked,
                 requestNotificationAccess = requestNotificationAccess,
+                onUnlockSensitive = requestVaultUnlock,
+                onHandleCritical = viewModel::handleCriticalAlert,
                 onDismissPickup = viewModel::dismissPickupCode
             ) { showPicker = true }
 
@@ -175,19 +187,32 @@ fun NotificationControlApp(
                         onFollowUp = {
                             requestPostNotifications()
                             viewModel.createFollowUp(it, 60)
-                        }
+                        },
+                        onOpenDetail = viewModel::openVaultDetail
                     )
                 }
             }
 
-            MainTab.FOLLOW_UP -> FollowUpScreen(
-                modifier = Modifier,
-                contentPadding = padding,
-                followUps = followUps,
-                requestPostNotifications = requestPostNotifications,
-                onComplete = viewModel::completeFollowUp,
-                onSnooze = viewModel::snoozeFollowUp
-            )
+            MainTab.FOLLOW_UP -> {
+                if (sensitiveLocked) {
+                    VaultLockedScreen(
+                        modifier = Modifier,
+                        contentPadding = padding,
+                        onUnlock = requestVaultUnlock
+                    )
+                } else {
+                    FollowUpScreen(
+                        modifier = Modifier,
+                        contentPadding = padding,
+                        followUps = followUps,
+                        isPremium = settings.isPremium,
+                        requestPostNotifications = requestPostNotifications,
+                        onComplete = viewModel::completeFollowUp,
+                        onSnooze = viewModel::snoozeFollowUp,
+                        onSchedule = viewModel::scheduleFollowUp
+                    )
+                }
+            }
 
             MainTab.RULES -> RulesScreen(
                 modifier = Modifier,
@@ -200,6 +225,7 @@ fun NotificationControlApp(
                 requestCameraPermission = requestCameraPermission,
                 requestOverlayPermission = requestOverlayPermission,
                 onCreateRule = viewModel::createRule,
+                onUpdateRule = viewModel::updateRule,
                 onRuleEnabled = viewModel::setRuleEnabled,
                 onDeleteRule = viewModel::deleteRule,
                 onAddCriticalPattern = viewModel::addCriticalPattern,
@@ -209,6 +235,8 @@ fun NotificationControlApp(
                 onDeleteLuminousProfile = viewModel::deleteLuminousProfile,
                 onPausePingEnabled = viewModel::setPausePingEnabled,
                 onPausePingCooldown = viewModel::setPausePingCooldownSeconds,
+                onPausePingAppCooldown = viewModel::setPausePingAppCooldown,
+                onRemovePausePingAppCooldown = viewModel::removePausePingAppCooldown,
                 setFlash = viewModel::setFlashEnabled,
                 setOverlay = viewModel::setOverlayEnabled,
                 setScreenOffOnly = viewModel::setScreenOffOnly,
@@ -224,20 +252,48 @@ fun NotificationControlApp(
                 modifier = Modifier,
                 contentPadding = padding,
                 state = settings,
+                apps = apps,
                 billingState = billingState,
                 storageStats = storageStats,
                 onConfigureApps = { showPicker = true },
                 onVaultLockChanged = viewModel::setVaultLockEnabled,
                 onVaultTimeoutChanged = viewModel::setVaultLockTimeoutMinutes,
+                onSensitiveProtectionChanged = viewModel::setSensitiveProtectionEnabled,
+                onRetentionDaysChanged = viewModel::setRetentionDays,
+                onRetentionDaysForAppChanged = viewModel::setRetentionDaysForApp,
+                onClearRetentionDaysForApp = viewModel::clearRetentionDaysForApp,
+                onVaultMaxBytesChanged = viewModel::setVaultMaxBytes,
+                onBatteryGuardThresholdChanged = viewModel::setBatteryGuardThreshold,
+                onQuietStartChanged = viewModel::setQuietStartMinutes,
+                onQuietEndChanged = viewModel::setQuietEndMinutes,
+                onAddQuietHoursBand = viewModel::addQuietHoursBand,
+                onRemoveQuietHoursBand = viewModel::removeQuietHoursBand,
+                onAddQuietHoursException = viewModel::addQuietHoursException,
+                onRemoveQuietHoursException = viewModel::removeQuietHoursException,
+                onCriticalBypassQuietHoursChanged = viewModel::setCriticalBypassQuietHours,
                 onDeleteAll = viewModel::deleteAllVault,
+                onResetLocalData = viewModel::resetLocalData,
                 onPurchasePremium = purchasePremiumOffer,
                 onRestorePurchases = viewModel::restorePurchases,
                 onBackupRestored = viewModel::refresh,
                 requestNotificationAccess = requestNotificationAccess,
+                requestPostNotifications = requestPostNotifications,
                 requestCameraPermission = requestCameraPermission,
                 requestOverlayPermission = requestOverlayPermission
             )
         }
+    }
+
+    vaultDetail?.let { detail ->
+        VaultDetailDialog(
+            state = detail,
+            onDismiss = viewModel::closeVaultDetail,
+            onProtect = viewModel::setProtected,
+            onFollowUp = {
+                requestPostNotifications()
+                viewModel.createFollowUp(it, 60)
+            }
+        )
     }
 
     if (showPicker) {

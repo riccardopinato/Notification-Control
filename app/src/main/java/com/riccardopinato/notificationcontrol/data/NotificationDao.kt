@@ -22,21 +22,52 @@ interface NotificationDao {
     @Insert
     suspend fun insertFts(entity: NotificationFtsEntity)
 
-    @Query("DELETE FROM notification_fts WHERE sbnKey = :sbnKey")
-    suspend fun deleteFts(sbnKey: String)
+    @Query("DELETE FROM notification_fts WHERE sbnKey = :eventKey")
+    suspend fun deleteFts(eventKey: String)
+
+    @Query("SELECT * FROM messages WHERE notificationKey = :eventKey ORDER BY timestamp ASC")
+    suspend fun messagesFor(eventKey: String): List<MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE notificationKey = :eventKey ORDER BY timestamp ASC")
+    fun observeMessages(eventKey: String): Flow<List<MessageEntity>>
+
+    @Query(
+        "SELECT * FROM notification_revisions " +
+            "WHERE notificationKey = :eventKey ORDER BY capturedAt ASC"
+    )
+    fun observeRevisions(eventKey: String): Flow<List<NotificationRevisionEntity>>
+
+    @Query(
+        "SELECT * FROM notification_revisions " +
+            "WHERE notificationKey = :eventKey ORDER BY capturedAt DESC LIMIT 1"
+    )
+    suspend fun latestRevisionFor(eventKey: String): NotificationRevisionEntity?
 
     @Transaction
     suspend fun upsert(
         entity: NotificationEntity,
         messages: List<MessageEntity>,
-        revision: NotificationRevisionEntity,
-        fts: NotificationFtsEntity
+        revision: NotificationRevisionEntity
     ) {
         upsertNotification(entity)
         insertRevision(revision)
         if (messages.isNotEmpty()) insertMessages(messages)
+
+        val historicMessages = messagesFor(entity.sbnKey)
         deleteFts(entity.sbnKey)
-        insertFts(fts)
+        insertFts(
+            NotificationFtsEntity(
+                sbnKey = entity.sbnKey,
+                appLabel = entity.appLabel,
+                title = entity.title,
+                text = entity.text,
+                bigText = entity.bigText,
+                conversationTitle = entity.conversationTitle,
+                messagesText = historicMessages.joinToString(" ") {
+                    it.sender.orEmpty() + " " + it.text
+                }
+            )
+        )
     }
 
     @Query("SELECT * FROM notifications ORDER BY updatedAt DESC LIMIT :limit")
@@ -87,17 +118,143 @@ interface NotificationDao {
     @Query("SELECT COUNT(*) FROM notifications WHERE protected = 1")
     suspend fun countProtected(): Int
 
-    @Query("UPDATE notifications SET removedAt = :removedAt, removalReason = :reason, updatedAt = :removedAt WHERE sbnKey = :sbnKey")
-    suspend fun markRemoved(sbnKey: String, removedAt: Long, reason: Int?)
+    @Query(
+        """
+        SELECT * FROM notifications
+        WHERE platformKey = :platformKey AND removedAt IS NULL
+        ORDER BY updatedAt DESC
+        LIMIT 1
+        """
+    )
+    suspend fun findActiveByPlatformKey(platformKey: String): NotificationEntity?
 
-    @Query("UPDATE notifications SET protected = :protected WHERE sbnKey = :sbnKey")
-    suspend fun setProtected(sbnKey: String, protected: Boolean)
+    @Query(
+        """
+        SELECT * FROM notifications
+        WHERE platformKey = :platformKey
+        ORDER BY updatedAt DESC
+        LIMIT 1
+        """
+    )
+    suspend fun findLatestByPlatformKey(platformKey: String): NotificationEntity?
 
-    @Query("SELECT thumbnailPath FROM notifications WHERE protected = 0 AND postedAt < :cutoffMillis AND thumbnailPath IS NOT NULL")
+    @Query(
+        """
+        UPDATE notifications
+        SET removedAt = :removedAt,
+            removalReason = :reason,
+            updatedAt = :removedAt
+        WHERE sbnKey = (
+            SELECT sbnKey FROM notifications
+            WHERE platformKey = :platformKey AND removedAt IS NULL
+            ORDER BY updatedAt DESC
+            LIMIT 1
+        )
+        """
+    )
+    suspend fun markRemovedByPlatformKey(
+        platformKey: String,
+        removedAt: Long,
+        reason: Int?
+    )
+
+    @Query("UPDATE notifications SET protected = :protected WHERE sbnKey = :eventKey")
+    suspend fun setProtected(eventKey: String, protected: Boolean)
+
+    @Query(
+        """
+        SELECT thumbnailPath FROM notifications
+        WHERE protected = 0
+          AND postedAt < :cutoffMillis
+          AND thumbnailPath IS NOT NULL
+        """
+    )
     suspend fun thumbnailPathsOlderThan(cutoffMillis: Long): List<String>
 
     @Query("SELECT thumbnailPath FROM notifications WHERE thumbnailPath IS NOT NULL")
     suspend fun allThumbnailPaths(): List<String>
+
+    @Query("SELECT DISTINCT packageName FROM notifications")
+    suspend fun packagesInVault(): List<String>
+
+    @Query(
+        "SELECT sbnKey FROM notifications " +
+            "WHERE packageName = :packageName AND protected = 0 " +
+            "AND postedAt < :cutoffMillis ORDER BY postedAt ASC"
+    )
+    suspend fun expiredKeysForPackage(
+        packageName: String,
+        cutoffMillis: Long
+    ): List<String>
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(
+            LENGTH(COALESCE(title, '')) +
+            LENGTH(COALESCE(text, '')) +
+            LENGTH(COALESCE(bigText, '')) +
+            LENGTH(COALESCE(subText, '')) +
+            LENGTH(COALESCE(conversationTitle, ''))
+        ), 0)
+        FROM notifications
+        """
+    )
+    suspend fun approximateNotificationTextBytes(): Long
+
+    @Query(
+        "SELECT COALESCE(SUM(LENGTH(text) + LENGTH(COALESCE(sender, ''))), 0) " +
+            "FROM messages"
+    )
+    suspend fun approximateMessageBytes(): Long
+
+    @Query(
+        """
+        SELECT COALESCE(SUM(
+            LENGTH(COALESCE(title, '')) +
+            LENGTH(COALESCE(text, '')) +
+            LENGTH(COALESCE(bigText, '')) +
+            LENGTH(COALESCE(subText, '')) +
+            LENGTH(COALESCE(conversationTitle, ''))
+        ), 0)
+        FROM notification_revisions
+        """
+    )
+    suspend fun approximateRevisionBytes(): Long
+
+    @Query(
+        "SELECT sbnKey FROM notifications " +
+            "WHERE protected = 0 ORDER BY postedAt ASC LIMIT :limit"
+    )
+    suspend fun oldestUnprotectedKeys(limit: Int): List<String>
+
+    @Query("SELECT thumbnailPath FROM notifications WHERE sbnKey IN (:keys) AND thumbnailPath IS NOT NULL")
+    suspend fun thumbnailPathsForKeys(keys: List<String>): List<String>
+
+    @Query("DELETE FROM notification_fts WHERE sbnKey IN (:keys)")
+    suspend fun deleteFtsByKeys(keys: List<String>)
+
+    @Query("DELETE FROM notifications WHERE sbnKey IN (:keys)")
+    suspend fun deleteNotificationsByKeys(keys: List<String>)
+
+    @Transaction
+    suspend fun deleteByKeysAndReturnMedia(keys: List<String>): List<String> {
+        if (keys.isEmpty()) return emptyList()
+        val media = thumbnailPathsForKeys(keys)
+        deleteFtsByKeys(keys)
+        deleteNotificationsByKeys(keys)
+        return media
+    }
+
+    @Query(
+        """
+        DELETE FROM notification_fts
+        WHERE sbnKey IN (
+            SELECT sbnKey FROM notifications
+            WHERE protected = 0 AND postedAt < :cutoffMillis
+        )
+        """
+    )
+    suspend fun deleteFtsOlderThan(cutoffMillis: Long)
 
     @Query("DELETE FROM notifications WHERE protected = 0 AND postedAt < :cutoffMillis")
     suspend fun deleteOlderThan(cutoffMillis: Long): Int
@@ -105,6 +262,7 @@ interface NotificationDao {
     @Transaction
     suspend fun deleteExpiredAndReturnMedia(cutoffMillis: Long): List<String> {
         val media = thumbnailPathsOlderThan(cutoffMillis)
+        deleteFtsOlderThan(cutoffMillis)
         deleteOlderThan(cutoffMillis)
         return media
     }
@@ -121,9 +279,12 @@ interface NotificationDao {
     @Query("DELETE FROM notifications")
     suspend fun deleteAll()
 
-    @Query("SELECT * FROM notifications WHERE sbnKey = :sbnKey LIMIT 1")
-    suspend fun findByKey(sbnKey: String): NotificationEntity?
+    @Query("SELECT * FROM notifications WHERE sbnKey = :eventKey LIMIT 1")
+    suspend fun findByKey(eventKey: String): NotificationEntity?
 
-    @Query("SELECT * FROM notification_revisions WHERE notificationKey = :sbnKey ORDER BY capturedAt ASC")
-    suspend fun revisionsFor(sbnKey: String): List<NotificationRevisionEntity>
+    @Query(
+        "SELECT * FROM notification_revisions " +
+            "WHERE notificationKey = :eventKey ORDER BY capturedAt ASC"
+    )
+    suspend fun revisionsFor(eventKey: String): List<NotificationRevisionEntity>
 }

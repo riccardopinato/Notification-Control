@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -73,6 +74,7 @@ class MainActivity : FragmentActivity() {
                         }
                     },
                     requestVaultUnlock = ::requestVaultUnlock,
+                    setSecureWindow = ::setSecureWindow,
                     purchasePremiumOffer = { offerKey ->
                         billingManager.launchPurchase(this, offerKey)
                     }
@@ -86,6 +88,14 @@ class MainActivity : FragmentActivity() {
         permissionEpoch++
         viewModel.refresh()
         billingManager.refresh()
+    }
+
+    private fun setSecureWindow(enabled: Boolean) {
+        if (enabled) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
     }
 
     private fun requestVaultUnlock() {

@@ -4,14 +4,15 @@ import com.riccardopinato.notificationcontrol.data.MessageEntity
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
 import com.riccardopinato.notificationcontrol.data.NotificationFtsEntity
 import com.riccardopinato.notificationcontrol.data.NotificationRevisionEntity
-import java.security.MessageDigest
 
 fun CapturedNotification.toNotificationEntity(
+    vaultKey: String = sbnKey,
     existingProtected: Boolean = false,
     existingThumbnailPath: String? = null
 ): NotificationEntity =
     NotificationEntity(
-        sbnKey = sbnKey,
+        sbnKey = vaultKey,
+        platformKey = sbnKey,
         packageName = packageName,
         appLabel = appLabel,
         notificationId = notificationId,
@@ -34,12 +35,18 @@ fun CapturedNotification.toNotificationEntity(
         protected = existingProtected
     )
 
-fun CapturedNotification.toMessageEntities(): List<MessageEntity> = messages.map { message ->
-    val fingerprint = listOf(sbnKey, message.timestamp.toString(), message.sender.orEmpty(), message.text)
-        .joinToString("\u0000")
+fun CapturedNotification.toMessageEntities(
+    vaultKey: String = sbnKey
+): List<MessageEntity> = messages.map { message ->
+    val fingerprint = listOf(
+        vaultKey,
+        message.timestamp.toString(),
+        message.sender.orEmpty(),
+        message.text
+    ).joinToString("\u0000")
     MessageEntity(
-        messageKey = sha256(fingerprint),
-        notificationKey = sbnKey,
+        messageKey = NotificationFingerprint.sha256(fingerprint),
+        notificationKey = vaultKey,
         sender = message.sender,
         text = message.text,
         timestamp = message.timestamp,
@@ -48,22 +55,15 @@ fun CapturedNotification.toMessageEntities(): List<MessageEntity> = messages.map
     )
 }
 
-fun CapturedNotification.toRevisionEntity(): NotificationRevisionEntity {
-    val contentFingerprint = listOf(
-        title.orEmpty(),
-        text.orEmpty(),
-        bigText.orEmpty(),
-        subText.orEmpty(),
-        conversationTitle.orEmpty(),
-        messages.joinToString("\u0001") {
-            listOf(it.timestamp.toString(), it.sender.orEmpty(), it.text, it.mimeType.orEmpty(), it.dataUri.orEmpty())
-                .joinToString("\u0000")
-        }
-    ).joinToString("\u0002")
-    val contentHash = sha256(contentFingerprint)
+fun CapturedNotification.toRevisionEntity(
+    vaultKey: String = sbnKey
+): NotificationRevisionEntity {
+    val contentHash = NotificationFingerprint.contentHash(this)
     return NotificationRevisionEntity(
-        revisionKey = sha256("$sbnKey\u0000$contentHash"),
-        notificationKey = sbnKey,
+        revisionKey = NotificationFingerprint.sha256(
+            vaultKey + "\u0000" + contentHash
+        ),
+        notificationKey = vaultKey,
         capturedAt = capturedAt,
         title = title,
         text = text,
@@ -74,17 +74,18 @@ fun CapturedNotification.toRevisionEntity(): NotificationRevisionEntity {
     )
 }
 
-fun CapturedNotification.toFtsEntity(): NotificationFtsEntity =
+fun CapturedNotification.toFtsEntity(
+    vaultKey: String = sbnKey,
+    messagesText: String = messages.joinToString(" ") {
+        it.sender.orEmpty() + " " + it.text
+    }
+): NotificationFtsEntity =
     NotificationFtsEntity(
-        sbnKey = sbnKey,
+        sbnKey = vaultKey,
         appLabel = appLabel,
         title = title,
         text = text,
         bigText = bigText,
         conversationTitle = conversationTitle,
-        messagesText = messages.joinToString(" ") { it.sender.orEmpty() + " " + it.text }
+        messagesText = messagesText
     )
-
-private fun sha256(value: String): String = MessageDigest.getInstance("SHA-256")
-    .digest(value.toByteArray())
-    .joinToString("") { "%02x".format(it) }

@@ -176,7 +176,6 @@ private fun AddLuminousProfileDialog(
     var speed by remember { mutableStateOf(state.strobeSpeedMs.toFloat()) }
     var pulse by remember { mutableStateOf(state.pulseSpeedMs.toFloat()) }
     var durationSeconds by remember { mutableStateOf(15f) }
-    var appMenu by remember { mutableStateOf(false) }
 
     val selectorValid = selectedApp != null || sender.isNotBlank()
     val modeValid = flash || overlay
@@ -201,40 +200,13 @@ private fun AddLuminousProfileDialog(
                     )
                 }
                 item {
-                    Box {
-                        OutlinedButton(
-                            onClick = { appMenu = true },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                selectedApp?.label
-                                    ?: stringResource(R.string.rule_any_app)
-                            )
-                        }
-                        DropdownMenu(
-                            expanded = appMenu,
-                            onDismissRequest = { appMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = {
-                                    Text(stringResource(R.string.rule_any_app))
-                                },
-                                onClick = {
-                                    selectedApp = null
-                                    appMenu = false
-                                }
-                            )
-                            apps.take(60).forEach { app ->
-                                DropdownMenuItem(
-                                    text = { Text(app.label) },
-                                    onClick = {
-                                        selectedApp = app
-                                        appMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
+                    SearchableAppPickerButton(
+                        apps = apps,
+                        selected = selectedApp,
+                        placeholder = stringResource(R.string.rule_any_app),
+                        allowNone = true,
+                        onSelected = { selectedApp = it }
+                    )
                 }
                 item {
                     OutlinedTextField(

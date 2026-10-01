@@ -1,0 +1,7 @@
+<resources>
+    <string name="critical_pending_title">Alerta Critical pendente</string>
+    <string name="critical_pending_locked">Os detalhes sensíveis estão bloqueados.</string>
+    <string name="critical_next_escalation">Próxima escalada por volta das %1$s</string>
+    <string name="mark_handled">Marcar como tratada</string>
+    <string name="critical_escalation_notification">A alerta Critical continua pendente</string>
+</resources>

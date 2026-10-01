@@ -1,0 +1,6 @@
+<resources>
+    <string name="retention_per_app_title">Per-app retention</string>
+    <string name="retention_per_app_body">Override the default retention for selected apps. Protected items are never removed automatically.</string>
+    <string name="retention_use_default">Use default retention</string>
+    <string name="retention_per_app_summary">%1$s · %2$s</string>
+</resources>

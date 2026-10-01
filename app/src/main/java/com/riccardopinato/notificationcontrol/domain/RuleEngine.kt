@@ -2,6 +2,7 @@ package com.riccardopinato.notificationcontrol.domain
 
 import com.riccardopinato.notificationcontrol.capture.CapturedNotification
 import com.riccardopinato.notificationcontrol.data.AutomationDao
+import com.riccardopinato.notificationcontrol.data.RuleEntity
 
 data class RuleEvaluation(
     val forceFlash: Boolean = false,
@@ -10,12 +11,26 @@ data class RuleEvaluation(
     val followUpDelayMinutes: Int? = null
 )
 
-class RuleEngine(private val dao: AutomationDao) {
-    suspend fun evaluate(event: CapturedNotification): RuleEvaluation {
+class RuleEngine(
+    private val dao: AutomationDao,
+    private val premiumProvider: () -> Boolean = { true }
+) {
+    suspend fun evaluate(
+        event: CapturedNotification,
+        runtime: RuleRuntimeState
+    ): RuleEvaluation {
         var result = RuleEvaluation()
+        val premium = premiumProvider()
+        val enabled = dao.enabledRules()
+        val eligible = if (premium) {
+            enabled
+        } else {
+            enabled.take(ProductLimits.FREE_RULES)
+        }
 
-        dao.enabledRules().forEach { rule ->
-            if (!RuleMatcher.matches(rule, event)) return@forEach
+        eligible.forEach { rule ->
+            if (!premium && rule.rule.usesPremiumConditions()) return@forEach
+            if (!RuleMatcher.matches(rule, event, runtime)) return@forEach
 
             rule.actions.forEach { action ->
                 result = when (action.actionType) {
@@ -36,4 +51,9 @@ class RuleEngine(private val dao: AutomationDao) {
 
         return result
     }
+
+    private fun RuleEntity.usesPremiumConditions(): Boolean =
+        timeStartMinutes != null ||
+            timeEndMinutes != null ||
+            screenState != RuleScreenState.ANY
 }

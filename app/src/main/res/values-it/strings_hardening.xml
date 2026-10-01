@@ -1,0 +1,26 @@
+<resources>
+    <string name="sensitive_content_locked">Contenuto sensibile bloccato</string>
+    <string name="sensitive_content_locked_body">Sblocca il Vault per mostrare codici di ritiro e altri contenuti privati.</string>
+    <string name="sensitive_screen_protection">Proteggi screenshot e app recenti</string>
+    <string name="sensitive_screen_protection_body">Blocca screenshot e anteprime nelle app recenti mentre Notification Control è aperto.</string>
+    <string name="reset_local_data">Reimposta dati locali dell’app</string>
+    <string name="reset_local_data_confirm">Elimina Vault locale, regole, Follow Up, pattern Critical, profili Luminous e impostazioni. Account Google/Play e acquisti non vengono eliminati.</string>
+    <string name="reset">Reimposta</string>
+    <string name="retention_title">Conservazione Vault</string>
+    <string name="retention_always">Sempre</string>
+    <string name="days_short">%1$d g</string>
+    <string name="retention_free_fixed">Free conserva fino a %1$d giorni.</string>
+    <string name="behavior_controls_title">Batteria e modalità silenziosa</string>
+    <string name="battery_threshold_value">Soglia Battery Guard: %1$d%%</string>
+    <string name="battery_threshold_premium">Premium sblocca la soglia Battery Guard configurabile.</string>
+    <string name="quiet_start_value">Inizio Quiet Hours: %1$s</string>
+    <string name="quiet_end_value">Fine Quiet Hours: %1$s</string>
+    <string name="critical_bypass_quiet">Gli avvisi Critical possono ignorare Quiet Hours</string>
+    <string name="critical_bypass_quiet_body">Mantiene disponibili gli avvisi visivi realmente critici mentre quelli normali restano silenziosi.</string>
+    <string name="follow_up_notification_permission">Promemoria Follow Up</string>
+    <string name="status_not_needed">Non necessario</string>
+    <string name="grant_camera_for_flash">Concedi accesso fotocamera per il flash</string>
+    <string name="grant_overlay_for_luminous">Concedi accesso overlay per Luminous</string>
+    <string name="selected_visual_permissions_required">Concedi il permesso richiesto da ogni avviso visivo selezionato prima di continuare.</string>
+    <string name="search_apps">Cerca app</string>
+</resources>

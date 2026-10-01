@@ -1,0 +1,4 @@
+<resources>
+    <string name="vault_pickup_candidate">Código detetado</string>
+    <string name="vault_pickup_candidate_free_hint">Copie-o manualmente. O Premium pode fixar automaticamente os códigos detetados e fazê-los expirar.</string>
+</resources>

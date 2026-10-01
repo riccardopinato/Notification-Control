@@ -1,0 +1,12 @@
+<resources>
+    <string name="follow_up_customize">Customize</string>
+    <string name="follow_up_schedule_title">Follow Up schedule</string>
+    <string name="choose_date">Date</string>
+    <string name="choose_time">Time</string>
+    <string name="follow_up_repeat_title">Repeat until handled</string>
+    <string name="follow_up_repeat_off">Off</string>
+    <string name="follow_up_repeat_hour">1 h</string>
+    <string name="follow_up_repeat_day">1 d</string>
+    <string name="follow_up_repeat_every">Repeats every %1$s until you mark it done.</string>
+    <string name="follow_up_future_required">Choose a future date and time.</string>
+</resources>

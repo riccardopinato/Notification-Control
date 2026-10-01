@@ -5,11 +5,15 @@ import java.util.concurrent.ConcurrentHashMap
 
 class PausePingController(
     private val enabledProvider: () -> Boolean,
-    private val cooldownSecondsProvider: () -> Int
+    private val cooldownSecondsProvider: () -> Int,
+    private val premiumProvider: () -> Boolean = { false },
+    private val perAppCooldownProvider: () -> Map<String, Int> = { emptyMap() }
 ) {
     constructor(settings: AppSettings) : this(
         enabledProvider = { settings.pausePingEnabled },
-        cooldownSecondsProvider = { settings.pausePingCooldownSeconds }
+        cooldownSecondsProvider = { settings.pausePingCooldownSeconds },
+        premiumProvider = { settings.isPremium },
+        perAppCooldownProvider = { settings.pausePingPerAppCooldowns }
     )
 
     private val lastAlertAt = ConcurrentHashMap<String, Long>()
@@ -24,8 +28,20 @@ class PausePingController(
             return false
         }
 
+        val configuredSeconds = if (premiumProvider()) {
+            perAppCooldownProvider()[packageName]
+                ?: cooldownSecondsProvider()
+        } else {
+            cooldownSecondsProvider()
+        }
+
+        if (configuredSeconds <= 0) {
+            lastAlertAt[packageName] = now
+            return false
+        }
+
         val previous = lastAlertAt.put(packageName, now)
-        val cooldownMs = cooldownSecondsProvider().coerceIn(1, 300) * 1_000L
+        val cooldownMs = configuredSeconds.coerceIn(1, 300) * 1_000L
         return previous != null && now - previous < cooldownMs
     }
 }

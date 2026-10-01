@@ -3,8 +3,26 @@ package com.riccardopinato.notificationcontrol.domain
 import com.riccardopinato.notificationcontrol.capture.CapturedNotification
 import com.riccardopinato.notificationcontrol.data.RuleWithActions
 
+data class RuleRuntimeState(
+    val minuteOfDay: Int,
+    val screenInteractive: Boolean
+)
+
+object RuleScreenState {
+    const val ANY = "ANY"
+    const val SCREEN_ON = "SCREEN_ON"
+    const val SCREEN_OFF = "SCREEN_OFF"
+}
+
 object RuleMatcher {
-    fun matches(rule: RuleWithActions, event: CapturedNotification): Boolean {
+    fun matches(
+        rule: RuleWithActions,
+        event: CapturedNotification,
+        runtime: RuleRuntimeState = RuleRuntimeState(
+            minuteOfDay = 0,
+            screenInteractive = true
+        )
+    ): Boolean {
         val conditions = buildList {
             rule.rule.packageName?.takeIf { it.isNotBlank() }?.let {
                 add(event.packageName == it)
@@ -14,6 +32,24 @@ object RuleMatcher {
             }
             rule.rule.textQuery?.takeIf { it.isNotBlank() }?.let { query ->
                 add(combinedText(event).contains(query, ignoreCase = true))
+            }
+
+            val start = rule.rule.timeStartMinutes
+            val end = rule.rule.timeEndMinutes
+            if (start != null && end != null) {
+                add(
+                    QuietHoursPolicy.isActive(
+                        enabled = true,
+                        startMinutes = start.coerceIn(0, 1439),
+                        endMinutes = end.coerceIn(0, 1439),
+                        nowMinutes = runtime.minuteOfDay.coerceIn(0, 1439)
+                    )
+                )
+            }
+
+            when (rule.rule.screenState) {
+                RuleScreenState.SCREEN_ON -> add(runtime.screenInteractive)
+                RuleScreenState.SCREEN_OFF -> add(!runtime.screenInteractive)
             }
         }
 
