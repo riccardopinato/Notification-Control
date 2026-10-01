@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v1.1
+NOTIFICATION CONTROL — ROADMAP v1.2
 Date: 2026-10-01
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
@@ -162,7 +162,9 @@ Source PR: #13 maxi-onboarding-performance-v1
 - Certified QA #37: PASS
 
 MAXI STEP 15 — END-TO-END PERFORMANCE HARDENING
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: 56e33889d35c18588ea7721b0ac03beeae421fbe
+Source PR: #14 maxi-step15-performance-hardening
 - build type perfTest: R8/shrink attivi, firma debug installabile, non-debuggable
 - Macrobenchmark harness per cold startup e frame timing su Vault/tab switching
 - baseline profile iniziale per startup/UI/capture hot classes
@@ -187,6 +189,25 @@ IMPLEMENTED / VALIDATION
 - Android CI deve compilare debug + perfTest + benchmark harness
 - Certified QA deve includere il perfTest APK nell'Evidence Bundle
 - macrobenchmark runtime e device Xiaomi restano MANUAL_REQUIRED
+- Android CI #67: PASS
+- Certified QA #40: PASS
+
+MAXI STEP 16 — VAULT DEDUP + GOOGLE SIGN-IN + FINAL QA
+IMPLEMENTED / VALIDATION
+- filtro capture-level delle Notification FLAG_GROUP_SUMMARY, con focus sul doppione WhatsApp
+- dedup logico dei replay recenti dello stesso evento anche quando Android cambia platformKey
+- replay deduplicati non rilanciano Rules/Critical/Follow Up/Pickup/Luminous
+- regressioni dedicate su WhatsApp-style "Anna / Svezia"
+- Google ID SDK aggiornato a 1.2.1
+- Google profile usa uniqueId stabile ed email separata; rimosso google.id deprecato
+- nonce casuale per ogni richiesta Sign in with Google
+- GOOGLE_WEB_CLIENT_ID iniettato da build/CI, non hardcoded nel source
+- diagnostica login mostra l'errore reale invece di un messaggio generico
+- build qaPremium release-like, R8/shrink, Premium forzato esclusivamente per QA
+- Billing production resta invariato e non accetta il QA override
+- Android CI produce artifact QA Premium separato
+- Certified QA include QA Premium nell'Evidence Bundle
+- True Notification Undo inteso come ripubblicazione nel notification shade: DEFERRED / NOT IN CURRENT ROADMAP
 
 PERFORMANCE ACCEPTANCE GATE:
 1. Android CI + Certified QA verdi sul branch Step 15.
@@ -196,7 +217,8 @@ PERFORMANCE ACCEPTANCE GATE:
 5. macrobenchmark cold startup + frame timing da eseguire su device/emulatore controllato dopo onboarding one-time.
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
-- Google OAuth Web client ID for live Sign in with Google
+- Google Auth Platform Web client ID must exist in repository variable/secret GOOGLE_WEB_CLIENT_ID for live Sign in with Google
+- Android OAuth client/package signing configuration must match the intended signed build
 - Google Play product configuration for live Premium purchase flows
 - Play signing/service credentials for automatic Internal Testing publication
 
@@ -208,11 +230,11 @@ LIVE GOOGLE/PLAY CONFIG: REQUIRED
 FINAL INTENDED-RELEASE VERDICT: BLOCKED until manual/device/store gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Close Android CI + Certified QA for MAXI STEP 15.
-2. Install the optimized perfTest APK on the Xiaomi test device.
-3. Validate tab switching, Vault scroll/search and burst-notification behavior.
-4. Run physical functional regression for Notification Access, Rules, Critical, Follow Up, Pickup Code and Luminous.
-5. Execute Macrobenchmark runtime after one-time onboarding on the benchmark device.
-6. Configure live Google OAuth and Play products only when preparing the release candidate.
+1. Close Android CI + Certified QA for MAXI STEP 16.
+2. Verify whether GOOGLE_WEB_CLIENT_ID was injected by CI evidence.
+3. Install qaPremium APK on Xiaomi and retest WhatsApp Vault dedup from a clean/new capture.
+4. Validate Google Sign-In on the intended signing certificate when OAuth client configuration is available.
+5. Run final physical regression for Vault, Rules, Critical, Follow Up, Pickup Code and Luminous.
+6. Execute Macrobenchmark runtime when a controlled Android benchmark device is available.
 
-END ROADMAP v1.1
+END ROADMAP v1.2
