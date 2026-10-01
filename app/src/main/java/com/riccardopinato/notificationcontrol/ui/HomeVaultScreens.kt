@@ -22,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -42,6 +43,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.capture.ListenerHealthStore
 import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
@@ -299,15 +302,13 @@ fun VaultLockedScreen(
 fun VaultScreen(
     modifier: Modifier,
     contentPadding: PaddingValues,
-    notifications: List<NotificationEntity>,
+    notifications: LazyPagingItems<NotificationEntity>,
     search: String,
     packageFilter: String?,
     appFilters: List<VaultAppFilter>,
     storageStats: StorageStats,
-    currentLimit: Int,
     onSearchChange: (String) -> Unit,
     onPackageFilterChange: (String?) -> Unit,
-    onLoadMore: () -> Unit,
     onProtect: (String, Boolean) -> Unit,
     onFollowUp: (NotificationEntity) -> Unit,
     onOpenDetail: (NotificationEntity) -> Unit
@@ -371,28 +372,70 @@ fun VaultScreen(
             }
         }
 
-        if (notifications.isEmpty()) {
-            item {
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(18.dp)) {
-                        Text(stringResource(R.string.vault_empty), fontWeight = FontWeight.Bold)
-                        Text(stringResource(R.string.vault_empty_hint))
+        when (val refresh = notifications.loadState.refresh) {
+            is LoadState.Loading -> {
+                item {
+                    Box(
+                        Modifier.fillMaxWidth().padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            }
+
+            is LoadState.Error -> {
+                item {
+                    Card(Modifier.fillMaxWidth()) {
+                        Text(
+                            refresh.error.localizedMessage
+                                ?: stringResource(R.string.vault_empty_hint),
+                            Modifier.padding(18.dp)
+                        )
+                    }
+                }
+            }
+
+            is LoadState.NotLoading -> {
+                if (notifications.itemCount == 0) {
+                    item {
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(18.dp)) {
+                                Text(
+                                    stringResource(R.string.vault_empty),
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(stringResource(R.string.vault_empty_hint))
+                            }
+                        }
                     }
                 }
             }
         }
 
-        items(notifications, key = { it.sbnKey }) { n ->
-            NotificationVaultCard(n, onProtect, onFollowUp, onOpenDetail)
+        items(
+            count = notifications.itemCount,
+            key = { index ->
+                notifications.peek(index)?.sbnKey ?: "vault-item-$index"
+            }
+        ) { index ->
+            notifications[index]?.let { notification ->
+                NotificationVaultCard(
+                    notification,
+                    onProtect,
+                    onFollowUp,
+                    onOpenDetail
+                )
+            }
         }
 
-        if (notifications.size >= currentLimit) {
+        if (notifications.loadState.append is LoadState.Loading) {
             item {
-                FilledTonalButton(
-                    onClick = onLoadMore,
-                    modifier = Modifier.fillMaxWidth()
+                Box(
+                    Modifier.fillMaxWidth().padding(16.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(stringResource(R.string.load_more))
+                    CircularProgressIndicator()
                 }
             }
         }
