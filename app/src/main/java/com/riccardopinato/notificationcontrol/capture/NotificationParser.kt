@@ -21,24 +21,27 @@ class NotificationParser(
             context.packageManager.getApplicationLabel(info).toString()
         }.getOrDefault(sbn.packageName)
 
-        val structuredMessages = runCatching {
-            NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
-                ?.messages
-                .orEmpty()
-                .mapNotNull { message ->
-                    val text = message.text?.toString()?.takeIf { it.isNotBlank() }
-                        ?: return@mapNotNull null
-                    @Suppress("DEPRECATION")
-                    val legacySender = message.sender?.toString()
-                    CapturedMessage(
-                        sender = message.person?.name?.toString() ?: legacySender,
-                        text = text,
-                        timestamp = message.timestamp,
-                        mimeType = message.dataMimeType,
-                        dataUri = message.dataUri?.toString()
-                    )
-                }
-        }.getOrDefault(emptyList())
+        val messagingStyle = runCatching {
+            NotificationCompat.MessagingStyle
+                .extractMessagingStyleFromNotification(notification)
+        }.getOrNull()
+
+        val structuredMessages = buildList {
+            messagingStyle?.historicMessages.orEmpty().forEach { message ->
+                message.toCapturedMessage()?.let(::add)
+            }
+            messagingStyle?.messages.orEmpty().forEach { message ->
+                message.toCapturedMessage()?.let(::add)
+            }
+        }.distinctBy { message ->
+            listOf(
+                message.timestamp.toString(),
+                message.sender.orEmpty(),
+                message.text,
+                message.mimeType.orEmpty(),
+                message.dataUri.orEmpty()
+            ).joinToString("¦")
+        }
 
         val textLineMessages = extras
             ?.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
@@ -92,4 +95,18 @@ class NotificationParser(
             messages = capturedMessages
         )
     }
+    private fun NotificationCompat.MessagingStyle.Message.toCapturedMessage():
+        CapturedMessage? {
+        val value = text?.toString()?.takeIf { it.isNotBlank() } ?: return null
+        @Suppress("DEPRECATION")
+        val legacySender = sender?.toString()
+        return CapturedMessage(
+            sender = person?.name?.toString() ?: legacySender,
+            text = value,
+            timestamp = timestamp,
+            mimeType = dataMimeType,
+            dataUri = dataUri?.toString()
+        )
+    }
+
 }
