@@ -863,6 +863,6 @@ class BackupRepository(context: Context) {
 
     companion object {
         private const val FORMAT_VERSION = 1
-        private const val MAX_MEDIA_BYTES = 2 * 1024 * 1024
+        private const val MAX_MEDIA_BYTES = 6 * 1024 * 1024
     }
 }
