@@ -294,6 +294,11 @@ IMPLEMENTED / VALIDATION
 - retry assoluti a 0 / 1.2 / 3.5 / 8 / 18 / 40 s per coprire indicizzazione lenta della galleria
 - la riconciliazione dopo reconnect del NotificationListener rilancia anche il fallback MediaStore
 - copia locale aumentata da circa 320 px a massimo 1280 px, WEBP qualità 82
+- Room v10: thumbnailPath per revisione, con migrazione 9→10 che preserva la preview legacy sull'ultima revisione
+- ogni nuova foto può restare legata alla propria revisione; la preview principale punta solo al media della revisione più recente
+- retention/cleanup eliminano i media di tutte le revisioni insieme al relativo evento
+- backup cifrato include revisionMedia e ripristina tutte le foto archiviate
+- cronologia dettaglio Vault mostra il media associato a ciascuna revisione
 - nessuna modifica al peso APK: cresce solo lo storage dati effettivamente usato dai media archiviati
 - resta valida la regola fail-safe: se due candidati sono troppo vicini, non viene collegata alcuna foto
 - aggiunti test per owner package, indicizzazione tardiva e limite temporale
