@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="whatsapp_media_access">Recuperação de mídia do WhatsApp</string>
+    <string name="whatsapp_media_access_body">Fallback Premium opcional. Com acesso completo às fotos, o Notification Control pode copiar uma imagem do WhatsApp recém-recebida da mídia compartilhada quando a notificação não expõe uma imagem legível. O acesso apenas a fotos selecionadas não é suficiente para a recuperação automática em segundo plano. A mídia permanece local.</string>
+</resources>

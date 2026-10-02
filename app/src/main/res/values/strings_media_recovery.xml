@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="whatsapp_media_access">WhatsApp media recovery</string>
+    <string name="whatsapp_media_access_body">Optional Premium fallback. With full photo access, Notification Control can copy a recent WhatsApp image from shared device media when the notification does not expose a readable image. Selected-photos access is not enough for automatic background recovery. Media stays local.</string>
+</resources>
