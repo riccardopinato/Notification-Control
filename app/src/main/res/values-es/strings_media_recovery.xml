@@ -2,4 +2,14 @@
 <resources>
     <string name="whatsapp_media_access">Recuperación de medios de WhatsApp</string>
     <string name="whatsapp_media_access_body">Alternativa Premium opcional. Con acceso completo a las fotos, Notification Control puede copiar una imagen de WhatsApp recién recibida desde los medios compartidos cuando la notificación no expone una imagen legible. El acceso solo a fotos seleccionadas no basta para la recuperación automática en segundo plano. Los medios permanecen locales.</string>
+    <string name="media_rescue_inbox">Bandeja de rescate de medios</string>
+    <string name="media_rescue_body">Las fotos que parecen relacionadas con notificaciones de WhatsApp pero no pueden asociarse con seguridad se guardan aquí localmente en vez de descartarse.</string>
+    <string name="whatsapp_folder_fallback">Red de seguridad de la carpeta WhatsApp</string>
+    <string name="whatsapp_folder_fallback_body">Segunda fuente opcional: selecciona la carpeta WhatsApp Images. Notification Control conserva acceso de lectura persistente solo a la carpeta elegida.</string>
+    <string name="media_folder_linked">Vinculada</string>
+    <string name="media_folder_link">Vincular carpeta</string>
+    <string name="media_rescue_empty">No hay medios sin resolver.</string>
+    <string name="media_rescue_count">%1$d medios pendientes de asociación segura</string>
+    <string name="media_rescue_confidence">Puntuación de evidencias: %1$d</string>
+    <string name="media_rescue_remove">Eliminar</string>
 </resources>

@@ -18,7 +18,8 @@ enum class VaultPersistKind {
 
 data class VaultPersistResult(
     val kind: VaultPersistKind,
-    val vaultKey: String? = null
+    val vaultKey: String? = null,
+    val revisionKey: String? = null
 )
 
 class NotificationVaultRepository(
@@ -72,7 +73,8 @@ class NotificationVaultRepository(
             }
             return VaultPersistResult(
                 kind = VaultPersistKind.DUPLICATE,
-                vaultKey = replay.sbnKey
+                vaultKey = replay.sbnKey,
+                revisionKey = captured.toRevisionEntity(replay.sbnKey).revisionKey
             )
         }
 
@@ -94,7 +96,8 @@ class NotificationVaultRepository(
             }
             return VaultPersistResult(
                 kind = VaultPersistKind.DUPLICATE,
-                vaultKey = vaultKey
+                vaultKey = vaultKey,
+                revisionKey = previousRevision.revisionKey
             )
         }
 
@@ -114,7 +117,8 @@ class NotificationVaultRepository(
             } else {
                 VaultPersistKind.CONTENT_CHANGED
             },
-            vaultKey = vaultKey
+            vaultKey = vaultKey,
+            revisionKey = revision.revisionKey
         )
     }
 

@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v1.5.1
+NOTIFICATION CONTROL — ROADMAP v1.6.0
 Date: 2026-10-02
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
@@ -303,6 +303,25 @@ IMPLEMENTED / VALIDATION
 - resta valida la regola fail-safe: se due candidati sono troppo vicini, non viene collegata alcuna foto
 - aggiunti test per owner package, indicizzazione tardiva e limite temporale
 
+STEP 19.2 — RELIABLE MEDIA CAPTURE & CORRELATION ENGINE
+IMPLEMENTED / VALIDATION
+- Room v11: pending media recovery persistenti e Rescue Inbox locale
+- MediaStore GENERATION_ADDED usato come checkpoint su Android 11+ quando la versione MediaStore resta stabile
+- ContentObserver sulle immagini MediaStore per trigger immediato event-driven
+- WorkManager one-time con retry persistente: recovery sopravvive a kill/sospensione del NotificationListener
+- matching globale one-to-one tra notifiche pending e foto candidate, non più semplice nearest-timestamp
+- scoring multi-prova: package owner, percorso WhatsApp, generation, timestamp, MIME e metadati
+- quando esiste una preview diretta, il match secondario richiede anche verifica perceptual-hash
+- SAF opzionale come seconda fonte indipendente: cartella WhatsApp Images scelta esplicitamente dall'utente
+- permesso SAF persistente in sola lettura e limitato alla cartella selezionata
+- media plausibili ma ambigui copiati nella Media Rescue Inbox invece di essere scartati
+- Rescue Inbox visibile in Profilo con preview, punteggio prove e rimozione manuale
+- lifecycle completo: retention, Delete Vault e Reset Local Data gestiscono anche rescue/pending
+- nessun accesso a database o storage privato WhatsApp
+- il riferimento SAF non viene trattato come backup trasferibile: dopo restore su altro dispositivo va riconcesso
+- READ_MEDIA_IMAGES resta un gate Google Play se il percorso MediaStore broad-access viene mantenuto in produzione
+- test dedicati a burst one-to-one, ambiguità, generation checkpoint, perceptual-hash e migrazione 10→11
+
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Android OAuth client/package signing configuration must match the intended signed build
 - Google Play/release Android OAuth client must match Play App Signing/release SHA-1
@@ -317,13 +336,13 @@ LIVE GOOGLE/PLAY CONFIG: REQUIRED
 FINAL INTENDED-RELEASE VERDICT: BLOCKED until manual/device/store gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Close Android CI + Certified QA for STEP 19.1.
-2. Install fresh qaPremium APK and test direct WhatsApp media plus gallery fallback.
-3. Test delayed gallery indexing, listener reconnect and multiple-photo bursts.
-4. Verify that a saved Vault copy remains readable after the source notification is dismissed.
-5. Decide and complete the Google Play READ_MEDIA_IMAGES declaration path before production release.
-6. Create Google OAuth Android client for QA package + SHA-1.
-7. Validate Saved Filters plus CSV/JSON export and run the remaining physical regression.
+1. Close Android CI + Certified QA for STEP 19.2.
+2. Install fresh qaPremium APK and test notification-direct + MediaStore + SAF independently.
+3. Test burst di più foto, indicizzazione ritardata e interruzione/riavvio del listener.
+4. Verificare che un caso ambiguo finisca in Media Rescue Inbox senza associazione errata.
+5. Verificare che il perceptual-hash confermi una foto già esposta come preview dalla notifica.
+6. Decide and complete the Google Play READ_MEDIA_IMAGES declaration path before production release.
+7. Create Google OAuth Android client for QA package + SHA-1.
 8. Execute Macrobenchmark runtime when a controlled Android benchmark device is available.
 
-END ROADMAP v1.5.0
+END ROADMAP v1.6.0

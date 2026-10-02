@@ -1,6 +1,11 @@
 package com.riccardopinato.notificationcontrol.capture
 
 import android.content.ComponentName
+import android.database.ContentObserver
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.provider.MediaStore
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -29,15 +34,11 @@ import com.riccardopinato.notificationcontrol.processing.RulesConsumer
 import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
 import android.app.Notification
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.concurrent.ConcurrentHashMap
 
 class NotificationCaptureService : NotificationListenerService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -53,7 +54,8 @@ class NotificationCaptureService : NotificationListenerService() {
     private lateinit var runtimeCache: NotificationRuntimeCache
     private lateinit var processor: NotificationEventProcessor
     private lateinit var overlay: LuminousCircleOverlay
-    private val mediaRecoveryJobs = ConcurrentHashMap<String, Job>()
+    private lateinit var recoveryCoordinator: MediaRecoveryCoordinator
+    private var mediaObserver: ContentObserver? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -72,6 +74,12 @@ class NotificationCaptureService : NotificationListenerService() {
         )
 
         vaultRepository = NotificationVaultRepository(
+            settings = settings,
+            database = database,
+            mediaStore = mediaStore
+        )
+        recoveryCoordinator = MediaRecoveryCoordinator(
+            context = this,
             settings = settings,
             database = database,
             mediaStore = mediaStore
@@ -136,6 +144,8 @@ class NotificationCaptureService : NotificationListenerService() {
         super.onListenerConnected()
         health.connected = true
         health.lastConnectedAt = System.currentTimeMillis()
+        ensureMediaObserver()
+        serviceScope.launch { recoveryCoordinator.resolvePending() }
         eventQueue.trySend(ListenerCommand.Reconcile)
     }
 
@@ -150,8 +160,9 @@ class NotificationCaptureService : NotificationListenerService() {
         health.connected = false
         posture.stop()
         overlay.hide()
+        mediaObserver?.let { runCatching { contentResolver.unregisterContentObserver(it) } }
+        mediaObserver = null
         eventQueue.close()
-        mediaRecoveryJobs.clear()
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -199,17 +210,12 @@ class NotificationCaptureService : NotificationListenerService() {
                     captureThumbnail = captureThumbnail
                 )
                 val persisted = processor.process(captured, ProcessingMode.POSTED)
-                if (
-                    captureThumbnail &&
-                    captured.thumbnailPath == null &&
-                    persisted.vaultKey != null
-                ) {
-                    scheduleWhatsAppMediaRecovery(
-                        notification = notification,
-                        captured = captured,
-                        eventKey = persisted.vaultKey
-                    )
-                }
+                maybeRegisterWhatsAppMediaRecovery(
+                    notification = notification,
+                    captured = captured,
+                    eventKey = persisted.vaultKey,
+                    revisionKey = persisted.revisionKey
+                )
             }
 
             is ListenerCommand.Removed -> {
@@ -236,30 +242,27 @@ class NotificationCaptureService : NotificationListenerService() {
                             captured,
                             ProcessingMode.RECONCILIATION
                         )
-                        if (
-                            captureThumbnail &&
-                            captured.thumbnailPath == null &&
-                            persisted.vaultKey != null
-                        ) {
-                            scheduleWhatsAppMediaRecovery(
-                                notification = sbn,
-                                captured = captured,
-                                eventKey = persisted.vaultKey
-                            )
-                        }
+                        maybeRegisterWhatsAppMediaRecovery(
+                            notification = sbn,
+                            captured = captured,
+                            eventKey = persisted.vaultKey,
+                            revisionKey = persisted.revisionKey
+                        )
                     }
                 health.lastReconciliationAt = System.currentTimeMillis()
             }
         }
     }
 
-    private fun scheduleWhatsAppMediaRecovery(
+    private suspend fun maybeRegisterWhatsAppMediaRecovery(
         notification: StatusBarNotification,
         captured: CapturedNotification,
-        eventKey: String
+        eventKey: String?,
+        revisionKey: String?
     ) {
+        if (eventKey == null || revisionKey == null) return
+        if (!settings.isPremium) return
         if (!WhatsAppMediaRecoveryPolicy.supportsPackage(captured.packageName)) return
-        if (!mediaStore.canRecoverWhatsAppImages()) return
 
         val template =
             notification.notification.extras?.getString(Notification.EXTRA_TEMPLATE)
@@ -269,43 +272,51 @@ class NotificationCaptureService : NotificationListenerService() {
             templateName = template
         )
         if (!hasImageSignal) return
-        if (mediaRecoveryJobs[eventKey]?.isActive == true) return
 
-        val revisionKey = captured.toRevisionEntity(eventKey).revisionKey
-        val stableKey =
-            NotificationMediaStore.stableKey(captured.sbnKey, captured.capturedAt)
-        val job = serviceScope.launch(start = CoroutineStart.LAZY) {
-            val startedAt = System.currentTimeMillis()
-            for (targetDelayMillis in MEDIA_RECOVERY_DELAYS_MS) {
-                val remainingDelay =
-                    startedAt + targetDelayMillis - System.currentTimeMillis()
-                if (remainingDelay > 0L) delay(remainingDelay)
+        ensureMediaObserver()
+        recoveryCoordinator.register(
+            captured = captured,
+            notificationKey = eventKey,
+            revisionKey = revisionKey
+        )
+        recoveryCoordinator.resolvePending()
+    }
 
-                val path = mediaStore.recoverWhatsAppImage(
-                    packageName = captured.packageName,
-                    postedAt = captured.postedAt,
-                    stableKey = stableKey
-                )
-                if (path != null) {
-                    vaultRepository.attachRecoveredThumbnail(
-                        eventKey = eventKey,
-                        revisionKey = revisionKey,
-                        thumbnailPath = path
-                    )
-                    break
-                }
+    private fun ensureMediaObserver() {
+        if (mediaObserver != null) return
+        if (!settings.isPremium || !mediaStore.canRecoverWhatsAppImages()) return
+
+        fun triggerRecovery() {
+            serviceScope.launch {
+                runCatching { recoveryCoordinator.resolvePending() }
+                    .onFailure { Log.w(TAG, "MediaStore recovery trigger failed", it) }
             }
         }
 
-        val previous = mediaRecoveryJobs.putIfAbsent(eventKey, job)
-        if (previous != null) {
-            job.cancel()
-            return
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                triggerRecovery()
+            }
+
+            override fun onChange(selfChange: Boolean, uri: Uri?) {
+                triggerRecovery()
+            }
+
+            override fun onChange(selfChange: Boolean, uri: Uri?, flags: Int) {
+                triggerRecovery()
+            }
         }
-        job.invokeOnCompletion {
-            mediaRecoveryJobs.remove(eventKey, job)
+
+        runCatching {
+            contentResolver.registerContentObserver(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                true,
+                observer
+            )
+            mediaObserver = observer
+        }.onFailure {
+            Log.w(TAG, "Unable to observe MediaStore images", it)
         }
-        job.start()
     }
 
     private suspend fun updatePostureMonitoring() {
@@ -334,8 +345,6 @@ class NotificationCaptureService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "NotificationCapture"
-        private val MEDIA_RECOVERY_DELAYS_MS =
-            longArrayOf(0L, 1_200L, 3_500L, 8_000L, 18_000L, 40_000L)
     }
 
     private sealed interface ListenerCommand {

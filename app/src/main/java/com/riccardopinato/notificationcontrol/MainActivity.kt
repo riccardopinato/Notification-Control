@@ -19,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.riccardopinato.notificationcontrol.billing.PlayBillingManager
+import com.riccardopinato.notificationcontrol.capture.WhatsAppSafMediaSource
 import com.riccardopinato.notificationcontrol.security.VaultSecurityManager
 import com.riccardopinato.notificationcontrol.ui.NotificationControlApp
 import com.riccardopinato.notificationcontrol.ui.NotificationControlViewModel
@@ -44,6 +45,26 @@ class MainActivity : FragmentActivity() {
 
     private val mediaPermissions =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            permissionEpoch++
+        }
+
+    private val whatsAppMediaFolder =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            if (uri != null) {
+                val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                val persisted = runCatching {
+                    contentResolver.takePersistableUriPermission(uri, flags)
+                    true
+                }.getOrDefault(false)
+
+                if (persisted && WhatsAppSafMediaSource(this).isWhatsAppImagesTree(uri)) {
+                    viewModel.setWhatsAppMediaTreeUri(uri.toString())
+                } else {
+                    runCatching {
+                        contentResolver.releasePersistableUriPermission(uri, flags)
+                    }
+                }
+            }
             permissionEpoch++
         }
 
@@ -100,6 +121,9 @@ class MainActivity : FragmentActivity() {
                             )
                         }
                         mediaPermissions.launch(requested)
+                    },
+                    requestWhatsAppMediaFolder = {
+                        whatsAppMediaFolder.launch(null)
                     },
                     requestVaultUnlock = ::requestVaultUnlock,
                     setSecureWindow = ::setSecureWindow,

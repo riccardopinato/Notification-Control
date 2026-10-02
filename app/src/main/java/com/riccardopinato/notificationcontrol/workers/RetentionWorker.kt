@@ -7,6 +7,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import androidx.core.content.edit
+import com.riccardopinato.notificationcontrol.capture.MediaRecoveryCoordinator
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
@@ -24,19 +25,24 @@ class RetentionWorker(
         val now = System.currentTimeMillis()
         val dao = database.notificationDao()
         val mediaStore = NotificationMediaStore(applicationContext)
+        val recoveryDao = database.mediaRecoveryDao()
+
+        MediaRecoveryCoordinator(applicationContext).cleanupRescue(now)
 
         enforceRetention(
             now = now,
             settings = settings,
             dao = dao,
-            mediaStore = mediaStore
+            mediaStore = mediaStore,
+            recoveryPaths = { recoveryDao.allRescuePaths() }
         )
 
         if (settings.isPremium && settings.vaultMaxBytes != Long.MAX_VALUE) {
             enforceVaultBudget(
                 settings.vaultMaxBytes,
                 dao,
-                mediaStore
+                mediaStore,
+                recoveryPaths = { recoveryDao.allRescuePaths() }
             )
         }
 
@@ -48,7 +54,8 @@ class RetentionWorker(
         now: Long,
         settings: AppSettings,
         dao: com.riccardopinato.notificationcontrol.data.NotificationDao,
-        mediaStore: NotificationMediaStore
+        mediaStore: NotificationMediaStore,
+        recoveryPaths: suspend () -> List<String>
     ) {
         val perApp = if (settings.isPremium) {
             settings.retentionDaysPerApp
@@ -80,13 +87,14 @@ class RetentionWorker(
             }
         }
 
-        mediaStore.cleanupOrphans(dao.allThumbnailPaths())
+        mediaStore.cleanupOrphans(dao.allThumbnailPaths() + recoveryPaths())
     }
 
     private suspend fun enforceVaultBudget(
         maxBytes: Long,
         dao: com.riccardopinato.notificationcontrol.data.NotificationDao,
-        mediaStore: NotificationMediaStore
+        mediaStore: NotificationMediaStore,
+        recoveryPaths: suspend () -> List<String>
     ) {
         repeat(40) {
             val managedBytes =
@@ -102,7 +110,7 @@ class RetentionWorker(
 
             dao.deleteByKeysAndReturnMedia(keys).forEach(mediaStore::delete)
         }
-        mediaStore.cleanupOrphans(dao.allThumbnailPaths())
+        mediaStore.cleanupOrphans(dao.allThumbnailPaths() + recoveryPaths())
     }
 
     companion object {

@@ -2,4 +2,14 @@
 <resources>
     <string name="whatsapp_media_access">WhatsApp media recovery</string>
     <string name="whatsapp_media_access_body">Optional Premium fallback. With full photo access, Notification Control can copy a recent WhatsApp image from shared device media when the notification does not expose a readable image. Selected-photos access is not enough for automatic background recovery. Media stays local.</string>
+    <string name="media_rescue_inbox">Media Rescue Inbox</string>
+    <string name="media_rescue_body">Photos that look related to received WhatsApp notifications but cannot yet be matched safely are kept locally here instead of being discarded.</string>
+    <string name="whatsapp_folder_fallback">WhatsApp folder safety net</string>
+    <string name="whatsapp_folder_fallback_body">Optional second source: select the WhatsApp Images folder. Notification Control receives persistent read access only to the folder you choose.</string>
+    <string name="media_folder_linked">Linked</string>
+    <string name="media_folder_link">Link folder</string>
+    <string name="media_rescue_empty">No unresolved media.</string>
+    <string name="media_rescue_count">%1$d media waiting for a safe match</string>
+    <string name="media_rescue_confidence">Evidence score: %1$d</string>
+    <string name="media_rescue_remove">Remove</string>
 </resources>
