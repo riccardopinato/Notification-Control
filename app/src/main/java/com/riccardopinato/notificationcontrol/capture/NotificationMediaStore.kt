@@ -142,10 +142,6 @@ class NotificationMediaStore(private val context: Context) {
             MediaStore.Images.Media.DATE_ADDED + " <= ?"
         )
         val args = mutableListOf(startSeconds.toString(), endSeconds.toString())
-        if (useGeneration) {
-            selections += MediaStore.MediaColumns.GENERATION_ADDED + " > ?"
-            args += baselineGeneration.toString()
-        }
 
         val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
