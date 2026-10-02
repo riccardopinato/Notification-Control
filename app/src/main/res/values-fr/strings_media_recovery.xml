@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="whatsapp_media_access">Récupération des médias WhatsApp</string>
-    <string name="whatsapp_media_access_body">Solution Premium facultative. Avec un accès complet aux photos, Notification Control peut copier une image WhatsApp récemment reçue depuis les médias partagés lorsque la notification n&apos;expose pas d&apos;image lisible. L&apos;accès aux seules photos sélectionnées ne suffit pas pour la récupération automatique en arrière-plan. Les médias restent locaux.</string>
+    <string name="whatsapp_media_access_body">Solution Premium facultative. Avec un accès complet aux photos, Notification Control peut copier une image WhatsApp récemment reçue depuis les médias partagés lorsque la notification ne fournit pas une image lisible. Le choix limité à des photos sélectionnées ne suffit pas pour la récupération automatique en arrière-plan. Les médias restent locaux.</string>
 </resources>
