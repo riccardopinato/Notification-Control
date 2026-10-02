@@ -105,7 +105,12 @@ class MediaRecoveryCoordinator(
                 // Direct notification media already gives us a local copy. A strong independent
                 // gallery/SAF match is used as proof-of-nine, not as a destructive replacement.
                 recoveryDao.deletePending(assignment.target.revisionKey)
-                recoveryDao.deleteRescueBySourceKey(assignment.candidate.sourceKey)
+                recoveryDao.rescueBySourceKey(assignment.candidate.sourceKey)?.let { rescue ->
+                    recoveryDao.deleteRescueBySourceKey(assignment.candidate.sourceKey)
+                    if (rescue.localPath != revision.thumbnailPath) {
+                        mediaStore.delete(rescue.localPath)
+                    }
+                }
                 return@forEach
             }
 
@@ -164,7 +169,10 @@ class MediaRecoveryCoordinator(
                     )
                 )
                 if (inserted == -1L) {
-                    mediaStore.delete(localPath)
+                    val existing = recoveryDao.rescueBySourceKey(enriched.sourceKey)
+                    if (existing?.localPath != localPath) {
+                        mediaStore.delete(localPath)
+                    }
                 }
             }
 
