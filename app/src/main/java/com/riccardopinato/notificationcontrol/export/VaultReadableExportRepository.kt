@@ -27,9 +27,9 @@ class VaultReadableExportRepository(context: Context) {
     private val dao by lazy { NotificationDatabase.get(appContext).notificationDao() }
 
     suspend fun exportCsv(uri: Uri): Result<VaultExportResult> = runCatching {
-        val notifications = dao.allNotificationsForExport()
-        val messages = dao.allMessagesForExport()
-        val messagesByNotification = messages.groupBy(MessageEntity::notificationKey)
+        val eventKeys = dao.eventKeysForExport()
+        var notificationCount = 0
+        var messageCount = 0
 
         appContext.contentResolver.openOutputStream(uri, "wt").use { output ->
             checkNotNull(output) { "Unable to open export destination" }
@@ -48,17 +48,17 @@ class VaultReadableExportRepository(context: Context) {
                     ).joinToString(",")
                 )
 
-                notifications.forEach { notification ->
-                    val messageText = messagesByNotification[notification.sbnKey]
-                        .orEmpty()
-                        .joinToString("\n") { message ->
-                            val sender = message.sender?.takeIf(String::isNotBlank)
-                            if (sender == null) {
-                                message.text
-                            } else {
-                                sender + ": " + message.text
-                            }
+                eventKeys.forEach { eventKey ->
+                    val notification = dao.findByKey(eventKey) ?: return@forEach
+                    val messages = dao.messagesFor(eventKey)
+                    val messageText = messages.joinToString("\n") { message ->
+                        val sender = message.sender?.takeIf(String::isNotBlank)
+                        if (sender == null) {
+                            message.text
+                        } else {
+                            sender + ": " + message.text
                         }
+                    }
 
                     writer.appendLine(
                         listOf(
@@ -76,25 +76,25 @@ class VaultReadableExportRepository(context: Context) {
                             VaultReadableExportFormatter.csvCell(it)
                         }
                     )
+                    notificationCount += 1
+                    messageCount += messages.size
                 }
             }
         }
 
         VaultExportResult(
-            notifications = notifications.size,
-            messages = messages.size,
+            notifications = notificationCount,
+            messages = messageCount,
             revisions = 0
         )
     }
 
     suspend fun exportJson(uri: Uri): Result<VaultExportResult> = runCatching {
         check(settings.isPremium) { "Premium is required for structured JSON export" }
-        val notifications = dao.allNotificationsForExport()
-        val messages = dao.allMessagesForExport()
-        val revisions = dao.allRevisionsForExport()
-        val messagesByNotification = messages.groupBy(MessageEntity::notificationKey)
-        val revisionsByNotification =
-            revisions.groupBy(NotificationRevisionEntity::notificationKey)
+        val eventKeys = dao.eventKeysForExport()
+        var notificationCount = 0
+        var messageCount = 0
+        var revisionCount = 0
 
         appContext.contentResolver.openOutputStream(uri, "wt").use { output ->
             checkNotNull(output) { "Unable to open export destination" }
@@ -106,13 +106,19 @@ class VaultReadableExportRepository(context: Context) {
                 writer.name("notifications")
                 writer.beginArray()
 
-                notifications.forEach { notification ->
+                eventKeys.forEach { eventKey ->
+                    val notification = dao.findByKey(eventKey) ?: return@forEach
+                    val messages = dao.messagesFor(eventKey)
+                    val revisions = dao.revisionsFor(eventKey)
                     writeNotificationJson(
                         writer = writer,
                         notification = notification,
-                        messages = messagesByNotification[notification.sbnKey].orEmpty(),
-                        revisions = revisionsByNotification[notification.sbnKey].orEmpty()
+                        messages = messages,
+                        revisions = revisions
                     )
+                    notificationCount += 1
+                    messageCount += messages.size
+                    revisionCount += revisions.size
                 }
 
                 writer.endArray()
@@ -121,9 +127,9 @@ class VaultReadableExportRepository(context: Context) {
         }
 
         VaultExportResult(
-            notifications = notifications.size,
-            messages = messages.size,
-            revisions = revisions.size
+            notifications = notificationCount,
+            messages = messageCount,
+            revisions = revisionCount
         )
     }
 
@@ -198,11 +204,19 @@ internal object VaultReadableExportFormatter {
 
     fun csvCell(value: String?): String {
         val quote = '"'
+        val raw = value.orEmpty()
+        val safe = if (raw.firstOrNull() in FORMULA_PREFIXES) {
+            "'" + raw
+        } else {
+            raw
+        }
         return quote.toString() +
-            value.orEmpty().replace(
+            safe.replace(
                 quote.toString(),
                 quote.toString() + quote
             ) +
             quote
     }
+
+    private val FORMULA_PREFIXES = setOf('=', '+', '-', '@')
 }

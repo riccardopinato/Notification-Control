@@ -262,7 +262,9 @@ IMPLEMENTED / VALIDATION
 - Premium structured JSON export includes notifications, MessagingStyle messages and captured revisions
 - exports use Android Storage Access Framework and run only on explicit user action from an unlocked Vault
 - plaintext export warning is shown before use; encrypted backup remains the recovery/restore format
-- dedicated filter codec and CSV escaping regression tests
+- export streams one Vault event at a time after a lightweight key snapshot to avoid large in-memory payloads
+- CSV cells neutralize spreadsheet formula prefixes from untrusted notification text
+- dedicated filter codec and CSV escaping/security regression tests
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Android OAuth client/package signing configuration must match the intended signed build

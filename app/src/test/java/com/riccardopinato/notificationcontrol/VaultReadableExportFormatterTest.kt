@@ -14,6 +14,16 @@ class VaultReadableExportFormatterTest {
     }
 
     @Test
+    fun spreadsheetFormulaPrefixesAreNeutralized() {
+        assertEquals(
+            "\"'=HYPERLINK(\"\"https://example.invalid\"\")\"",
+            VaultReadableExportFormatter.csvCell(
+                "=HYPERLINK(\"https://example.invalid\")"
+            )
+        )
+    }
+
+    @Test
     fun nullCsvCellIsAnEmptyQuotedCell() {
         assertEquals("\"\"", VaultReadableExportFormatter.csvCell(null))
     }
