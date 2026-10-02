@@ -193,6 +193,13 @@ internal object VaultReadableExportFormatter {
     fun timestamp(value: Long?): String =
         value?.let { utcFormatter.format(Date(it)) }.orEmpty()
 
-    fun csvCell(value: String?): String =
-        """ + value.orEmpty().replace(""", """") + """
+    fun csvCell(value: String?): String {
+        val quote = '"'
+        return quote.toString() +
+            value.orEmpty().replace(
+                quote.toString(),
+                quote.toString() + quote
+            ) +
+            quote
+    }
 }
