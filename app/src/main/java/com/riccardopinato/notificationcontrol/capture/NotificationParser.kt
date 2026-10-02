@@ -68,7 +68,7 @@ class NotificationParser(
         val capturedMessages =
             if (structuredMessages.isNotEmpty()) structuredMessages else textLineMessages
 
-        val mediaStableKey = NotificationMediaStore.stableKey(sbn.key, sbn.postTime)
+        val mediaStableKey = NotificationMediaStore.stableKey(sbn.key, now)
 
         return CapturedNotification(
             sbnKey = sbn.key,
