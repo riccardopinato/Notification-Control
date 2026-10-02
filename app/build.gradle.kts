@@ -15,10 +15,16 @@ val releaseSigningReady = listOf(
     releaseKeyPassword
 ).all { !it.isNullOrBlank() }
 
+val defaultGoogleWebClientId =
+    "72691779013-hci9cr313a5ado5skdghs6h7a5pg84md.apps.googleusercontent.com"
+
 val googleWebClientId =
     System.getenv("GOOGLE_WEB_CLIENT_ID")
         ?.takeIf { it.isNotBlank() }
-        ?: providers.gradleProperty("GOOGLE_WEB_CLIENT_ID").orNull.orEmpty()
+        ?: providers.gradleProperty("GOOGLE_WEB_CLIENT_ID")
+            .orNull
+            ?.takeIf { it.isNotBlank() }
+        ?: defaultGoogleWebClientId
 
 fun String.asBuildConfigString(): String =
     "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
