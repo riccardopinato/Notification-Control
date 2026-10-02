@@ -70,8 +70,13 @@ object MediaCorrelationEngine {
                 val baseline = target.baselineGeneration
                 val generation = candidate.generationAdded
                 if (baseline != null && generation != null) {
-                    if (generation <= baseline) return null
-                    score += 25
+                    val generationDelta = generation - baseline
+                    score += when {
+                        generationDelta > 0L -> 25
+                        generationDelta == 0L -> 18
+                        generationDelta >= -3L -> 8
+                        else -> 0
+                    }
                 }
             }
 
