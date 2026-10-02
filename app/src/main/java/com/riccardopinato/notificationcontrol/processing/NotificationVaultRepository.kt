@@ -63,11 +63,12 @@ class NotificationVaultRepository(
                 platformKey = captured.sbnKey,
                 updatedAt = captured.capturedAt
             )
-            if (
-                captured.thumbnailPath != null &&
-                captured.thumbnailPath != replay.thumbnailPath
-            ) {
-                mediaStore.delete(captured.thumbnailPath)
+            captured.thumbnailPath?.let { path ->
+                attachCapturedMedia(
+                    eventKey = replay.sbnKey,
+                    revisionKey = captured.toRevisionEntity(replay.sbnKey).revisionKey,
+                    thumbnailPath = path
+                )
             }
             return VaultPersistResult(
                 kind = VaultPersistKind.DUPLICATE,
@@ -84,11 +85,12 @@ class NotificationVaultRepository(
         val previousRevision = active?.let { dao.latestRevisionFor(vaultKey) }
 
         if (previousRevision?.contentHash == revision.contentHash) {
-            if (
-                captured.thumbnailPath != null &&
-                captured.thumbnailPath != active.thumbnailPath
-            ) {
-                mediaStore.delete(captured.thumbnailPath)
+            captured.thumbnailPath?.let { path ->
+                attachCapturedMedia(
+                    eventKey = vaultKey,
+                    revisionKey = previousRevision.revisionKey,
+                    thumbnailPath = path
+                )
             }
             return VaultPersistResult(
                 kind = VaultPersistKind.DUPLICATE,
@@ -106,15 +108,6 @@ class NotificationVaultRepository(
             revision
         )
 
-        val replacedMedia = active?.thumbnailPath
-        if (
-            replacedMedia != null &&
-            captured.thumbnailPath != null &&
-            replacedMedia != captured.thumbnailPath
-        ) {
-            mediaStore.delete(replacedMedia)
-        }
-
         return VaultPersistResult(
             kind = if (active == null) {
                 VaultPersistKind.NEW_EVENT
@@ -127,6 +120,17 @@ class NotificationVaultRepository(
 
     suspend fun attachRecoveredThumbnail(
         eventKey: String,
+        revisionKey: String,
+        thumbnailPath: String
+    ): Boolean = attachCapturedMedia(
+        eventKey = eventKey,
+        revisionKey = revisionKey,
+        thumbnailPath = thumbnailPath
+    )
+
+    private suspend fun attachCapturedMedia(
+        eventKey: String,
+        revisionKey: String,
         thumbnailPath: String
     ): Boolean {
         val dao = database.notificationDao()
@@ -135,20 +139,20 @@ class NotificationVaultRepository(
             mediaStore.delete(thumbnailPath)
             return false
         }
-        if (current.thumbnailPath != null) {
-            if (current.thumbnailPath != thumbnailPath) {
-                mediaStore.delete(thumbnailPath)
-            }
-            return current.thumbnailPath == thumbnailPath
+
+        val updated = dao.attachRevisionThumbnailIfMissing(
+            revisionKey = revisionKey,
+            thumbnailPath = thumbnailPath
+        )
+        val revision = dao.findRevisionByKey(revisionKey)
+        if (updated == 0 && revision?.thumbnailPath != thumbnailPath) {
+            mediaStore.delete(thumbnailPath)
+            return false
         }
 
-        val updated = dao.attachThumbnailIfMissing(eventKey, thumbnailPath)
-        if (updated == 0) {
-            val latest = dao.findByKey(eventKey)
-            if (latest?.thumbnailPath != thumbnailPath) {
-                mediaStore.delete(thumbnailPath)
-            }
-            return latest?.thumbnailPath == thumbnailPath
+        val latestRevision = dao.latestRevisionFor(eventKey)
+        if (latestRevision?.revisionKey == revisionKey) {
+            dao.setCurrentThumbnail(eventKey, revision?.thumbnailPath ?: thumbnailPath)
         }
         return true
     }
