@@ -29,10 +29,19 @@ class MediaCorrelationEngineTest {
     }
 
     @Test
-    fun rejectsCandidateThatPredatesGenerationCheckpoint() {
+    fun generationCheckpointStrengthensButDoesNotBlindTimeMatching() {
         val target = target("r1", postedAt = 100_000L, baseline = 20L)
-        val candidate = candidate("c1", timestamp = 101_000L, generation = 20L)
-        assertNull(MediaCorrelationEngine.score(target, candidate))
+        val newer = candidate("c1", timestamp = 101_000L, generation = 21L)
+        val justBeforeSnapshot = candidate("c2", timestamp = 101_000L, generation = 20L)
+        val oldGeneration = candidate("c3", timestamp = 101_000L, generation = 5L)
+
+        val newerScore = MediaCorrelationEngine.score(target, newer) ?: 0
+        val snapshotScore = MediaCorrelationEngine.score(target, justBeforeSnapshot) ?: 0
+        val oldScore = MediaCorrelationEngine.score(target, oldGeneration) ?: 0
+
+        assertTrue(newerScore > snapshotScore)
+        assertTrue(snapshotScore > oldScore)
+        assertTrue(oldScore >= MediaCorrelationEngine.MIN_ASSIGN_CONFIDENCE)
     }
 
     @Test
