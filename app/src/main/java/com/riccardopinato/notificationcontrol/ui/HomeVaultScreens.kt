@@ -308,6 +308,7 @@ fun VaultScreen(
     packageFilter: String?,
     appFilters: List<VaultAppFilter>,
     storageStats: StorageStats,
+    isPremium: Boolean,
     onSearchChange: (String) -> Unit,
     onPackageFilterChange: (String?) -> Unit,
     onProtect: (String, Boolean) -> Unit,
@@ -355,6 +356,16 @@ fun VaultScreen(
                     )
                 }
             }
+        }
+        item {
+            VaultProductivitySection(
+                search = search,
+                packageFilter = packageFilter,
+                appFilters = appFilters,
+                isPremium = isPremium,
+                onSearchChange = onSearchChange,
+                onPackageFilterChange = onPackageFilterChange
+            )
         }
         item {
             Card(

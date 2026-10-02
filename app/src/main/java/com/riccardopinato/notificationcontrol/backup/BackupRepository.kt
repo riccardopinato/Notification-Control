@@ -622,6 +622,14 @@ class BackupRepository(context: Context) {
 
     private fun settingsJson() = JSONObject()
         .put("monitoredPackages", JSONArray(settings.monitoredPackages.toList()))
+        .put(
+            "savedVaultFilters",
+            JSONArray(
+                settings.savedVaultFilters.map {
+                    com.riccardopinato.notificationcontrol.data.SavedVaultFilterCodec.encode(it)
+                }
+            )
+        )
         .put("retentionDays", settings.retentionDays)
         .put(
             "retentionDaysPerApp",
@@ -685,6 +693,16 @@ class BackupRepository(context: Context) {
                 restored.toSet()
             } else {
                 restored.take(ProductLimits.FREE_MONITORED_APPS).toSet()
+            }
+        }
+
+        o.optJSONArray("savedVaultFilters")?.let { savedFilters ->
+            settings.savedVaultFilters = buildList {
+                for (i in 0 until savedFilters.length()) {
+                    com.riccardopinato.notificationcontrol.data.SavedVaultFilterCodec
+                        .decode(savedFilters.optString(i))
+                        ?.let(::add)
+                }
             }
         }
 

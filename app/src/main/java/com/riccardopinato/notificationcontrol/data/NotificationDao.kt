@@ -282,6 +282,15 @@ interface NotificationDao {
     @Query("SELECT thumbnailPath FROM notifications WHERE thumbnailPath IS NOT NULL")
     suspend fun allThumbnailPaths(): List<String>
 
+    @Query("SELECT * FROM notifications ORDER BY updatedAt DESC")
+    suspend fun allNotificationsForExport(): List<NotificationEntity>
+
+    @Query("SELECT * FROM messages ORDER BY timestamp ASC")
+    suspend fun allMessagesForExport(): List<MessageEntity>
+
+    @Query("SELECT * FROM notification_revisions ORDER BY capturedAt ASC")
+    suspend fun allRevisionsForExport(): List<NotificationRevisionEntity>
+
     @Query("SELECT DISTINCT packageName FROM notifications")
     suspend fun packagesInVault(): List<String>
 

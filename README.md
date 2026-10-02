@@ -7,6 +7,7 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - one `NotificationListenerService` capture core with group-summary and logical replay deduplication
 - Room local Vault with notification revisions, structured messaging content and FTS search
 - local-first retention and lightweight media previews
+- Premium Saved Vault Filters plus user-initiated readable CSV / structured JSON Vault export
 - Notification Undo history semantics without falsely treating every removal as sender deletion
 - Rules Engine, Critical Alert, Pausa Ping, Follow Up and Pickup Code
 - Luminous visual-alert module with Free baseline and Premium app/sender profiles

@@ -189,6 +189,7 @@ fun NotificationControlApp(
                         packageFilter = packageFilter,
                         appFilters = appFilters,
                         storageStats = storageStats,
+                        isPremium = settings.isPremium,
                         onSearchChange = viewModel::setVaultSearch,
                         onPackageFilterChange = viewModel::setVaultPackageFilter,
                         onProtect = viewModel::setProtected,
