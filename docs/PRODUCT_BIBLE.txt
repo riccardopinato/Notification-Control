@@ -201,7 +201,7 @@ Pipeline primaria:
 3. fallback a BigPicture / EXTRA_PICTURE / EXTRA_PICTURE_ICON;
 4. estrazione sicura;
 5. ridimensionamento immediato;
-6. thumbnail leggera max circa 320 px sul lato maggiore;
+6. copia locale compressa max circa 1280 px sul lato maggiore;
 7. formato compresso supportato dalla piattaforma;
 8. salvataggio locale;
 9. cancellazione secondo retention.
@@ -210,15 +210,19 @@ Fallback WhatsApp opzionale:
 - Premium;
 - consenso esplicito dell'utente all'accesso alle foto condivise;
 - solo media visibili tramite Android MediaStore, mai database o storage privato WhatsApp;
-- correlazione temporale stretta con una notifica WhatsApp appena ricevuta;
-- retry breve per attendere l'indicizzazione del media;
+- correlazione temporale con una notifica WhatsApp appena ricevuta, con finestra controllata prima/dopo l'evento;
+- verifica anche OWNER_PACKAGE_NAME quando MediaStore lo espone, oltre al percorso WhatsApp;
+- retry progressivi fino a circa 40 secondi per attendere indicizzazione lenta del media;
+- il fallback viene rilanciato anche dopo una riconnessione del NotificationListener;
 - se più immagini sono compatibili e l'associazione è ambigua, non viene salvata alcuna immagine;
+- ogni revisione della notifica può conservare il proprio media: nuove foto nella stessa conversazione non devono sostituire le precedenti;
+- retention, cleanup e backup cifrato devono includere tutti i media delle revisioni;
 - esclusione delle cartelle Sent;
 - nessuna scansione retroattiva della galleria;
 - su Android 14+ l'accesso alle sole foto selezionate non è sufficiente per il recupero automatico in background;
 - il permesso READ_MEDIA_IMAGES richiede valutazione e dichiarazione Google Play prima della release pubblica.
 
-Il bitmap originale non viene conservato di default: anche una foto recuperata dai media condivisi viene copiata solo come thumbnail compressa nel Vault locale.
+Il file originale a piena risoluzione non viene conservato di default: anche una foto recuperata dai media condivisi viene copiata nel Vault come versione locale compressa fino a circa 1280 px, sufficiente per una consultazione più affidabile senza trasformare il Vault in una copia completa della galleria.
 
 ==================================================
 8. LOCALIZZAZIONE

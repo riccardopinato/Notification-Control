@@ -5,6 +5,7 @@ import java.security.MessageDigest
 object NotificationFingerprint {
     fun contentHash(event: CapturedNotification): String {
         val content = listOf(
+            event.postedAt.toString(),
             event.title.orEmpty(),
             event.text.orEmpty(),
             event.bigText.orEmpty(),

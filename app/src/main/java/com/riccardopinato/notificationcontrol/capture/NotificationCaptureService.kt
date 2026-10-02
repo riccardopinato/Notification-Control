@@ -226,15 +226,27 @@ class NotificationCaptureService : NotificationListenerService() {
                     .asSequence()
                     .filter(::shouldConsider)
                     .forEach { sbn ->
+                        val captureThumbnail =
+                            processor.shouldCaptureThumbnail(sbn.packageName)
                         val captured = parser.parse(
                             sbn,
-                            captureThumbnail =
-                                processor.shouldCaptureThumbnail(sbn.packageName)
+                            captureThumbnail = captureThumbnail
                         )
-                        processor.process(
+                        val persisted = processor.process(
                             captured,
                             ProcessingMode.RECONCILIATION
                         )
+                        if (
+                            captureThumbnail &&
+                            captured.thumbnailPath == null &&
+                            persisted.vaultKey != null
+                        ) {
+                            scheduleWhatsAppMediaRecovery(
+                                notification = sbn,
+                                captured = captured,
+                                eventKey = persisted.vaultKey
+                            )
+                        }
                     }
                 health.lastReconciliationAt = System.currentTimeMillis()
             }
@@ -259,18 +271,27 @@ class NotificationCaptureService : NotificationListenerService() {
         if (!hasImageSignal) return
         if (mediaRecoveryJobs[eventKey]?.isActive == true) return
 
+        val revisionKey = captured.toRevisionEntity(eventKey).revisionKey
         val stableKey =
-            NotificationMediaStore.stableKey(captured.sbnKey, captured.postedAt)
+            NotificationMediaStore.stableKey(captured.sbnKey, captured.capturedAt)
         val job = serviceScope.launch(start = CoroutineStart.LAZY) {
-            for (delayMillis in MEDIA_RECOVERY_DELAYS_MS) {
-                if (delayMillis > 0L) delay(delayMillis)
+            val startedAt = System.currentTimeMillis()
+            for (targetDelayMillis in MEDIA_RECOVERY_DELAYS_MS) {
+                val remainingDelay =
+                    startedAt + targetDelayMillis - System.currentTimeMillis()
+                if (remainingDelay > 0L) delay(remainingDelay)
+
                 val path = mediaStore.recoverWhatsAppImage(
                     packageName = captured.packageName,
                     postedAt = captured.postedAt,
                     stableKey = stableKey
                 )
                 if (path != null) {
-                    vaultRepository.attachRecoveredThumbnail(eventKey, path)
+                    vaultRepository.attachRecoveredThumbnail(
+                        eventKey = eventKey,
+                        revisionKey = revisionKey,
+                        thumbnailPath = path
+                    )
                     break
                 }
             }
@@ -313,7 +334,8 @@ class NotificationCaptureService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "NotificationCapture"
-        private val MEDIA_RECOVERY_DELAYS_MS = longArrayOf(0L, 1_200L, 3_200L)
+        private val MEDIA_RECOVERY_DELAYS_MS =
+            longArrayOf(0L, 1_200L, 3_500L, 8_000L, 18_000L, 40_000L)
     }
 
     private sealed interface ListenerCommand {

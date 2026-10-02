@@ -471,7 +471,7 @@ private fun NotificationVaultCard(
             Modifier.fillMaxWidth().padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            notification.thumbnailPath?.let { Thumbnail(it) }
+            notification.thumbnailPath?.let { VaultThumbnail(it) }
             Column(Modifier.weight(1f)) {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -542,7 +542,7 @@ private object ThumbnailMemoryCache {
 }
 
 @Composable
-private fun Thumbnail(path: String) {
+internal fun VaultThumbnail(path: String) {
     val cached = remember(path) { ThumbnailMemoryCache.get(path) }
     val image by produceState<ImageBitmap?>(initialValue = cached, path) {
         if (value == null) {

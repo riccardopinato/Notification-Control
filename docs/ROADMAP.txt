@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v1.5.0
+NOTIFICATION CONTROL — ROADMAP v1.5.1
 Date: 2026-10-02
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
@@ -268,22 +268,40 @@ Merge baseline: 74fe4b704de8d5193e8a6cadb2c74fe0df226695
 - dedicated filter codec and CSV escaping/security regression tests
 
 STEP 19 — WHATSAPP MEDIA RECOVERY
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: 4112975550ebe11b07f2ed144c1ac86468673318
 - capture media primaria da MessagingStyle image dataUri prima dei payload BigPicture
 - supporto EXTRA_PICTURE_ICON senza usare la largeIcon del contatto come foto del messaggio
 - fallback Premium opzionale dai media condivisi per WhatsApp e WhatsApp Business
 - permesso foto richiesto progressivamente da Profilo > Stato Notification Control
 - su Android 14+ accesso parziale/sole foto selezionate trattato come insufficiente per recovery automatico
-- correlazione MediaStore su finestra temporale breve e soli percorsi immagine WhatsApp compatibili
+- correlazione MediaStore limitata ai percorsi immagine WhatsApp compatibili
 - cartelle Sent escluse
 - candidati simultanei ambigui rifiutati per evitare di associare la foto sbagliata
-- retry asincroni brevi: la pipeline notifiche serializzata non viene bloccata mentre MediaStore indicizza l'immagine
-- media recuperato ridotto subito alla thumbnail locale esistente di circa 320 px
-- nessuna migrazione Room: la thumbnail tardiva viene collegata solo a un evento Vault ancora presente e senza media
+- retry asincroni senza bloccare la pipeline notifiche
+- nessuna migrazione Room: il media tardivo viene collegato solo a un evento Vault ancora presente e senza media
 - nessuna scansione retroattiva e nessun accesso al database/storage privato WhatsApp
-- contenuto notifiche e thumbnail restano locali
+- contenuto notifiche e media restano locali
 - READ_MEDIA_IMAGES introduce un gate di dichiarazione/review Google Play prima della release pubblica
 - test unitari dedicati alla policy di recovery e al rifiuto delle associazioni ambigue
+
+STEP 19.1 — GALLERY DOUBLE-CHECK HARDENING
+IMPLEMENTED / VALIDATION
+- MediaStore usa anche OWNER_PACKAGE_NAME quando disponibile, oltre al percorso WhatsApp
+- package visibility esplicita per WhatsApp e WhatsApp Business
+- candidati con owner esplicitamente diverso dal package notificante vengono rifiutati
+- finestra di correlazione resa asimmetrica: 15 s prima / 45 s dopo la notifica
+- retry assoluti a 0 / 1.2 / 3.5 / 8 / 18 / 40 s per coprire indicizzazione lenta della galleria
+- la riconciliazione dopo reconnect del NotificationListener rilancia anche il fallback MediaStore
+- copia locale aumentata da circa 320 px a massimo 1280 px, WEBP qualità 82
+- Room v10: thumbnailPath per revisione, con migrazione 9→10 che preserva la preview legacy sull'ultima revisione
+- ogni nuova foto può restare legata alla propria revisione; la preview principale punta solo al media della revisione più recente
+- retention/cleanup eliminano i media di tutte le revisioni insieme al relativo evento
+- backup cifrato include revisionMedia e ripristina tutte le foto archiviate
+- cronologia dettaglio Vault mostra il media associato a ciascuna revisione
+- nessuna modifica al peso APK: cresce solo lo storage dati effettivamente usato dai media archiviati
+- resta valida la regola fail-safe: se due candidati sono troppo vicini, non viene collegata alcuna foto
+- aggiunti test per owner package, indicizzazione tardiva e limite temporale
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Android OAuth client/package signing configuration must match the intended signed build
@@ -299,10 +317,10 @@ LIVE GOOGLE/PLAY CONFIG: REQUIRED
 FINAL INTENDED-RELEASE VERDICT: BLOCKED until manual/device/store gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Close Android CI + Certified QA for STEP 19.
-2. Install fresh qaPremium APK and test a WhatsApp photo with direct notification media.
-3. Grant full photo access and test MediaStore fallback with WhatsApp media visibility/auto-download enabled.
-4. Verify that multiple-photo bursts never attach an ambiguous image.
+1. Close Android CI + Certified QA for STEP 19.1.
+2. Install fresh qaPremium APK and test direct WhatsApp media plus gallery fallback.
+3. Test delayed gallery indexing, listener reconnect and multiple-photo bursts.
+4. Verify that a saved Vault copy remains readable after the source notification is dismissed.
 5. Decide and complete the Google Play READ_MEDIA_IMAGES declaration path before production release.
 6. Create Google OAuth Android client for QA package + SHA-1.
 7. Validate Saved Filters plus CSV/JSON export and run the remaining physical regression.

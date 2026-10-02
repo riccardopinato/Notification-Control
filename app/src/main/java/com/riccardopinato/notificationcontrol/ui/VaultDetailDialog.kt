@@ -275,6 +275,7 @@ private fun VaultRevisionRow(revision: NotificationRevisionEntity) {
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold
             )
+            revision.thumbnailPath?.let { VaultThumbnail(it) }
             revision.title?.takeIf { it.isNotBlank() }?.let {
                 Text(it, fontWeight = FontWeight.SemiBold)
             }

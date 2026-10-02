@@ -408,6 +408,106 @@ class NotificationDatabaseMigrationTest {
         context.deleteDatabase(databaseName)
     }
 
+
+    @Test
+    fun migration9To10PreservesExistingPreviewOnLatestRevision() {
+        val context = RuntimeEnvironment.getApplication()
+        val databaseName = "notification-control-migration-9-10.db"
+        context.deleteDatabase(databaseName)
+
+        val v9 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(9) {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            db.execSQL(
+                                """
+                                CREATE TABLE notifications (
+                                    sbnKey TEXT NOT NULL PRIMARY KEY,
+                                    thumbnailPath TEXT
+                                )
+                                """.trimIndent()
+                            )
+                            db.execSQL(
+                                """
+                                CREATE TABLE notification_revisions (
+                                    revisionKey TEXT NOT NULL PRIMARY KEY,
+                                    notificationKey TEXT NOT NULL,
+                                    capturedAt INTEGER NOT NULL,
+                                    title TEXT,
+                                    text TEXT,
+                                    bigText TEXT,
+                                    subText TEXT,
+                                    conversationTitle TEXT,
+                                    contentHash TEXT NOT NULL
+                                )
+                                """.trimIndent()
+                            )
+                        }
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) = Unit
+                    }
+                )
+                .build()
+        )
+
+        v9.writableDatabase.execSQL(
+            "INSERT INTO notifications(sbnKey, thumbnailPath) " +
+                "VALUES('event-1', '/vault/photo.webp')"
+        )
+        v9.writableDatabase.execSQL(
+            """
+            INSERT INTO notification_revisions(
+                revisionKey, notificationKey, capturedAt, contentHash
+            ) VALUES
+                ('rev-old', 'event-1', 100, 'hash-old'),
+                ('rev-new', 'event-1', 200, 'hash-new')
+            """.trimIndent()
+        )
+        v9.close()
+
+        val v10 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(10) {
+                        override fun onCreate(db: SupportSQLiteDatabase) = Unit
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) {
+                            assertEquals(9, oldVersion)
+                            assertEquals(10, newVersion)
+                            NotificationDatabase.MIGRATION_9_10.migrate(db)
+                        }
+                    }
+                )
+                .build()
+        )
+
+        v10.writableDatabase.query(
+            "SELECT revisionKey, thumbnailPath FROM notification_revisions " +
+                "ORDER BY capturedAt ASC"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("rev-old", cursor.getString(0))
+            assertTrue(cursor.isNull(1))
+            assertTrue(cursor.moveToNext())
+            assertEquals("rev-new", cursor.getString(0))
+            assertEquals("/vault/photo.webp", cursor.getString(1))
+        }
+
+        v10.close()
+        context.deleteDatabase(databaseName)
+    }
+
     private fun createNotificationsV5(db: SupportSQLiteDatabase) {
         db.execSQL(
             """

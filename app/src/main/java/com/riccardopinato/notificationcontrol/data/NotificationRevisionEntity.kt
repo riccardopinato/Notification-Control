@@ -26,5 +26,6 @@ data class NotificationRevisionEntity(
     val bigText: String?,
     val subText: String?,
     val conversationTitle: String?,
+    val thumbnailPath: String? = null,
     val contentHash: String
 )

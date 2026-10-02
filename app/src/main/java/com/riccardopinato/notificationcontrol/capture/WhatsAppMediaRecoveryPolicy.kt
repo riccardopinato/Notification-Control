@@ -4,14 +4,16 @@ import java.util.Locale
 import kotlin.math.abs
 
 object WhatsAppMediaRecoveryPolicy {
-    const val SEARCH_WINDOW_MS = 12_000L
-    const val FUTURE_TOLERANCE_MS = 4_000L
-    private const val AMBIGUITY_GAP_MS = 2_000L
+    const val SEARCH_BEFORE_MS = 15_000L
+    const val SEARCH_AFTER_MS = 45_000L
+    const val FUTURE_TOLERANCE_MS = 2_000L
+    private const val AMBIGUITY_GAP_MS = 2_500L
 
     data class Candidate(
         val id: Long,
         val timestampMillis: Long,
-        val path: String
+        val path: String,
+        val ownerPackageName: String? = null
     )
 
     fun supportsPackage(packageName: String): Boolean =
@@ -28,6 +30,15 @@ object WhatsAppMediaRecoveryPolicy {
                 "whatsapp business/media/whatsapp business images" in normalized
             else -> false
         }
+    }
+
+    fun isCompatibleImageCandidate(
+        packageName: String,
+        path: String?,
+        ownerPackageName: String?
+    ): Boolean {
+        if (!isCompatibleImagePath(packageName, path)) return false
+        return ownerPackageName.isNullOrBlank() || ownerPackageName == packageName
     }
 
     fun hasImageSignal(
@@ -50,7 +61,10 @@ object WhatsAppMediaRecoveryPolicy {
 
     fun chooseCandidate(postedAt: Long, candidates: List<Candidate>): Candidate? {
         val ranked = candidates
-            .filter { abs(it.timestampMillis - postedAt) <= SEARCH_WINDOW_MS }
+            .filter {
+                it.timestampMillis >= postedAt - SEARCH_BEFORE_MS &&
+                    it.timestampMillis <= postedAt + SEARCH_AFTER_MS
+            }
             .sortedBy { abs(it.timestampMillis - postedAt) }
 
         val first = ranked.firstOrNull() ?: return null
