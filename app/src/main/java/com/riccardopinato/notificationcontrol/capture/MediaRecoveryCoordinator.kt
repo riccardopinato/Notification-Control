@@ -34,6 +34,10 @@ class MediaRecoveryCoordinator(
         if (!settings.isPremium) return
         if (!WhatsAppMediaRecoveryPolicy.supportsPackage(captured.packageName)) return
 
+        val hasMediaStore = mediaStore.canRecoverWhatsAppImages()
+        val hasSaf = captured.packageName == WHATSAPP_PACKAGE && hasSafAccess()
+        if (!hasMediaStore && !hasSaf) return
+
         val now = System.currentTimeMillis()
         val snapshot = mediaStore.snapshot()
         val referenceHash = mediaStore.perceptualHashForPath(captured.thumbnailPath)
