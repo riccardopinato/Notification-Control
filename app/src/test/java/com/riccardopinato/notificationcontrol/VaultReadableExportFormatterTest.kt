@@ -24,6 +24,14 @@ class VaultReadableExportFormatterTest {
     }
 
     @Test
+    fun formulaPrefixAfterWhitespaceIsNeutralized() {
+        assertEquals(
+            "\"'  +SUM(A1:A2)\"",
+            VaultReadableExportFormatter.csvCell("  +SUM(A1:A2)")
+        )
+    }
+
+    @Test
     fun nullCsvCellIsAnEmptyQuotedCell() {
         assertEquals("\"\"", VaultReadableExportFormatter.csvCell(null))
     }

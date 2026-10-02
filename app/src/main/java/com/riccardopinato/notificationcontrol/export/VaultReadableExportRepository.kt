@@ -205,7 +205,11 @@ internal object VaultReadableExportFormatter {
     fun csvCell(value: String?): String {
         val quote = '"'
         val raw = value.orEmpty()
-        val safe = if (raw.firstOrNull() in FORMULA_PREFIXES) {
+        val firstContentChar = raw.firstOrNull { !it.isWhitespace() }
+        val safe = if (
+            firstContentChar != null &&
+            firstContentChar in FORMULA_PREFIXES
+        ) {
             "'" + raw
         } else {
             raw
