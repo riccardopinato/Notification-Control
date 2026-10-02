@@ -27,12 +27,17 @@ import com.riccardopinato.notificationcontrol.processing.PickupCodeConsumer
 import com.riccardopinato.notificationcontrol.processing.ProcessingMode
 import com.riccardopinato.notificationcontrol.processing.RulesConsumer
 import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
+import android.app.Notification
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
 
 class NotificationCaptureService : NotificationListenerService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -40,17 +45,20 @@ class NotificationCaptureService : NotificationListenerService() {
 
     private lateinit var settings: AppSettings
     private lateinit var parser: NotificationParser
+    private lateinit var mediaStore: NotificationMediaStore
+    private lateinit var vaultRepository: NotificationVaultRepository
     private lateinit var health: ListenerHealthStore
     private lateinit var posture: DevicePostureMonitor
     private lateinit var luminousProfileDao: LuminousProfileDao
     private lateinit var runtimeCache: NotificationRuntimeCache
     private lateinit var processor: NotificationEventProcessor
     private lateinit var overlay: LuminousCircleOverlay
+    private val mediaRecoveryJobs = ConcurrentHashMap<String, Job>()
 
     override fun onCreate() {
         super.onCreate()
         settings = AppSettings(this)
-        val mediaStore = NotificationMediaStore(this)
+        mediaStore = NotificationMediaStore(this)
         parser = NotificationParser(this, mediaStore)
         health = ListenerHealthStore(this)
         posture = DevicePostureMonitor(this)
@@ -63,7 +71,7 @@ class NotificationCaptureService : NotificationListenerService() {
             luminousProfileDao = luminousProfileDao
         )
 
-        val vaultRepository = NotificationVaultRepository(
+        vaultRepository = NotificationVaultRepository(
             settings = settings,
             database = database,
             mediaStore = mediaStore
@@ -143,6 +151,7 @@ class NotificationCaptureService : NotificationListenerService() {
         posture.stop()
         overlay.hide()
         eventQueue.close()
+        mediaRecoveryJobs.clear()
         serviceScope.cancel()
         super.onDestroy()
     }
@@ -183,12 +192,24 @@ class NotificationCaptureService : NotificationListenerService() {
             is ListenerCommand.Posted -> {
                 updatePostureMonitoring()
                 val notification = command.notification
+                val captureThumbnail =
+                    processor.shouldCaptureThumbnail(notification.packageName)
                 val captured = parser.parse(
                     notification,
-                    captureThumbnail =
-                        processor.shouldCaptureThumbnail(notification.packageName)
+                    captureThumbnail = captureThumbnail
                 )
-                processor.process(captured, ProcessingMode.POSTED)
+                val persisted = processor.process(captured, ProcessingMode.POSTED)
+                if (
+                    captureThumbnail &&
+                    captured.thumbnailPath == null &&
+                    persisted.vaultKey != null
+                ) {
+                    scheduleWhatsAppMediaRecovery(
+                        notification = notification,
+                        captured = captured,
+                        eventKey = persisted.vaultKey
+                    )
+                }
             }
 
             is ListenerCommand.Removed -> {
@@ -220,6 +241,52 @@ class NotificationCaptureService : NotificationListenerService() {
         }
     }
 
+    private fun scheduleWhatsAppMediaRecovery(
+        notification: StatusBarNotification,
+        captured: CapturedNotification,
+        eventKey: String
+    ) {
+        if (!WhatsAppMediaRecoveryPolicy.supportsPackage(captured.packageName)) return
+        if (!mediaStore.canRecoverWhatsAppImages()) return
+
+        val template =
+            notification.notification.extras?.getString(Notification.EXTRA_TEMPLATE)
+        val hasImageSignal = WhatsAppMediaRecoveryPolicy.hasImageSignal(
+            mimeTypes = captured.messages.map { it.mimeType },
+            textCandidates = listOf(captured.text, captured.bigText, captured.subText),
+            templateName = template
+        )
+        if (!hasImageSignal) return
+        if (mediaRecoveryJobs[eventKey]?.isActive == true) return
+
+        val stableKey =
+            NotificationMediaStore.stableKey(captured.sbnKey, captured.postedAt)
+        val job = serviceScope.launch(start = CoroutineStart.LAZY) {
+            for (delayMillis in MEDIA_RECOVERY_DELAYS_MS) {
+                if (delayMillis > 0L) delay(delayMillis)
+                val path = mediaStore.recoverWhatsAppImage(
+                    packageName = captured.packageName,
+                    postedAt = captured.postedAt,
+                    stableKey = stableKey
+                )
+                if (path != null) {
+                    vaultRepository.attachRecoveredThumbnail(eventKey, path)
+                    break
+                }
+            }
+        }
+
+        val previous = mediaRecoveryJobs.putIfAbsent(eventKey, job)
+        if (previous != null) {
+            job.cancel()
+            return
+        }
+        job.invokeOnCompletion {
+            mediaRecoveryJobs.remove(eventKey, job)
+        }
+        job.start()
+    }
+
     private suspend fun updatePostureMonitoring() {
         val visualAlertsMayRun =
             settings.flashEnabled ||
@@ -246,6 +313,7 @@ class NotificationCaptureService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "NotificationCapture"
+        private val MEDIA_RECOVERY_DELAYS_MS = longArrayOf(0L, 1_200L, 3_200L)
     }
 
     private sealed interface ListenerCommand {

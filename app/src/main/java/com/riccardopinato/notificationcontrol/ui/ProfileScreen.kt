@@ -82,6 +82,7 @@ fun ProfileScreen(
     onBackupRestored: () -> Unit,
     requestNotificationAccess: () -> Unit,
     requestPostNotifications: () -> Unit,
+    requestPhotoLibraryPermission: () -> Unit,
     requestCameraPermission: () -> Unit,
     requestOverlayPermission: () -> Unit
 ) {
@@ -157,6 +158,7 @@ fun ProfileScreen(
                 state = state,
                 requestNotificationAccess = requestNotificationAccess,
                 requestPostNotifications = requestPostNotifications,
+                requestPhotoLibraryPermission = requestPhotoLibraryPermission,
                 requestCameraPermission = requestCameraPermission,
                 requestOverlayPermission = requestOverlayPermission
             )
@@ -825,6 +827,7 @@ private fun PermissionHealthCard(
     state: SettingsUiState,
     requestNotificationAccess: () -> Unit,
     requestPostNotifications: () -> Unit,
+    requestPhotoLibraryPermission: () -> Unit,
     requestCameraPermission: () -> Unit,
     requestOverlayPermission: () -> Unit
 ) {
@@ -840,6 +843,13 @@ private fun PermissionHealthCard(
         Build.VERSION.SDK_INT < 33 ||
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
+    val photoLibraryGranted = if (Build.VERSION.SDK_INT >= 33) {
+        context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
+            PackageManager.PERMISSION_GRANTED
+    } else {
+        context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
+            PackageManager.PERMISSION_GRANTED
+    }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -854,6 +864,20 @@ private fun PermissionHealthCard(
                 reminderNotificationsGranted,
                 requestPostNotifications
             )
+            if (state.isPremium) {
+                PermissionHealthRow(
+                    stringResource(R.string.whatsapp_media_access),
+                    photoLibraryGranted,
+                    requestPhotoLibraryPermission
+                )
+                Text(
+                    stringResource(R.string.whatsapp_media_access_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            } else {
+                PermissionNotNeededRow(stringResource(R.string.whatsapp_media_access))
+            }
             if (state.flashEnabled) {
                 PermissionHealthRow(
                     stringResource(R.string.camera_permission),

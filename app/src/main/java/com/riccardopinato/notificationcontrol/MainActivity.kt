@@ -42,6 +42,11 @@ class MainActivity : FragmentActivity() {
             permissionEpoch++
         }
 
+    private val mediaPermissions =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            permissionEpoch++
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -80,6 +85,21 @@ class MainActivity : FragmentActivity() {
                         } else {
                             permissionEpoch++
                         }
+                    },
+                    requestPhotoLibraryPermission = {
+                        val requested = when {
+                            Build.VERSION.SDK_INT >= 34 -> arrayOf(
+                                Manifest.permission.READ_MEDIA_IMAGES,
+                                Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+                            )
+                            Build.VERSION.SDK_INT >= 33 -> arrayOf(
+                                Manifest.permission.READ_MEDIA_IMAGES
+                            )
+                            else -> arrayOf(
+                                Manifest.permission.READ_EXTERNAL_STORAGE
+                            )
+                        }
+                        mediaPermissions.launch(requested)
                     },
                     requestVaultUnlock = ::requestVaultUnlock,
                     setSecureWindow = ::setSecureWindow,

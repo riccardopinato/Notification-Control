@@ -39,6 +39,7 @@ fun NotificationControlApp(
     requestNotificationAccess: () -> Unit,
     openAppInfo: () -> Unit,
     requestPostNotifications: () -> Unit,
+    requestPhotoLibraryPermission: () -> Unit,
     requestVaultUnlock: () -> Unit,
     setSecureWindow: (Boolean) -> Unit,
     purchasePremiumOffer: (String) -> Unit
@@ -308,6 +309,7 @@ fun NotificationControlApp(
                     onBackupRestored = viewModel::refreshAll,
                     requestNotificationAccess = requestNotificationAccess,
                     requestPostNotifications = requestPostNotifications,
+                    requestPhotoLibraryPermission = requestPhotoLibraryPermission,
                     requestCameraPermission = requestCameraPermission,
                     requestOverlayPermission = requestOverlayPermission
                 )

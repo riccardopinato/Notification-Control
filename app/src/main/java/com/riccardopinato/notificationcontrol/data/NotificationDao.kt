@@ -270,6 +270,15 @@ interface NotificationDao {
     suspend fun setProtected(eventKey: String, protected: Boolean)
 
     @Query(
+        "UPDATE notifications SET thumbnailPath = :thumbnailPath " +
+            "WHERE sbnKey = :eventKey AND thumbnailPath IS NULL"
+    )
+    suspend fun attachThumbnailIfMissing(
+        eventKey: String,
+        thumbnailPath: String
+    ): Int
+
+    @Query(
         """
         SELECT thumbnailPath FROM notifications
         WHERE protected = 0

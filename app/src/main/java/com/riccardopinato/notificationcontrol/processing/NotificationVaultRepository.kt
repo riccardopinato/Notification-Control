@@ -125,6 +125,34 @@ class NotificationVaultRepository(
         )
     }
 
+    suspend fun attachRecoveredThumbnail(
+        eventKey: String,
+        thumbnailPath: String
+    ): Boolean {
+        val dao = database.notificationDao()
+        val current = dao.findByKey(eventKey)
+        if (current == null) {
+            mediaStore.delete(thumbnailPath)
+            return false
+        }
+        if (current.thumbnailPath != null) {
+            if (current.thumbnailPath != thumbnailPath) {
+                mediaStore.delete(thumbnailPath)
+            }
+            return current.thumbnailPath == thumbnailPath
+        }
+
+        val updated = dao.attachThumbnailIfMissing(eventKey, thumbnailPath)
+        if (updated == 0) {
+            val latest = dao.findByKey(eventKey)
+            if (latest?.thumbnailPath != thumbnailPath) {
+                mediaStore.delete(thumbnailPath)
+            }
+            return latest?.thumbnailPath == thumbnailPath
+        }
+        return true
+    }
+
     suspend fun markRemoved(platformKey: String, reason: Int?) {
         database.notificationDao().markRemovedByPlatformKey(
             platformKey = platformKey,
