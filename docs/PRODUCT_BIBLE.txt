@@ -208,19 +208,23 @@ Pipeline primaria:
 
 Fallback WhatsApp opzionale:
 - Premium;
-- consenso esplicito dell'utente all'accesso alle foto condivise;
-- solo media visibili tramite Android MediaStore, mai database o storage privato WhatsApp;
-- correlazione temporale con una notifica WhatsApp appena ricevuta, con finestra controllata prima/dopo l'evento;
-- verifica anche OWNER_PACKAGE_NAME quando MediaStore lo espone, oltre al percorso WhatsApp;
-- retry progressivi fino a circa 40 secondi per attendere indicizzazione lenta del media;
-- il fallback viene rilanciato anche dopo una riconnessione del NotificationListener;
-- se più immagini sono compatibili e l'associazione è ambigua, non viene salvata alcuna immagine;
-- ogni revisione della notifica può conservare il proprio media: nuove foto nella stessa conversazione non devono sostituire le precedenti;
-- retention, cleanup e backup cifrato devono includere tutti i media delle revisioni;
-- esclusione delle cartelle Sent;
-- nessuna scansione retroattiva della galleria;
-- su Android 14+ l'accesso alle sole foto selezionate non è sufficiente per il recupero automatico in background;
-- il permesso READ_MEDIA_IMAGES richiede valutazione e dichiarazione Google Play prima della release pubblica.
+- consenso esplicito dell'utente;
+- sorgente 1: Android MediaStore con accesso foto completo quando consentito;
+- sorgente 2 indipendente: cartella WhatsApp Images scelta dall'utente tramite SAF, con sola lettura persistente;
+- mai database o storage privato WhatsApp;
+- su Android 11+ viene registrato il checkpoint MediaStore GENERATION_ADDED e verificata la versione MediaStore prima del confronto;
+- un ContentObserver rilancia il motore appena cambia la raccolta immagini;
+- i pending sono persistiti in Room e WorkManager continua i tentativi anche se il listener o il processo vengono interrotti;
+- correlazione globale one-to-one tra notifiche e candidati, con segnali owner package, percorso, generation, tempo, MIME e metadata;
+- quando la notifica ha già fornito una preview, la galleria/SAF vale come prova del nove solo se supera anche il perceptual-hash;
+- se più candidati restano plausibili ma non distinguibili, nessuno viene associato a caso;
+- i candidati ambigui vengono copiati localmente nella Media Rescue Inbox invece di essere eliminati;
+- ogni revisione della notifica conserva il proprio media già verificato;
+- retention, cleanup e backup cifrato includono i media delle revisioni; la Rescue Inbox resta locale e temporanea;
+- il riferimento SAF non è portabile tra dispositivi e deve essere riconcesso dopo un restore su un altro device;
+- nessuna scansione retroattiva indiscriminata della galleria;
+- su Android 14+ l'accesso alle sole foto selezionate non basta per il percorso MediaStore automatico;
+- READ_MEDIA_IMAGES richiede valutazione/dichiarazione Google Play se mantenuto nella build pubblica.
 
 Il file originale a piena risoluzione non viene conservato di default: anche una foto recuperata dai media condivisi viene copiata nel Vault come versione locale compressa fino a circa 1280 px, sufficiente per una consultazione più affidabile senza trasformare il Vault in una copia completa della galleria.
 
@@ -352,4 +356,4 @@ Correzioni:
 - RECEIVE_SMS / READ_CALL_LOG esclusi dall'architettura target;
 - entitlement non deve stare nei renderer Luminous.
 
-END PRODUCT BIBLE v0.4
+END PRODUCT BIBLE v0.5
