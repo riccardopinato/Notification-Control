@@ -50,6 +50,12 @@ interface NotificationDao {
     )
     suspend fun latestRevisionFor(eventKey: String): NotificationRevisionEntity?
 
+    @Query(
+        "SELECT * FROM notification_revisions " +
+            "WHERE revisionKey = :revisionKey LIMIT 1"
+    )
+    suspend fun findRevisionByKey(revisionKey: String): NotificationRevisionEntity?
+
     @Transaction
     suspend fun upsert(
         entity: NotificationEntity,
