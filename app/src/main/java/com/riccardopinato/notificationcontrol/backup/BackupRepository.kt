@@ -51,6 +51,7 @@ class BackupRepository(context: Context) {
         val followUps = backupDao.allFollowUps()
         val pickupCodes = backupDao.allPickupCodes()
         val luminousProfiles = database.luminousProfileDao().allProfiles()
+        val revisionMediaPaths = revisions.mapNotNull { it.thumbnailPath }.toSet()
 
         val root = JSONObject()
             .put("format", FORMAT_VERSION)
@@ -87,10 +88,21 @@ class BackupRepository(context: Context) {
             })
             .put("media", JSONArray().apply {
                 notifications.forEach { notification ->
+                    if (notification.thumbnailPath in revisionMediaPaths) return@forEach
                     val bytes = mediaStore.read(notification.thumbnailPath) ?: return@forEach
                     put(
                         JSONObject()
                             .put("notificationKey", notification.sbnKey)
+                            .put("data", Base64.encodeToString(bytes, Base64.NO_WRAP))
+                    )
+                }
+            })
+            .put("revisionMedia", JSONArray().apply {
+                revisions.forEach { revision ->
+                    val bytes = mediaStore.read(revision.thumbnailPath) ?: return@forEach
+                    put(
+                        JSONObject()
+                            .put("revisionKey", revision.revisionKey)
                             .put("data", Base64.encodeToString(bytes, Base64.NO_WRAP))
                     )
                 }
@@ -123,6 +135,9 @@ class BackupRepository(context: Context) {
         require(root.getInt("format") == FORMAT_VERSION) { "Unsupported backup version" }
 
         val mediaPayloads = parseMedia(root.getJSONArray("media"))
+        val revisionMediaPayloads = parseRevisionMedia(
+            root.optJSONArray("revisionMedia") ?: JSONArray()
+        )
         val notifications = parseNotifications(root.getJSONArray("notifications"))
         val messages = parseMessages(root.getJSONArray("messages"))
         val revisions = parseRevisions(root.getJSONArray("revisions"))
@@ -142,13 +157,35 @@ class BackupRepository(context: Context) {
         validateReferences(notifications, messages, revisions, rules, actions)
 
         val previousMedia = notificationDao.allThumbnailPaths().toSet()
-        val notificationsWithMedia = notifications.map { notification ->
-            notification.copy(
-                thumbnailPath = mediaPayloads[notification.sbnKey]
-                    ?.let { mediaStore.restorePicture(notification.sbnKey, it) }
+        val revisionsWithMedia = revisions.map { revision ->
+            revision.copy(
+                thumbnailPath = revisionMediaPayloads[revision.revisionKey]
+                    ?.let {
+                        mediaStore.restorePicture(
+                            "revision:" + revision.revisionKey,
+                            it
+                        )
+                    }
             )
         }
-        val restoredMedia = notificationsWithMedia.mapNotNull { it.thumbnailPath }.toSet()
+        val latestRevisionMediaByNotification = revisionsWithMedia
+            .asSequence()
+            .filter { it.thumbnailPath != null }
+            .groupBy { it.notificationKey }
+            .mapValues { (_, values) -> values.maxByOrNull { it.capturedAt } }
+
+        val notificationsWithMedia = notifications.map { notification ->
+            val legacyPath = mediaPayloads[notification.sbnKey]
+                ?.let { mediaStore.restorePicture(notification.sbnKey, it) }
+            notification.copy(
+                thumbnailPath = legacyPath
+                    ?: latestRevisionMediaByNotification[notification.sbnKey]?.thumbnailPath
+            )
+        }
+        val restoredMedia = buildSet {
+            notificationsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
+            revisionsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
+        }
 
         try {
             database.withTransaction {
@@ -181,7 +218,9 @@ class BackupRepository(context: Context) {
                         }
                     )
                 }
-                if (revisions.isNotEmpty()) backupDao.insertRevisions(revisions)
+                if (revisionsWithMedia.isNotEmpty()) {
+                    backupDao.insertRevisions(revisionsWithMedia)
+                }
                 if (rules.isNotEmpty()) backupDao.insertRules(rules)
                 if (actions.isNotEmpty()) backupDao.insertRuleActions(actions)
                 if (critical.isNotEmpty()) backupDao.insertCriticalPatterns(critical)
@@ -295,6 +334,7 @@ class BackupRepository(context: Context) {
                     bigText = o.stringOrNull("bigText"),
                     subText = o.stringOrNull("subText"),
                     conversationTitle = o.stringOrNull("conversationTitle"),
+                    thumbnailPath = null,
                     contentHash = o.getString("contentHash")
                 )
             )
@@ -446,6 +486,15 @@ class BackupRepository(context: Context) {
             val bytes = Base64.decode(o.getString("data"), Base64.DEFAULT)
             require(bytes.size <= MAX_MEDIA_BYTES) { "Media preview too large" }
             put(o.getString("notificationKey"), bytes)
+        }
+    }
+
+    private fun parseRevisionMedia(array: JSONArray): Map<String, ByteArray> = buildMap {
+        for (i in 0 until array.length()) {
+            val o = array.getJSONObject(i)
+            val bytes = Base64.decode(o.getString("data"), Base64.DEFAULT)
+            require(bytes.size <= MAX_MEDIA_BYTES) { "Revision media preview too large" }
+            put(o.getString("revisionKey"), bytes)
         }
     }
 
