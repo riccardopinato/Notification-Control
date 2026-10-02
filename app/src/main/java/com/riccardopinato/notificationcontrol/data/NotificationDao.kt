@@ -282,6 +282,9 @@ interface NotificationDao {
     @Query("SELECT thumbnailPath FROM notifications WHERE thumbnailPath IS NOT NULL")
     suspend fun allThumbnailPaths(): List<String>
 
+    @Query("SELECT sbnKey FROM notifications ORDER BY updatedAt DESC")
+    suspend fun eventKeysForExport(): List<String>
+
     @Query("SELECT DISTINCT packageName FROM notifications")
     suspend fun packagesInVault(): List<String>
 

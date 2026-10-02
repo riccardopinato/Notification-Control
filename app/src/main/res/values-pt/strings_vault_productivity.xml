@@ -1,0 +1,19 @@
+<resources>
+    <string name="vault_saved_filters_title">Filtros guardados</string>
+    <string name="vault_saved_filter_save">Guardar atual</string>
+    <string name="vault_saved_filters_premium_hint">Os filtros guardados estão disponíveis com Premium.</string>
+    <string name="vault_saved_filters_empty">Guarde uma pesquisa ou filtro de app para reutilizá-lo imediatamente.</string>
+    <string name="vault_saved_filter_delete">Eliminar filtro guardado</string>
+    <string name="vault_saved_filter_dialog_title">Guardar filtro do Vault</string>
+    <string name="vault_saved_filter_name">Nome do filtro</string>
+    <string name="vault_saved_filter_confirm">Guardar</string>
+    <string name="vault_saved_filter_cancel">Cancelar</string>
+    <string name="vault_export_title">Exportação legível do Vault</string>
+    <string name="vault_export_body">Exporte o histórico atualmente guardado neste dispositivo. CSV está disponível para todos; JSON detalhado é Premium.</string>
+    <string name="vault_export_plaintext_warning">Estes ficheiros não são cifrados e podem conter texto privado de notificações. Guarde-os com cuidado.</string>
+    <string name="vault_export_csv">Exportar CSV</string>
+    <string name="vault_export_json">Exportar JSON</string>
+    <string name="vault_export_json_premium_hint">A exportação JSON detalhada está disponível com Premium.</string>
+    <string name="vault_export_success">Foram exportados %1$d itens do Vault.</string>
+    <string name="vault_export_failed">Falha ao exportar o Vault.</string>
+</resources>

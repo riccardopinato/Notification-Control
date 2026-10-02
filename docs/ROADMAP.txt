@@ -1,5 +1,5 @@
-NOTIFICATION CONTROL — ROADMAP v1.3.0
-Date: 2026-10-01
+NOTIFICATION CONTROL — ROADMAP v1.4.0
+Date: 2026-10-02
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
 PHASE 0 — DONOR AUDIT & BASELINE
@@ -240,7 +240,10 @@ Merge baseline: 2e21c7697a0602afbe92b938a407856e092d9357
 - warning residui di lint classificati come non-bug: versioni disponibili, plural suggestion, risorse shrinkabili, compatibilità attributi XML
 
 STEP 17 — GOOGLE OAUTH LIVE CONFIG
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: 342109c9b40e11a0a776ae334beaf25409e61f67
+- Android CI #84: PASS
+- Certified QA #53: PASS
 - Web OAuth Client ID configurato per Notification Control
 - client ID pubblico incorporato come fallback di build
 - override tramite GOOGLE_WEB_CLIENT_ID secret/variable/proprietà ancora supportato
@@ -249,6 +252,19 @@ IMPLEMENTED / VALIDATION
 - SHA-1 QA rilevato per l'APK owner-test: 21:1E:13:CF:5C:BA:AF:AA:F2:F3:08:C8:AA:A7:A3:6C:63:1D:A6:22
 - resta da creare in Google Auth Platform il client OAuth Android per package com.riccardopinato.notificationcontrol + SHA-1 QA
 - per Play/release servirà anche il client Android associato alla firma Play App Signing/release
+
+STEP 18 — VAULT PRODUCTIVITY & PORTABLE EXPORT
+IMPLEMENTED / VALIDATION
+- Premium Saved Vault Filters persist local query + app combinations without Room schema changes
+- saved filters can be applied, replaced by name and deleted directly from the unlocked Vault
+- saved filters are included in the existing encrypted backup/restore path
+- Free readable CSV export covers the currently retained local Vault history
+- Premium structured JSON export includes notifications, MessagingStyle messages and captured revisions
+- exports use Android Storage Access Framework and run only on explicit user action from an unlocked Vault
+- plaintext export warning is shown before use; encrypted backup remains the recovery/restore format
+- export streams one Vault event at a time after a lightweight key snapshot to avoid large in-memory payloads
+- CSV cells neutralize spreadsheet formula prefixes from untrusted notification text
+- dedicated filter codec and CSV escaping/security regression tests
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Android OAuth client/package signing configuration must match the intended signed build
@@ -264,11 +280,12 @@ LIVE GOOGLE/PLAY CONFIG: REQUIRED
 FINAL INTENDED-RELEASE VERDICT: BLOCKED until manual/device/store gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Close Android CI + Certified QA for STEP 17.
+1. Close Android CI + Certified QA for STEP 18.
 2. Create Google OAuth Android client for QA package + SHA-1.
 3. Install fresh qaPremium APK and validate Google Sign-In on Xiaomi.
 4. Retest WhatsApp Vault dedup from a clean/new capture.
-5. Run final physical regression for Vault, Rules, Critical, Follow Up, Pickup Code and Luminous.
-6. Execute Macrobenchmark runtime when a controlled Android benchmark device is available.
+5. Validate Saved Filters plus CSV/JSON export on device.
+6. Run final physical regression for Vault, Rules, Critical, Follow Up, Pickup Code and Luminous.
+7. Execute Macrobenchmark runtime when a controlled Android benchmark device is available.
 
-END ROADMAP v1.3.0
+END ROADMAP v1.4.0

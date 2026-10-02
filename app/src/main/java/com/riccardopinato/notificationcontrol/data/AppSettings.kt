@@ -61,6 +61,22 @@ class AppSettings(context: Context) {
             putLong(KEY_VAULT_MAX_BYTES, value.coerceAtLeast(10L * 1024L * 1024L))
         }
 
+    var savedVaultFilters: List<SavedVaultFilter>
+        get() = prefs.getStringSet(KEY_SAVED_VAULT_FILTERS, emptySet())
+            .orEmpty()
+            .mapNotNull(SavedVaultFilterCodec::decode)
+            .distinctBy { it.id }
+            .sortedBy { it.name }
+        set(value) = prefs.edit {
+            putStringSet(
+                KEY_SAVED_VAULT_FILTERS,
+                value
+                    .distinctBy { it.id }
+                    .map(SavedVaultFilterCodec::encode)
+                    .toSet()
+            )
+        }
+
     var flashEnabled: Boolean
         get() = prefs.getBoolean(KEY_FLASH_ENABLED, false)
         set(value) = prefs.edit { putBoolean(KEY_FLASH_ENABLED, value) }
@@ -216,6 +232,7 @@ class AppSettings(context: Context) {
         private const val KEY_RETENTION_DAYS = "retention_days"
         private const val KEY_RETENTION_PER_APP = "retention_days_per_app"
         private const val KEY_VAULT_MAX_BYTES = "vault_max_bytes"
+        private const val KEY_SAVED_VAULT_FILTERS = "saved_vault_filters"
         private const val KEY_BATTERY_GUARD = "battery_guard_enabled"
         private const val KEY_BATTERY_THRESHOLD = "battery_guard_threshold"
         private const val KEY_QUIET_ENABLED = "quiet_hours_enabled"
