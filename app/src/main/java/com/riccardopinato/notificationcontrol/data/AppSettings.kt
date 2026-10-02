@@ -22,6 +22,16 @@ class AppSettings(context: Context) {
         get() = prefs.getStringSet(KEY_MONITORED_PACKAGES, emptySet())?.toSet().orEmpty()
         set(value) = prefs.edit { putStringSet(KEY_MONITORED_PACKAGES, value.toSet()) }
 
+    var whatsAppMediaTreeUri: String?
+        get() = prefs.getString(KEY_WHATSAPP_MEDIA_TREE_URI, null)
+        set(value) = prefs.edit {
+            if (value.isNullOrBlank()) {
+                remove(KEY_WHATSAPP_MEDIA_TREE_URI)
+            } else {
+                putString(KEY_WHATSAPP_MEDIA_TREE_URI, value)
+            }
+        }
+
     val isPremium: Boolean
         get() = entitlementStore.effectiveTier().isPremium
 
@@ -229,6 +239,7 @@ class AppSettings(context: Context) {
         private const val PREFS = "notification_control_settings"
         private const val KEY_ONBOARDING = "onboarding_completed"
         private const val KEY_MONITORED_PACKAGES = "monitored_packages"
+        private const val KEY_WHATSAPP_MEDIA_TREE_URI = "whatsapp_media_tree_uri"
         private const val KEY_RETENTION_DAYS = "retention_days"
         private const val KEY_RETENTION_PER_APP = "retention_days_per_app"
         private const val KEY_VAULT_MAX_BYTES = "vault_max_bytes"
