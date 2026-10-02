@@ -81,7 +81,7 @@ class WhatsAppSafMediaSource(private val context: Context) {
                         DocumentsContract.buildDocumentUriUsingTree(treeUri, documentId)
                     val name = cursor.stringOrNull(nameColumn)
                     result += MediaRecoveryCandidate(
-                        sourceKey = "saf:$documentId:$modified",
+                        sourceKey = "saf:$documentId",
                         sourceKind = MediaCorrelationEngine.SOURCE_SAF,
                         sourceUri = documentUri.toString(),
                         timestampMillis = modified,
