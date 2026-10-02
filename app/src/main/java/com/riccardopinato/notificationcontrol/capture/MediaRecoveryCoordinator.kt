@@ -178,7 +178,17 @@ class MediaRecoveryCoordinator(
     }
 
     suspend fun cleanupRescue(now: Long = System.currentTimeMillis()) {
-        val cutoff = now - RESCUE_RETENTION_MS
+        val configuredDays = buildList {
+            add(settings.retentionDays)
+            addAll(settings.retentionDaysPerApp.values)
+        }
+        if (configuredDays.any { it == Int.MAX_VALUE }) return
+
+        val retentionDays = maxOf(
+            MIN_RESCUE_RETENTION_DAYS,
+            configuredDays.maxOrNull() ?: MIN_RESCUE_RETENTION_DAYS
+        )
+        val cutoff = now - TimeUnit.DAYS.toMillis(retentionDays.toLong())
         val expiredPaths = recoveryDao.rescuePathsOlderThan(cutoff)
         recoveryDao.deleteRescueOlderThan(cutoff)
         expiredPaths.forEach(mediaStore::delete)
@@ -210,6 +220,6 @@ class MediaRecoveryCoordinator(
     companion object {
         private const val WHATSAPP_PACKAGE = "com.whatsapp"
         private val PENDING_TTL_MS = TimeUnit.MINUTES.toMillis(10)
-        private val RESCUE_RETENTION_MS = TimeUnit.DAYS.toMillis(7)
+        private const val MIN_RESCUE_RETENTION_DAYS = 30
     }
 }
