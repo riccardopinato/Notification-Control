@@ -271,8 +271,9 @@ class NotificationCaptureService : NotificationListenerService() {
         if (!hasImageSignal) return
         if (mediaRecoveryJobs[eventKey]?.isActive == true) return
 
+        val revisionKey = captured.toRevisionEntity(eventKey).revisionKey
         val stableKey =
-            NotificationMediaStore.stableKey(captured.sbnKey, captured.postedAt)
+            NotificationMediaStore.stableKey(captured.sbnKey, captured.capturedAt)
         val job = serviceScope.launch(start = CoroutineStart.LAZY) {
             val startedAt = System.currentTimeMillis()
             for (targetDelayMillis in MEDIA_RECOVERY_DELAYS_MS) {
@@ -286,7 +287,11 @@ class NotificationCaptureService : NotificationListenerService() {
                     stableKey = stableKey
                 )
                 if (path != null) {
-                    vaultRepository.attachRecoveredThumbnail(eventKey, path)
+                    vaultRepository.attachRecoveredThumbnail(
+                        eventKey = eventKey,
+                        revisionKey = revisionKey,
+                        thumbnailPath = path
+                    )
                     break
                 }
             }
