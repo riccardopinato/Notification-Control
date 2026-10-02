@@ -89,11 +89,14 @@ object MediaCorrelationEngine {
         }
 
         score += when {
-            delta in 0L..5_000L -> 25
-            delta in 5_001L..15_000L -> 19
-            delta > 15_000L -> 10
-            delta >= -2_000L -> 12
-            else -> 5
+            delta in 0L..2_000L -> 30
+            delta in 2_001L..5_000L -> 25
+            delta in 5_001L..10_000L -> 16
+            delta in 10_001L..20_000L -> 8
+            delta > 20_000L -> 3
+            delta >= -2_000L -> 16
+            delta >= -10_000L -> 7
+            else -> 3
         }
 
         val referenceHash = target.referencePerceptualHash
