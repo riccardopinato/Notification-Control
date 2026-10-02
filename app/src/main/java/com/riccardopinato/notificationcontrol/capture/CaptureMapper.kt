@@ -70,6 +70,7 @@ fun CapturedNotification.toRevisionEntity(
         bigText = bigText,
         subText = subText,
         conversationTitle = conversationTitle,
+        thumbnailPath = thumbnailPath,
         contentHash = contentHash
     )
 }
