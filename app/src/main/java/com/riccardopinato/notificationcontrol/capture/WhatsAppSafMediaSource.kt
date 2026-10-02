@@ -8,9 +8,21 @@ class WhatsAppSafMediaSource(private val context: Context) {
     fun hasPersistedAccess(treeUriString: String?): Boolean {
         if (treeUriString.isNullOrBlank()) return false
         val uri = runCatching { Uri.parse(treeUriString) }.getOrNull() ?: return false
+        if (!isWhatsAppImagesTree(uri)) return false
         return context.contentResolver.persistedUriPermissions.any {
             it.uri == uri && it.isReadPermission
         }
+    }
+
+    fun isWhatsAppImagesTree(uri: Uri): Boolean {
+        val treeId = runCatching { DocumentsContract.getTreeDocumentId(uri) }
+            .getOrNull()
+            ?.replace('\\', '/')
+            ?.lowercase()
+            ?: return false
+        if (treeId.contains("/sent")) return false
+        return treeId.contains("whatsapp/media/whatsapp images") ||
+            treeId.endsWith("whatsapp images")
     }
 
     fun queryCandidates(
