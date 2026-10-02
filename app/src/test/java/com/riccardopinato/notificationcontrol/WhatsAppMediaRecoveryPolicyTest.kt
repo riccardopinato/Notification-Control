@@ -86,4 +86,63 @@ class WhatsAppMediaRecoveryPolicyTest {
         )
         assertNull(WhatsAppMediaRecoveryPolicy.chooseCandidate(postedAt, ambiguous))
     }
+
+    @Test
+    fun validatesOwnerPackageWhenMediaStoreProvidesIt() {
+        val path = "Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Images/"
+
+        assertTrue(
+            WhatsAppMediaRecoveryPolicy.isCompatibleImageCandidate(
+                packageName = "com.whatsapp",
+                path = path,
+                ownerPackageName = "com.whatsapp"
+            )
+        )
+        assertTrue(
+            WhatsAppMediaRecoveryPolicy.isCompatibleImageCandidate(
+                packageName = "com.whatsapp",
+                path = path,
+                ownerPackageName = null
+            )
+        )
+        assertFalse(
+            WhatsAppMediaRecoveryPolicy.isCompatibleImageCandidate(
+                packageName = "com.whatsapp",
+                path = path,
+                ownerPackageName = "com.example.camera"
+            )
+        )
+    }
+
+    @Test
+    fun keepsLateMediaStoreCandidatesButRejectsTooLateFiles() {
+        val postedAt = 100_000L
+        val lateButValid = WhatsAppMediaRecoveryPolicy.Candidate(
+            id = 7L,
+            timestampMillis = postedAt + 35_000L,
+            path = "WhatsApp/Media/WhatsApp Images/",
+            ownerPackageName = "com.whatsapp"
+        )
+        val tooLate = WhatsAppMediaRecoveryPolicy.Candidate(
+            id = 8L,
+            timestampMillis = postedAt + 50_000L,
+            path = "WhatsApp/Media/WhatsApp Images/",
+            ownerPackageName = "com.whatsapp"
+        )
+
+        assertEquals(
+            7L,
+            WhatsAppMediaRecoveryPolicy.chooseCandidate(
+                postedAt,
+                listOf(lateButValid, tooLate)
+            )?.id
+        )
+        assertNull(
+            WhatsAppMediaRecoveryPolicy.chooseCandidate(
+                postedAt,
+                listOf(tooLate)
+            )
+        )
+    }
+
 }
