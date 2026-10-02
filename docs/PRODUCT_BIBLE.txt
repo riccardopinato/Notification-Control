@@ -1,5 +1,5 @@
-NOTIFICATION CONTROL — PRODUCT BIBLE v0.3
-Date: 2026-09-30
+NOTIFICATION CONTROL — PRODUCT BIBLE v0.4
+Date: 2026-10-02
 Status: BASELINE APPROVATA
 
 ==================================================
@@ -192,20 +192,33 @@ Premium:
 ==================================================
 7. MEDIA PREVIEW ARCHIVE
 ==================================================
-Notification Control conserva solo le immagini realmente esposte dalla notifica.
+Notification Control usa come fonte primaria le immagini realmente esposte dalla notifica.
 Non promette la foto originale inviata via WhatsApp/Telegram.
 
-Pipeline:
+Pipeline primaria:
 1. ricezione notifica;
-2. rilevazione media disponibile;
-3. estrazione sicura;
-4. ridimensionamento immediato;
-5. thumbnail leggera max circa 320 px sul lato maggiore;
-6. formato compresso supportato dalla piattaforma;
-7. salvataggio locale;
-8. cancellazione secondo retention.
+2. tentativo immediato da MessagingStyle dataUri con MIME image/*;
+3. fallback a BigPicture / EXTRA_PICTURE / EXTRA_PICTURE_ICON;
+4. estrazione sicura;
+5. ridimensionamento immediato;
+6. thumbnail leggera max circa 320 px sul lato maggiore;
+7. formato compresso supportato dalla piattaforma;
+8. salvataggio locale;
+9. cancellazione secondo retention.
 
-Il bitmap originale non viene conservato di default.
+Fallback WhatsApp opzionale:
+- Premium;
+- consenso esplicito dell'utente all'accesso alle foto condivise;
+- solo media visibili tramite Android MediaStore, mai database o storage privato WhatsApp;
+- correlazione temporale stretta con una notifica WhatsApp appena ricevuta;
+- retry breve per attendere l'indicizzazione del media;
+- se più immagini sono compatibili e l'associazione è ambigua, non viene salvata alcuna immagine;
+- esclusione delle cartelle Sent;
+- nessuna scansione retroattiva della galleria;
+- su Android 14+ l'accesso alle sole foto selezionate non è sufficiente per il recupero automatico in background;
+- il permesso READ_MEDIA_IMAGES richiede valutazione e dichiarazione Google Play prima della release pubblica.
+
+Il bitmap originale non viene conservato di default: anche una foto recuperata dai media condivisi viene copiata solo come thumbnail compressa nel Vault locale.
 
 ==================================================
 8. LOCALIZZAZIONE
@@ -304,6 +317,7 @@ Principi:
 ==================================================
 - recupero retroattivo messaggi non notificati;
 - accesso al database privato WhatsApp/Telegram;
+- scansione indiscriminata o retroattiva della galleria per ricostruire messaggi passati;
 - promessa “recupera tutti i messaggi cancellati”;
 - cloud sync obbligatorio;
 - AI generativa;
@@ -334,4 +348,4 @@ Correzioni:
 - RECEIVE_SMS / READ_CALL_LOG esclusi dall'architettura target;
 - entitlement non deve stare nei renderer Luminous.
 
-END PRODUCT BIBLE v0.3
+END PRODUCT BIBLE v0.4
