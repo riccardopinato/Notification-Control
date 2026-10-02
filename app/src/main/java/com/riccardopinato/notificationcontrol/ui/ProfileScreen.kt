@@ -47,6 +47,7 @@ import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.billing.BillingUiState
 import com.riccardopinato.notificationcontrol.billing.EntitlementTier
 import com.riccardopinato.notificationcontrol.capture.ListenerHealthStore
+import com.riccardopinato.notificationcontrol.capture.WhatsAppSafMediaSource
 import com.riccardopinato.notificationcontrol.data.MediaRescueEntity
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 import com.riccardopinato.notificationcontrol.localization.LocaleController
@@ -848,9 +849,7 @@ private fun MediaRecoverySafetyCard(
     val treeUri = state.whatsAppMediaTreeUri
         ?.let { runCatching { Uri.parse(it) }.getOrNull() }
     val folderLinked = treeUri != null &&
-        context.contentResolver.persistedUriPermissions.any {
-            it.uri == treeUri && it.isReadPermission
-        }
+        WhatsAppSafMediaSource(context).hasPersistedAccess(treeUri.toString())
 
     Card(Modifier.fillMaxWidth()) {
         Column(
