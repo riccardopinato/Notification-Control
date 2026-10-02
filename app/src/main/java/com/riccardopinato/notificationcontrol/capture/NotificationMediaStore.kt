@@ -12,6 +12,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.util.Size
+import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
 import java.io.File
@@ -46,7 +47,7 @@ class NotificationMediaStore(private val context: Context) {
         val extras = notification.extras
         val rawPicture =
             extras?.get(Notification.EXTRA_PICTURE)
-                ?: extras?.get(Notification.EXTRA_PICTURE_ICON)
+                ?: extras?.get(NotificationCompat.EXTRA_PICTURE_ICON)
 
         val bitmap = when (rawPicture) {
             is Bitmap -> rawPicture
