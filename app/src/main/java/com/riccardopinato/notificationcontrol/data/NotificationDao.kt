@@ -416,6 +416,12 @@ interface NotificationDao {
     )
     suspend fun deleteMessageFtsOlderThan(cutoffMillis: Long)
 
+    @Query(
+        "SELECT sbnKey FROM notifications " +
+            "WHERE protected = 0 AND postedAt < :cutoffMillis"
+    )
+    suspend fun expiredKeysForAllAppsBefore(cutoffMillis: Long): List<String>
+
     @Query("DELETE FROM notifications WHERE protected = 0 AND postedAt < :cutoffMillis")
     suspend fun deleteOlderThan(cutoffMillis: Long): Int
 
