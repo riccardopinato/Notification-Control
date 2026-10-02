@@ -84,6 +84,7 @@ class NotificationMediaStore(private val context: Context) {
             add(MediaStore.Images.Media.DATE_MODIFIED)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 add(MediaStore.Images.Media.RELATIVE_PATH)
+                add(MediaStore.Images.Media.OWNER_PACKAGE_NAME)
             } else {
                 @Suppress("DEPRECATION")
                 add(MediaStore.Images.Media.DATA)
@@ -91,9 +92,12 @@ class NotificationMediaStore(private val context: Context) {
         }.toTypedArray()
 
         val startSeconds =
-            ((postedAt - WhatsAppMediaRecoveryPolicy.SEARCH_WINDOW_MS).coerceAtLeast(0L)) / 1000L
-        val endSeconds =
-            (now + WhatsAppMediaRecoveryPolicy.FUTURE_TOLERANCE_MS) / 1000L
+            ((postedAt - WhatsAppMediaRecoveryPolicy.SEARCH_BEFORE_MS).coerceAtLeast(0L)) / 1000L
+        val endMillis = minOf(
+            now + WhatsAppMediaRecoveryPolicy.FUTURE_TOLERANCE_MS,
+            postedAt + WhatsAppMediaRecoveryPolicy.SEARCH_AFTER_MS
+        )
+        val endSeconds = endMillis / 1000L
         val selection =
             MediaStore.Images.Media.DATE_ADDED + " >= ? AND " +
                 MediaStore.Images.Media.DATE_ADDED + " <= ?"
@@ -118,6 +122,11 @@ class NotificationMediaStore(private val context: Context) {
                     @Suppress("DEPRECATION")
                     cursor.getColumnIndex(MediaStore.Images.Media.DATA)
                 }
+                val ownerColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    cursor.getColumnIndex(MediaStore.Images.Media.OWNER_PACKAGE_NAME)
+                } else {
+                    -1
+                }
 
                 while (cursor.moveToNext() && candidates.size < MAX_QUERY_CANDIDATES) {
                     val id = cursor.getLong(idColumn)
@@ -129,16 +138,24 @@ class NotificationMediaStore(private val context: Context) {
                     } else {
                         null
                     }
+                    val ownerPackageName =
+                        if (ownerColumn >= 0 && !cursor.isNull(ownerColumn)) {
+                            cursor.getString(ownerColumn)
+                        } else {
+                            null
+                        }
                     if (
-                        WhatsAppMediaRecoveryPolicy.isCompatibleImagePath(
+                        WhatsAppMediaRecoveryPolicy.isCompatibleImageCandidate(
                             packageName = packageName,
-                            path = path
+                            path = path,
+                            ownerPackageName = ownerPackageName
                         )
                     ) {
                         candidates += WhatsAppMediaRecoveryPolicy.Candidate(
                             id = id,
                             timestampMillis = timestampSeconds * 1000L,
-                            path = path.orEmpty()
+                            path = path.orEmpty(),
+                            ownerPackageName = ownerPackageName
                         )
                     }
                 }
@@ -247,7 +264,7 @@ class NotificationMediaStore(private val context: Context) {
                     @Suppress("DEPRECATION")
                     Bitmap.CompressFormat.WEBP
                 }
-                check(resized.compress(format, 72, output))
+                check(resized.compress(format, 82, output))
             }
             file.absolutePath
         }.also {
@@ -264,8 +281,8 @@ class NotificationMediaStore(private val context: Context) {
         .joinToString("") { "%02x".format(it) }
 
     companion object {
-        private const val MAX_SIDE = 320
-        private const val DECODE_BOUND = 1280
+        private const val MAX_SIDE = 1280
+        private const val DECODE_BOUND = 2048
         private const val MAX_QUERY_CANDIDATES = 12
 
         fun stableKey(platformKey: String, postedAt: Long): String =
