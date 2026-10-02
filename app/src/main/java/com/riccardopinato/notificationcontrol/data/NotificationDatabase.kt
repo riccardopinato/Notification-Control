@@ -20,9 +20,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         CriticalAlertEntity::class,
         FollowUpEntity::class,
         PickupCodeEntity::class,
-        LuminousProfileEntity::class
+        LuminousProfileEntity::class,
+        MediaRecoveryPendingEntity::class,
+        MediaRescueEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = true
 )
 abstract class NotificationDatabase : RoomDatabase() {
@@ -30,6 +32,7 @@ abstract class NotificationDatabase : RoomDatabase() {
     abstract fun automationDao(): AutomationDao
     abstract fun backupDao(): BackupDao
     abstract fun luminousProfileDao(): LuminousProfileDao
+    abstract fun mediaRecoveryDao(): MediaRecoveryDao
 
     companion object {
         @Volatile
@@ -364,6 +367,78 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS media_recovery_pending (
+                        revisionKey TEXT NOT NULL,
+                        notificationKey TEXT NOT NULL,
+                        packageName TEXT NOT NULL,
+                        postedAt INTEGER NOT NULL,
+                        capturedAt INTEGER NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        expiresAt INTEGER NOT NULL,
+                        baselineGeneration INTEGER,
+                        mediaStoreVersion TEXT,
+                        referencePerceptualHash TEXT,
+                        attempts INTEGER NOT NULL,
+                        lastAttemptAt INTEGER,
+                        PRIMARY KEY(revisionKey),
+                        FOREIGN KEY(revisionKey) REFERENCES notification_revisions(revisionKey)
+                            ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_media_recovery_pending_notificationKey " +
+                        "ON media_recovery_pending(notificationKey)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_media_recovery_pending_packageName " +
+                        "ON media_recovery_pending(packageName)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_media_recovery_pending_expiresAt " +
+                        "ON media_recovery_pending(expiresAt)"
+                )
+
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS media_rescue (
+                        rescueKey TEXT NOT NULL,
+                        sourceKey TEXT NOT NULL,
+                        packageName TEXT NOT NULL,
+                        sourceKind TEXT NOT NULL,
+                        localPath TEXT NOT NULL,
+                        sourceUri TEXT,
+                        mediaTimestamp INTEGER NOT NULL,
+                        observedAt INTEGER NOT NULL,
+                        mimeType TEXT,
+                        width INTEGER NOT NULL,
+                        height INTEGER NOT NULL,
+                        sizeBytes INTEGER NOT NULL,
+                        perceptualHash TEXT,
+                        confidence INTEGER NOT NULL,
+                        PRIMARY KEY(rescueKey)
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_media_rescue_packageName " +
+                        "ON media_rescue(packageName)"
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_media_rescue_observedAt " +
+                        "ON media_rescue(observedAt)"
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_media_rescue_sourceKey " +
+                        "ON media_rescue(sourceKey)"
+                )
+            }
+        }
+
         fun get(context: Context): NotificationDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -379,7 +454,8 @@ abstract class NotificationDatabase : RoomDatabase() {
                     MIGRATION_6_7,
                     MIGRATION_7_8,
                     MIGRATION_8_9,
-                    MIGRATION_9_10
+                    MIGRATION_9_10,
+                    MIGRATION_10_11
                 )
                 .build()
                 .also { instance = it }
