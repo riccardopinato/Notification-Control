@@ -18,6 +18,12 @@ import androidx.core.graphics.drawable.toBitmap
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
+import kotlin.math.max
+
+data class MediaStoreSnapshot(
+    val version: String?,
+    val generation: Long?
+)
 
 class NotificationMediaStore(private val context: Context) {
     private val directory = File(context.filesDir, "notification_thumbnails").apply { mkdirs() }
@@ -68,26 +74,58 @@ class NotificationMediaStore(private val context: Context) {
             PackageManager.PERMISSION_GRANTED
     }
 
-    fun recoverWhatsAppImage(
+    fun snapshot(): MediaStoreSnapshot {
+        if (!canRecoverWhatsAppImages() || Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return MediaStoreSnapshot(null, null)
+        }
+        val volume = MediaStore.VOLUME_EXTERNAL_PRIMARY
+        return runCatching {
+            MediaStoreSnapshot(
+                version = MediaStore.getVersion(context, volume),
+                generation = MediaStore.getGeneration(context, volume)
+            )
+        }.getOrDefault(MediaStoreSnapshot(null, null))
+    }
+
+    fun queryWhatsAppCandidates(
         packageName: String,
         postedAt: Long,
-        stableKey: String,
+        baselineGeneration: Long?,
+        expectedVersion: String?,
         now: Long = System.currentTimeMillis()
-    ): String? {
-        if (!WhatsAppMediaRecoveryPolicy.supportsPackage(packageName)) return null
-        if (!canRecoverWhatsAppImages()) return null
+    ): List<MediaRecoveryCandidate> {
+        if (!WhatsAppMediaRecoveryPolicy.supportsPackage(packageName)) return emptyList()
+        if (!canRecoverWhatsAppImages()) return emptyList()
 
         val resolver = context.contentResolver
+        val useGeneration =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                baselineGeneration != null &&
+                expectedVersion != null &&
+                runCatching {
+                    MediaStore.getVersion(
+                        context,
+                        MediaStore.VOLUME_EXTERNAL_PRIMARY
+                    ) == expectedVersion
+                }.getOrDefault(false)
+
         val projection = buildList {
             add(MediaStore.Images.Media._ID)
             add(MediaStore.Images.Media.DATE_ADDED)
             add(MediaStore.Images.Media.DATE_MODIFIED)
+            add(MediaStore.Images.Media.MIME_TYPE)
+            add(MediaStore.Images.Media.WIDTH)
+            add(MediaStore.Images.Media.HEIGHT)
+            add(MediaStore.Images.Media.SIZE)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 add(MediaStore.Images.Media.RELATIVE_PATH)
                 add(MediaStore.Images.Media.OWNER_PACKAGE_NAME)
             } else {
                 @Suppress("DEPRECATION")
                 add(MediaStore.Images.Media.DATA)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                add(MediaStore.MediaColumns.GENERATION_ADDED)
             }
         }.toTypedArray()
 
@@ -98,24 +136,40 @@ class NotificationMediaStore(private val context: Context) {
             postedAt + WhatsAppMediaRecoveryPolicy.SEARCH_AFTER_MS
         )
         val endSeconds = endMillis / 1000L
-        val selection =
-            MediaStore.Images.Media.DATE_ADDED + " >= ? AND " +
-                MediaStore.Images.Media.DATE_ADDED + " <= ?"
-        val args = arrayOf(startSeconds.toString(), endSeconds.toString())
 
-        val candidates = mutableListOf<WhatsAppMediaRecoveryPolicy.Candidate>()
+        val selections = mutableListOf(
+            MediaStore.Images.Media.DATE_ADDED + " >= ?",
+            MediaStore.Images.Media.DATE_ADDED + " <= ?"
+        )
+        val args = mutableListOf(startSeconds.toString(), endSeconds.toString())
+        if (useGeneration) {
+            selections += MediaStore.MediaColumns.GENERATION_ADDED + " > ?"
+            args += baselineGeneration.toString()
+        }
+
+        val collection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        } else {
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        }
+        val candidates = mutableListOf<MediaRecoveryCandidate>()
+
         runCatching {
             resolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                collection,
                 projection,
-                selection,
-                args,
+                selections.joinToString(" AND "),
+                args.toTypedArray(),
                 MediaStore.Images.Media.DATE_ADDED + " DESC"
             )?.use { cursor ->
                 val idColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
                 val addedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_ADDED)
                 val modifiedColumn =
                     cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
+                val mimeColumn = cursor.getColumnIndex(MediaStore.Images.Media.MIME_TYPE)
+                val widthColumn = cursor.getColumnIndex(MediaStore.Images.Media.WIDTH)
+                val heightColumn = cursor.getColumnIndex(MediaStore.Images.Media.HEIGHT)
+                val sizeColumn = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
                 val pathColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     cursor.getColumnIndex(MediaStore.Images.Media.RELATIVE_PATH)
                 } else {
@@ -127,55 +181,88 @@ class NotificationMediaStore(private val context: Context) {
                 } else {
                     -1
                 }
+                val generationColumn = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    cursor.getColumnIndex(MediaStore.MediaColumns.GENERATION_ADDED)
+                } else {
+                    -1
+                }
 
                 while (cursor.moveToNext() && candidates.size < MAX_QUERY_CANDIDATES) {
                     val id = cursor.getLong(idColumn)
                     val added = cursor.getLong(addedColumn)
                     val modified = cursor.getLong(modifiedColumn)
                     val timestampSeconds = if (added > 0L) added else modified
-                    val path = if (pathColumn >= 0 && !cursor.isNull(pathColumn)) {
-                        cursor.getString(pathColumn)
-                    } else {
-                        null
-                    }
-                    val ownerPackageName =
-                        if (ownerColumn >= 0 && !cursor.isNull(ownerColumn)) {
-                            cursor.getString(ownerColumn)
-                        } else {
-                            null
-                        }
+                    val path = cursor.stringOrNull(pathColumn)
+                    val ownerPackageName = cursor.stringOrNull(ownerColumn)
+
                     if (
-                        WhatsAppMediaRecoveryPolicy.isCompatibleImageCandidate(
+                        !WhatsAppMediaRecoveryPolicy.isCompatibleImageCandidate(
                             packageName = packageName,
                             path = path,
                             ownerPackageName = ownerPackageName
                         )
                     ) {
-                        candidates += WhatsAppMediaRecoveryPolicy.Candidate(
-                            id = id,
-                            timestampMillis = timestampSeconds * 1000L,
-                            path = path.orEmpty(),
-                            ownerPackageName = ownerPackageName
-                        )
+                        continue
                     }
+
+                    val uri = ContentUris.withAppendedId(collection, id)
+                    val generation = if (useGeneration && generationColumn >= 0) {
+                        cursor.getLong(generationColumn)
+                    } else {
+                        null
+                    }
+
+                    candidates += MediaRecoveryCandidate(
+                        sourceKey = buildString {
+                            append("mediastore:")
+                            append(id)
+                            append(':')
+                            append(generation ?: timestampSeconds)
+                        },
+                        sourceKind = MediaCorrelationEngine.SOURCE_MEDIASTORE,
+                        sourceUri = uri.toString(),
+                        mediaStoreId = id,
+                        timestampMillis = timestampSeconds * 1000L,
+                        path = path,
+                        ownerPackageName = ownerPackageName,
+                        generationAdded = generation,
+                        mimeType = cursor.stringOrNull(mimeColumn),
+                        width = cursor.intOrZero(widthColumn),
+                        height = cursor.intOrZero(heightColumn),
+                        sizeBytes = cursor.longOrZero(sizeColumn)
+                    )
                 }
             }
-        }.getOrElse { return null }
+        }.getOrElse { return emptyList() }
 
-        val selected =
-            WhatsAppMediaRecoveryPolicy.chooseCandidate(postedAt, candidates) ?: return null
-        val uri = ContentUris.withAppendedId(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            selected.id
-        )
-        val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            runCatching {
-                resolver.loadThumbnail(uri, Size(MAX_SIDE, MAX_SIDE), null)
-            }.getOrNull()
-        } else {
-            loadBitmapFromContentUri(uri)
-        } ?: return null
+        return candidates
+    }
 
+    fun withPerceptualHash(candidate: MediaRecoveryCandidate): MediaRecoveryCandidate {
+        if (candidate.perceptualHash != null) return candidate
+        val bitmap = loadCandidateBitmap(candidate, HASH_WIDTH, HASH_HEIGHT) ?: return candidate
+        val hash = runCatching { perceptualHash(bitmap) }.getOrNull()
+        if (!bitmap.isRecycled) bitmap.recycle()
+        return candidate.copy(perceptualHash = hash)
+    }
+
+    fun perceptualHashForPath(path: String?): String? {
+        if (path.isNullOrBlank()) return null
+        val file = File(path)
+        if (!file.isFile) return null
+        val bitmap = runCatching {
+            BitmapFactory.decodeFile(
+                file.absolutePath,
+                BitmapFactory.Options().apply { inSampleSize = 2 }
+            )
+        }.getOrNull() ?: return null
+        return runCatching { perceptualHash(bitmap) }
+            .also { if (!bitmap.isRecycled) bitmap.recycle() }
+            .getOrNull()
+    }
+
+    fun copyCandidate(candidate: MediaRecoveryCandidate, stableKey: String): String? {
+        val bitmap = loadCandidateBitmap(candidate, MAX_SIDE, MAX_SIDE) ?: return null
         return saveBitmap(bitmap, stableKey, recycleSource = true)
     }
 
@@ -216,6 +303,21 @@ class NotificationMediaStore(private val context: Context) {
         }
     }
 
+    private fun loadCandidateBitmap(
+        candidate: MediaRecoveryCandidate,
+        width: Int,
+        height: Int
+    ): Bitmap? {
+        val uri = runCatching { Uri.parse(candidate.sourceUri) }.getOrNull() ?: return null
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            runCatching {
+                context.contentResolver.loadThumbnail(uri, Size(width, height), null)
+            }.getOrNull() ?: loadBitmapFromContentUri(uri)
+        } else {
+            loadBitmapFromContentUri(uri)
+        }
+    }
+
     private fun loadBitmapFromContentUri(uri: Uri): Bitmap? {
         val resolver = context.contentResolver
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -241,13 +343,38 @@ class NotificationMediaStore(private val context: Context) {
         }.getOrNull()
     }
 
+    private fun perceptualHash(source: Bitmap): String {
+        val scaled = Bitmap.createScaledBitmap(source, HASH_WIDTH, HASH_HEIGHT, true)
+        var hash = 0UL
+        var bit = 0
+        for (y in 0 until HASH_HEIGHT) {
+            for (x in 0 until HASH_WIDTH - 1) {
+                val left = scaled.getPixel(x, y)
+                val right = scaled.getPixel(x + 1, y)
+                if (luma(left) > luma(right)) {
+                    hash = hash or (1UL shl bit)
+                }
+                bit++
+            }
+        }
+        if (scaled !== source && !scaled.isRecycled) scaled.recycle()
+        return hash.toString(16).padStart(16, '0')
+    }
+
+    private fun luma(color: Int): Int {
+        val r = color shr 16 and 0xff
+        val g = color shr 8 and 0xff
+        val b = color and 0xff
+        return (299 * r + 587 * g + 114 * b) / 1000
+    }
+
     private fun saveBitmap(
         bitmap: Bitmap,
         stableKey: String,
         recycleSource: Boolean
     ): String? {
         val scale =
-            minOf(1f, MAX_SIDE.toFloat() / maxOf(bitmap.width, bitmap.height).coerceAtLeast(1))
+            minOf(1f, MAX_SIDE.toFloat() / max(bitmap.width, bitmap.height).coerceAtLeast(1))
         val width = (bitmap.width * scale).toInt().coerceAtLeast(1)
         val height = (bitmap.height * scale).toInt().coerceAtLeast(1)
         val resized = if (width == bitmap.width && height == bitmap.height) {
@@ -280,11 +407,22 @@ class NotificationMediaStore(private val context: Context) {
         .digest(value.toByteArray())
         .joinToString("") { "%02x".format(it) }
 
+    private fun android.database.Cursor.stringOrNull(column: Int): String? =
+        if (column >= 0 && !isNull(column)) getString(column) else null
+
+    private fun android.database.Cursor.intOrZero(column: Int): Int =
+        if (column >= 0 && !isNull(column)) getInt(column) else 0
+
+    private fun android.database.Cursor.longOrZero(column: Int): Long =
+        if (column >= 0 && !isNull(column)) getLong(column) else 0L
+
     companion object {
         private const val MAX_SIDE = 1280
         private const val DECODE_BOUND = 2048
-        private const val MAX_QUERY_CANDIDATES = 12
+        private const val MAX_QUERY_CANDIDATES = 32
         private const val MAX_STORED_MEDIA_BYTES = 6 * 1024 * 1024
+        private const val HASH_WIDTH = 9
+        private const val HASH_HEIGHT = 8
 
         fun stableKey(platformKey: String, postedAt: Long): String =
             platformKey + "\u0000" + postedAt
