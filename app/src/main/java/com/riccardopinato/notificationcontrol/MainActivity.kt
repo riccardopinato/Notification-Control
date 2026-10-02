@@ -47,6 +47,20 @@ class MainActivity : FragmentActivity() {
             permissionEpoch++
         }
 
+    private val whatsAppMediaFolder =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            if (uri != null) {
+                runCatching {
+                    contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                }
+                viewModel.setWhatsAppMediaTreeUri(uri.toString())
+            }
+            permissionEpoch++
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -100,6 +114,9 @@ class MainActivity : FragmentActivity() {
                             )
                         }
                         mediaPermissions.launch(requested)
+                    },
+                    requestWhatsAppMediaFolder = {
+                        whatsAppMediaFolder.launch(null)
                     },
                     requestVaultUnlock = ::requestVaultUnlock,
                     setSecureWindow = ::setSecureWindow,
