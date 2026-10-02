@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PickupCodeEntity::class,
         LuminousProfileEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = true
 )
 abstract class NotificationDatabase : RoomDatabase() {
@@ -335,6 +335,35 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE notification_revisions ADD COLUMN thumbnailPath TEXT"
+                )
+                db.execSQL(
+                    """
+                    UPDATE notification_revisions
+                    SET thumbnailPath = (
+                        SELECT n.thumbnailPath
+                        FROM notifications n
+                        WHERE n.sbnKey = notification_revisions.notificationKey
+                    )
+                    WHERE capturedAt = (
+                        SELECT MAX(r2.capturedAt)
+                        FROM notification_revisions r2
+                        WHERE r2.notificationKey = notification_revisions.notificationKey
+                    )
+                      AND EXISTS (
+                        SELECT 1
+                        FROM notifications n2
+                        WHERE n2.sbnKey = notification_revisions.notificationKey
+                          AND n2.thumbnailPath IS NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun get(context: Context): NotificationDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -349,7 +378,8 @@ abstract class NotificationDatabase : RoomDatabase() {
                     MIGRATION_5_6,
                     MIGRATION_6_7,
                     MIGRATION_7_8,
-                    MIGRATION_8_9
+                    MIGRATION_8_9,
+                    MIGRATION_9_10
                 )
                 .build()
                 .also { instance = it }
