@@ -538,4 +538,85 @@ class NotificationDatabaseMigrationTest {
             """.trimIndent()
         )
     }
+
+    @Test
+    fun migration10To11AddsPersistentMediaRecoveryTables() {
+        val context = RuntimeEnvironment.getApplication()
+        val databaseName = "notification-control-migration-10-11.db"
+        context.deleteDatabase(databaseName)
+
+        val v10 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(10) {
+                        override fun onCreate(db: SupportSQLiteDatabase) {
+                            db.execSQL(
+                                """
+                                CREATE TABLE notification_revisions (
+                                    revisionKey TEXT NOT NULL PRIMARY KEY
+                                )
+                                """.trimIndent()
+                            )
+                        }
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) = Unit
+                    }
+                )
+                .build()
+        )
+        v10.writableDatabase
+        v10.close()
+
+        val v11 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(11) {
+                        override fun onCreate(db: SupportSQLiteDatabase) = Unit
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) {
+                            assertEquals(10, oldVersion)
+                            assertEquals(11, newVersion)
+                            NotificationDatabase.MIGRATION_10_11.migrate(db)
+                        }
+                    }
+                )
+                .build()
+        )
+
+        val db = v11.writableDatabase
+        val tables = mutableSetOf<String>()
+        db.query(
+            "SELECT name FROM sqlite_master WHERE type='table' " +
+                "AND name IN ('media_recovery_pending', 'media_rescue')"
+        ).use { cursor ->
+            while (cursor.moveToNext()) tables += cursor.getString(0)
+        }
+        assertEquals(
+            setOf("media_recovery_pending", "media_rescue"),
+            tables
+        )
+
+        db.query("PRAGMA table_info(media_recovery_pending)").use { cursor ->
+            val columns = mutableSetOf<String>()
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) columns += cursor.getString(nameIndex)
+            assertTrue("baselineGeneration" in columns)
+            assertTrue("referencePerceptualHash" in columns)
+            assertTrue("expiresAt" in columns)
+        }
+
+        v11.close()
+        context.deleteDatabase(databaseName)
+    }
+
 }
