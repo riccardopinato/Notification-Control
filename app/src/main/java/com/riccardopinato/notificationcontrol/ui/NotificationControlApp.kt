@@ -40,6 +40,7 @@ fun NotificationControlApp(
     openAppInfo: () -> Unit,
     requestPostNotifications: () -> Unit,
     requestPhotoLibraryPermission: () -> Unit,
+    requestWhatsAppMediaFolder: () -> Unit,
     requestVaultUnlock: () -> Unit,
     setSecureWindow: (Boolean) -> Unit,
     purchasePremiumOffer: (String) -> Unit
@@ -278,6 +279,7 @@ fun NotificationControlApp(
                 val apps by viewModel.installedApps.collectAsStateWithLifecycle()
                 val billingState by viewModel.billingState.collectAsStateWithLifecycle()
                 val storageStats by viewModel.storageStats.collectAsStateWithLifecycle()
+                val mediaRescueItems by viewModel.mediaRescueItems.collectAsStateWithLifecycle()
 
                 ProfileScreen(
                     modifier = Modifier,
@@ -286,6 +288,7 @@ fun NotificationControlApp(
                     apps = apps,
                     billingState = billingState,
                     storageStats = storageStats,
+                    mediaRescueItems = mediaRescueItems,
                     onConfigureApps = { showPicker = true },
                     onVaultLockChanged = viewModel::setVaultLockEnabled,
                     onVaultTimeoutChanged = viewModel::setVaultLockTimeoutMinutes,
@@ -310,6 +313,8 @@ fun NotificationControlApp(
                     requestNotificationAccess = requestNotificationAccess,
                     requestPostNotifications = requestPostNotifications,
                     requestPhotoLibraryPermission = requestPhotoLibraryPermission,
+                    requestWhatsAppMediaFolder = requestWhatsAppMediaFolder,
+                    onDeleteRescueMedia = viewModel::deleteRescueMedia,
                     requestCameraPermission = requestCameraPermission,
                     requestOverlayPermission = requestOverlayPermission
                 )
