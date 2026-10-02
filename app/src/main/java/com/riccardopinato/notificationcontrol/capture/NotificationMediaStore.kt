@@ -184,13 +184,13 @@ class NotificationMediaStore(private val context: Context) {
         return runCatching {
             val file = File(path)
             if (file.parentFile?.canonicalFile != directory.canonicalFile) return@runCatching null
-            if (!file.isFile || file.length() > 2L * 1024L * 1024L) return@runCatching null
+            if (!file.isFile || file.length() > MAX_STORED_MEDIA_BYTES) return@runCatching null
             file.readBytes()
         }.getOrNull()
     }
 
     fun restorePicture(stableKey: String, bytes: ByteArray): String? {
-        if (bytes.isEmpty() || bytes.size > 2 * 1024 * 1024) return null
+        if (bytes.isEmpty() || bytes.size > MAX_STORED_MEDIA_BYTES) return null
         val file = fileFor(stableKey)
         return runCatching {
             FileOutputStream(file).use { it.write(bytes) }
@@ -284,6 +284,7 @@ class NotificationMediaStore(private val context: Context) {
         private const val MAX_SIDE = 1280
         private const val DECODE_BOUND = 2048
         private const val MAX_QUERY_CANDIDATES = 12
+        private const val MAX_STORED_MEDIA_BYTES = 6 * 1024 * 1024
 
         fun stableKey(platformKey: String, postedAt: Long): String =
             platformKey + "\u0000" + postedAt
