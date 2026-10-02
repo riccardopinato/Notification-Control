@@ -68,7 +68,7 @@ class NotificationParser(
         val capturedMessages =
             if (structuredMessages.isNotEmpty()) structuredMessages else textLineMessages
 
-        val mediaStableKey = sbn.key + "\u0000" + sbn.postTime
+        val mediaStableKey = NotificationMediaStore.stableKey(sbn.key, sbn.postTime)
 
         return CapturedNotification(
             sbnKey = sbn.key,
@@ -90,7 +90,11 @@ class NotificationParser(
             conversationTitle =
                 extras?.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString(),
             thumbnailPath = if (captureThumbnail) {
-                mediaStore.savePicture(notification, mediaStableKey)
+                mediaStore.savePicture(
+                    notification = notification,
+                    stableKey = mediaStableKey,
+                    messages = capturedMessages
+                )
             } else {
                 null
             },
