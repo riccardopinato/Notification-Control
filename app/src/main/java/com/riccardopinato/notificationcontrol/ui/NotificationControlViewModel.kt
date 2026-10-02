@@ -21,6 +21,7 @@ import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
 import com.riccardopinato.notificationcontrol.data.CriticalPatternEntity
 import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
+import com.riccardopinato.notificationcontrol.data.MediaRescueEntity
 import com.riccardopinato.notificationcontrol.data.MessageEntity
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
@@ -40,6 +41,7 @@ import com.riccardopinato.notificationcontrol.security.VaultSecurityManager
 import com.riccardopinato.notificationcontrol.storage.StorageStats
 import com.riccardopinato.notificationcontrol.storage.StorageStatsRepository
 import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
+import com.riccardopinato.notificationcontrol.workers.MediaRecoveryScheduler
 import com.riccardopinato.notificationcontrol.workers.RetentionWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -81,6 +83,7 @@ sealed interface NotificationControlUiEvent {
 data class SettingsUiState(
     val onboardingCompleted: Boolean = false,
     val monitoredPackages: Set<String> = emptySet(),
+    val whatsAppMediaTreeUri: String? = null,
     val isPremium: Boolean = false,
     val retentionDays: Int = 7,
     val retentionDaysPerApp: Map<String, Int> = emptyMap(),
@@ -205,6 +208,15 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
             0
         )
     }
+
+    val mediaRescueItems: StateFlow<List<MediaRescueEntity>> by lazy {
+        database.mediaRecoveryDao().observeRescue().stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            emptyList()
+        )
+    }
+
 
     val rules: StateFlow<List<RuleWithActions>> by lazy {
         automationDao.observeRules().stateIn(
@@ -733,6 +745,20 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         }
     }
 
+    fun setWhatsAppMediaTreeUri(uri: String?) {
+        settings.whatsAppMediaTreeUri = uri
+        refresh()
+        MediaRecoveryScheduler.enqueue(getApplication())
+    }
+
+    fun deleteRescueMedia(item: MediaRescueEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            database.mediaRecoveryDao().deleteRescueBySourceKey(item.sourceKey)
+            NotificationMediaStore(getApplication()).delete(item.localPath)
+            refreshStorageStats()
+        }
+    }
+
     fun refresh() {
         _settingsState.value = readSettings()
     }
@@ -751,6 +777,7 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     private fun readSettings() = SettingsUiState(
         onboardingCompleted = settings.onboardingCompleted,
         monitoredPackages = settings.monitoredPackages,
+        whatsAppMediaTreeUri = settings.whatsAppMediaTreeUri,
         isPremium = settings.isPremium,
         retentionDays = settings.retentionDays,
         retentionDaysPerApp = settings.retentionDaysPerApp,
