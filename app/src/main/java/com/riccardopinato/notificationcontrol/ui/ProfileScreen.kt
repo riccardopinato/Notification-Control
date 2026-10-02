@@ -2,6 +2,7 @@ package com.riccardopinato.notificationcontrol.ui
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.biometric.BiometricManager
@@ -46,9 +47,12 @@ import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.billing.BillingUiState
 import com.riccardopinato.notificationcontrol.billing.EntitlementTier
 import com.riccardopinato.notificationcontrol.capture.ListenerHealthStore
+import com.riccardopinato.notificationcontrol.data.MediaRescueEntity
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 import com.riccardopinato.notificationcontrol.localization.LocaleController
 import com.riccardopinato.notificationcontrol.storage.StorageStats
+import java.text.DateFormat
+import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -59,6 +63,7 @@ fun ProfileScreen(
     apps: List<InstalledApp>,
     billingState: BillingUiState,
     storageStats: StorageStats,
+    mediaRescueItems: List<MediaRescueEntity>,
     onConfigureApps: () -> Unit,
     onVaultLockChanged: (Boolean) -> Unit,
     onVaultTimeoutChanged: (Int) -> Unit,
@@ -83,6 +88,8 @@ fun ProfileScreen(
     requestNotificationAccess: () -> Unit,
     requestPostNotifications: () -> Unit,
     requestPhotoLibraryPermission: () -> Unit,
+    requestWhatsAppMediaFolder: () -> Unit,
+    onDeleteRescueMedia: (MediaRescueEntity) -> Unit,
     requestCameraPermission: () -> Unit,
     requestOverlayPermission: () -> Unit
 ) {
@@ -161,6 +168,14 @@ fun ProfileScreen(
                 requestPhotoLibraryPermission = requestPhotoLibraryPermission,
                 requestCameraPermission = requestCameraPermission,
                 requestOverlayPermission = requestOverlayPermission
+            )
+        }
+        item {
+            MediaRecoverySafetyCard(
+                state = state,
+                rescueItems = mediaRescueItems,
+                requestWhatsAppMediaFolder = requestWhatsAppMediaFolder,
+                onDeleteRescueMedia = onDeleteRescueMedia
             )
         }
         item {
@@ -816,6 +831,105 @@ private fun DeviceBehaviorCard(
                         checked = state.criticalBypassQuietHours,
                         onCheckedChange = onCriticalBypassQuietHoursChanged
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaRecoverySafetyCard(
+    state: SettingsUiState,
+    rescueItems: List<MediaRescueEntity>,
+    requestWhatsAppMediaFolder: () -> Unit,
+    onDeleteRescueMedia: (MediaRescueEntity) -> Unit
+) {
+    val context = LocalContext.current
+    val treeUri = state.whatsAppMediaTreeUri
+        ?.let { runCatching { Uri.parse(it) }.getOrNull() }
+    val folderLinked = treeUri != null &&
+        context.contentResolver.persistedUriPermissions.any {
+            it.uri == treeUri && it.isReadPermission
+        }
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(
+            Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                stringResource(R.string.media_rescue_inbox),
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                stringResource(R.string.media_rescue_body),
+                style = MaterialTheme.typography.bodySmall
+            )
+
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.whatsapp_folder_fallback))
+                    Text(
+                        stringResource(R.string.whatsapp_folder_fallback_body),
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                TextButton(onClick = requestWhatsAppMediaFolder) {
+                    Text(
+                        stringResource(
+                            if (folderLinked) {
+                                R.string.media_folder_linked
+                            } else {
+                                R.string.media_folder_link
+                            }
+                        )
+                    )
+                }
+            }
+
+            if (rescueItems.isEmpty()) {
+                Text(
+                    stringResource(R.string.media_rescue_empty),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            } else {
+                Text(
+                    stringResource(R.string.media_rescue_count, rescueItems.size),
+                    style = MaterialTheme.typography.labelMedium
+                )
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(rescueItems, key = { it.rescueKey }) { item ->
+                        Card {
+                            Column(
+                                Modifier.padding(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                VaultThumbnail(item.localPath)
+                                Text(
+                                    DateFormat.getDateTimeInstance(
+                                        DateFormat.SHORT,
+                                        DateFormat.SHORT
+                                    ).format(Date(item.mediaTimestamp)),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                                Text(
+                                    stringResource(
+                                        R.string.media_rescue_confidence,
+                                        item.confidence
+                                    ),
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                                TextButton(onClick = { onDeleteRescueMedia(item) }) {
+                                    Text(stringResource(R.string.media_rescue_remove))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
