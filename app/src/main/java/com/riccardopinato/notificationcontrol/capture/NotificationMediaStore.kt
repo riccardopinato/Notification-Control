@@ -209,12 +209,7 @@ class NotificationMediaStore(private val context: Context) {
                     }
 
                     candidates += MediaRecoveryCandidate(
-                        sourceKey = buildString {
-                            append("mediastore:")
-                            append(id)
-                            append(':')
-                            append(generation ?: timestampSeconds)
-                        },
+                        sourceKey = "mediastore:" + uri.toString(),
                         sourceKind = MediaCorrelationEngine.SOURCE_MEDIASTORE,
                         sourceUri = uri.toString(),
                         mediaStoreId = id,
