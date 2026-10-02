@@ -271,10 +271,19 @@ interface NotificationDao {
 
     @Query(
         "UPDATE notifications SET thumbnailPath = :thumbnailPath " +
-            "WHERE sbnKey = :eventKey AND thumbnailPath IS NULL"
+            "WHERE sbnKey = :eventKey"
     )
-    suspend fun attachThumbnailIfMissing(
+    suspend fun setCurrentThumbnail(
         eventKey: String,
+        thumbnailPath: String
+    ): Int
+
+    @Query(
+        "UPDATE notification_revisions SET thumbnailPath = :thumbnailPath " +
+            "WHERE revisionKey = :revisionKey AND thumbnailPath IS NULL"
+    )
+    suspend fun attachRevisionThumbnailIfMissing(
+        revisionKey: String,
         thumbnailPath: String
     ): Int
 
@@ -288,7 +297,13 @@ interface NotificationDao {
     )
     suspend fun thumbnailPathsOlderThan(cutoffMillis: Long): List<String>
 
-    @Query("SELECT thumbnailPath FROM notifications WHERE thumbnailPath IS NOT NULL")
+    @Query(
+        """
+        SELECT thumbnailPath FROM notifications WHERE thumbnailPath IS NOT NULL
+        UNION
+        SELECT thumbnailPath FROM notification_revisions WHERE thumbnailPath IS NOT NULL
+        """
+    )
     suspend fun allThumbnailPaths(): List<String>
 
     @Query("SELECT sbnKey FROM notifications ORDER BY updatedAt DESC")
@@ -347,7 +362,17 @@ interface NotificationDao {
     )
     suspend fun oldestUnprotectedKeys(limit: Int): List<String>
 
-    @Query("SELECT thumbnailPath FROM notifications WHERE sbnKey IN (:keys) AND thumbnailPath IS NOT NULL")
+    @Query(
+        """
+        SELECT thumbnailPath
+        FROM notifications
+        WHERE sbnKey IN (:keys) AND thumbnailPath IS NOT NULL
+        UNION
+        SELECT thumbnailPath
+        FROM notification_revisions
+        WHERE notificationKey IN (:keys) AND thumbnailPath IS NOT NULL
+        """
+    )
     suspend fun thumbnailPathsForKeys(keys: List<String>): List<String>
 
     @Query("DELETE FROM notification_fts WHERE sbnKey IN (:keys)")
@@ -396,7 +421,9 @@ interface NotificationDao {
 
     @Transaction
     suspend fun deleteExpiredAndReturnMedia(cutoffMillis: Long): List<String> {
-        val media = thumbnailPathsOlderThan(cutoffMillis)
+        val media = thumbnailPathsForKeys(
+            expiredKeysForAllAppsBefore(cutoffMillis)
+        )
         deleteFtsOlderThan(cutoffMillis)
         deleteMessageFtsOlderThan(cutoffMillis)
         deleteOlderThan(cutoffMillis)
