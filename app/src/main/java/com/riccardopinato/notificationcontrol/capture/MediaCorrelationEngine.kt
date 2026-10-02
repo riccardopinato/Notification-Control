@@ -92,8 +92,8 @@ object MediaCorrelationEngine {
         }
 
         val referenceHash = target.referencePerceptualHash
-        val candidateHash = candidate.perceptualHash
-        if (referenceHash != null && candidateHash != null) {
+        if (referenceHash != null) {
+            val candidateHash = candidate.perceptualHash ?: return null
             val distance = perceptualDistance(referenceHash, candidateHash) ?: return null
             when {
                 distance <= 6 -> score += 45
@@ -171,9 +171,11 @@ object MediaCorrelationEngine {
         ?.takeIf { it >= MIN_RESCUE_CONFIDENCE }
 
     internal fun perceptualDistance(first: String, second: String): Int? {
-        val a = first.toULongOrNull(16) ?: return null
-        val b = second.toULongOrNull(16) ?: return null
-        return (a xor b).countOneBits()
+        val a = runCatching { java.lang.Long.parseUnsignedLong(first, 16) }.getOrNull()
+            ?: return null
+        val b = runCatching { java.lang.Long.parseUnsignedLong(second, 16) }.getOrNull()
+            ?: return null
+        return java.lang.Long.bitCount(a xor b)
     }
 
     private data class Edge(
