@@ -215,6 +215,8 @@ Fallback WhatsApp opzionale:
 - retry progressivi fino a circa 40 secondi per attendere indicizzazione lenta del media;
 - il fallback viene rilanciato anche dopo una riconnessione del NotificationListener;
 - se più immagini sono compatibili e l'associazione è ambigua, non viene salvata alcuna immagine;
+- ogni revisione della notifica può conservare il proprio media: nuove foto nella stessa conversazione non devono sostituire le precedenti;
+- retention, cleanup e backup cifrato devono includere tutti i media delle revisioni;
 - esclusione delle cartelle Sent;
 - nessuna scansione retroattiva della galleria;
 - su Android 14+ l'accesso alle sole foto selezionate non è sufficiente per il recupero automatico in background;
