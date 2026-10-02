@@ -5,7 +5,8 @@ Android notification-control utility built around **Single Capture / Single Vaul
 ## Product baseline
 - Kotlin + Jetpack Compose + Material 3
 - one `NotificationListenerService` capture core
-- Room local Vault with notification revisions, structured messaging content and FTS search
+- Room local Vault with notification revisions, cumulative structured messaging content and FTS search
+- capture-quality hardening for group summaries, fallback message identity and remove/repost replay deduplication
 - local-first retention and lightweight media previews
 - Notification Undo history semantics without falsely treating every removal as sender deletion
 - Rules Engine, Critical Alert, Pausa Ping, Follow Up and Pickup Code

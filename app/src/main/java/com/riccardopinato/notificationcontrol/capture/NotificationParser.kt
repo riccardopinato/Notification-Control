@@ -54,7 +54,8 @@ class NotificationParser(
                     CapturedMessage(
                         sender = null,
                         text = value,
-                        timestamp = sbn.postTime + index
+                        timestamp = sbn.postTime + index,
+                        timestampReliable = false
                     )
                 }
             }
@@ -95,6 +96,7 @@ class NotificationParser(
             messages = capturedMessages
         )
     }
+
     private fun NotificationCompat.MessagingStyle.Message.toCapturedMessage():
         CapturedMessage? {
         val value = text?.toString()?.takeIf { it.isNotBlank() } ?: return null
@@ -108,5 +110,4 @@ class NotificationParser(
             dataUri = dataUri?.toString()
         )
     }
-
 }

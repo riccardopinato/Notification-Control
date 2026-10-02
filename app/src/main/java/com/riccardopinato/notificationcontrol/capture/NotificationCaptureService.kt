@@ -178,5 +178,10 @@ class NotificationCaptureService : NotificationListenerService() {
     }
 
     private fun shouldConsider(sbn: StatusBarNotification): Boolean =
-        sbn.packageName != packageName && !sbn.isOngoing
+        CaptureEligibility.shouldConsider(
+            ownPackageName = packageName,
+            candidatePackageName = sbn.packageName,
+            isOngoing = sbn.isOngoing,
+            notificationFlags = sbn.notification.flags
+        )
 }

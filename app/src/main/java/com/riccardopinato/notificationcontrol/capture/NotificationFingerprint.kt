@@ -12,7 +12,7 @@ object NotificationFingerprint {
             event.conversationTitle.orEmpty(),
             event.messages.joinToString("\u0001") {
                 listOf(
-                    it.timestamp.toString(),
+                    if (it.timestampReliable) it.timestamp.toString() else "",
                     it.sender.orEmpty(),
                     it.text,
                     it.mimeType.orEmpty(),

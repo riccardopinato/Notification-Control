@@ -140,6 +140,29 @@ interface NotificationDao {
 
     @Query(
         """
+        SELECT n.* FROM notifications n
+        INNER JOIN notification_revisions r ON r.notificationKey = n.sbnKey
+        WHERE n.packageName = :packageName
+          AND n.removedAt IS NOT NULL
+          AND n.removedAt >= :sinceMillis
+          AND r.contentHash = :contentHash
+          AND r.capturedAt = (
+              SELECT MAX(r2.capturedAt)
+              FROM notification_revisions r2
+              WHERE r2.notificationKey = n.sbnKey
+          )
+        ORDER BY n.removedAt DESC
+        LIMIT 1
+        """
+    )
+    suspend fun findRecentRemovedReplay(
+        packageName: String,
+        contentHash: String,
+        sinceMillis: Long
+    ): NotificationEntity?
+
+    @Query(
+        """
         UPDATE notifications
         SET removedAt = :removedAt,
             removalReason = :reason,

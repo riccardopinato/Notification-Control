@@ -5,7 +5,8 @@ data class CapturedMessage(
     val text: String,
     val timestamp: Long,
     val mimeType: String? = null,
-    val dataUri: String? = null
+    val dataUri: String? = null,
+    val timestampReliable: Boolean = true
 )
 
 data class CapturedNotification(

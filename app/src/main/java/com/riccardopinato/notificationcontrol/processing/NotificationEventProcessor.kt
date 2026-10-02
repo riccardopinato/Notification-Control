@@ -13,9 +13,14 @@ class NotificationEventProcessor(
         vaultRepository.shouldCaptureThumbnail(packageName)
 
     suspend fun process(event: CapturedNotification, mode: ProcessingMode) {
-        vaultRepository.persist(event)
+        val persistResult = vaultRepository.persist(event)
 
         if (mode == ProcessingMode.RECONCILIATION) {
+            actionDeduplicator.record(event)
+            return
+        }
+
+        if (persistResult.kind == VaultPersistKind.DUPLICATE) {
             actionDeduplicator.record(event)
             return
         }

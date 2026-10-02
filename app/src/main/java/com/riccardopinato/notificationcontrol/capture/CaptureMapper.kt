@@ -37,22 +37,44 @@ fun CapturedNotification.toNotificationEntity(
 
 fun CapturedNotification.toMessageEntities(
     vaultKey: String = sbnKey
-): List<MessageEntity> = messages.map { message ->
-    val fingerprint = listOf(
-        vaultKey,
-        message.timestamp.toString(),
-        message.sender.orEmpty(),
-        message.text
-    ).joinToString("\u0000")
-    MessageEntity(
-        messageKey = NotificationFingerprint.sha256(fingerprint),
-        notificationKey = vaultKey,
-        sender = message.sender,
-        text = message.text,
-        timestamp = message.timestamp,
-        mimeType = message.mimeType,
-        dataUri = message.dataUri
-    )
+): List<MessageEntity> {
+    val fallbackOccurrences = mutableMapOf<String, Int>()
+
+    return messages.map { message ->
+        val fingerprint = if (message.timestampReliable) {
+            listOf(
+                vaultKey,
+                message.timestamp.toString(),
+                message.sender.orEmpty(),
+                message.text
+            ).joinToString("\u0000")
+        } else {
+            val semantic = listOf(
+                message.sender.orEmpty(),
+                message.text,
+                message.mimeType.orEmpty(),
+                message.dataUri.orEmpty()
+            ).joinToString("\u0000")
+            val occurrence = fallbackOccurrences.getOrDefault(semantic, 0)
+            fallbackOccurrences[semantic] = occurrence + 1
+            listOf(
+                vaultKey,
+                "fallback",
+                semantic,
+                occurrence.toString()
+            ).joinToString("\u0000")
+        }
+
+        MessageEntity(
+            messageKey = NotificationFingerprint.sha256(fingerprint),
+            notificationKey = vaultKey,
+            sender = message.sender,
+            text = message.text,
+            timestamp = message.timestamp,
+            mimeType = message.mimeType,
+            dataUri = message.dataUri
+        )
+    }
 }
 
 fun CapturedNotification.toRevisionEntity(

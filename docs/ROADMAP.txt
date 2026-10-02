@@ -1,5 +1,5 @@
-NOTIFICATION CONTROL — ROADMAP v0.8
-Date: 2026-09-30
+NOTIFICATION CONTROL — ROADMAP v0.9
+Date: 2026-10-02
 Status: IN ESECUZIONE
 
 PHASE 0 — DONOR AUDIT & BASELINE
@@ -21,19 +21,19 @@ STEP 3 — NOTIFICATION PROCESSING ENGINE
 COMPLETED / MERGED
 
 STEP 4 — RULES ENGINE V1
-IMPLEMENTED / VALIDATION
+IMPLEMENTED / VALIDATED
 
 STEP 5 — CRITICAL ALERT + PAUSA PING
-IMPLEMENTED / VALIDATION
+IMPLEMENTED / VALIDATED
 
 STEP 6 — FOLLOW UP
-IMPLEMENTED / VALIDATION
+IMPLEMENTED / VALIDATED
 
 STEP 7 — PICKUP CODE
-IMPLEMENTED / VALIDATION
+IMPLEMENTED / VALIDATED
 
 STEP 8 — PREMIUM ENGINE
-IMPLEMENTED / VALIDATION
+IMPLEMENTED / VALIDATED
 - centralized entitlement source
 - Google Play Billing
 - subscription + lifetime products
@@ -42,7 +42,7 @@ IMPLEMENTED / VALIDATION
 - contextual Profile Premium surface
 
 STEP 9 — GOOGLE PROFILE + BACKUP
-IMPLEMENTED / VALIDATION
+IMPLEMENTED / VALIDATED
 - optional Credential Manager Sign in with Google
 - stable Credential Manager 1.6.0 + Google ID 1.2.1
 - Google identity does not unlock Vault or grant Premium
@@ -56,7 +56,7 @@ IMPLEMENTED / VALIDATION
 - automatic Android cloud backup remains disabled
 
 STEP 10 — LUMINOUS PRO
-IMPLEMENTED / VALIDATION
+IMPLEMENTED / VALIDATED
 - Premium per-app / sender profiles
 - profile-specific colors, flash/overlay modes and timing
 - Critical visual escalation
@@ -65,9 +65,10 @@ IMPLEMENTED / VALIDATION
 - interactive-screen transparency
 - torch failure backoff for OEM/camera contention
 - profile backup/restore support
+- posture sensors activated only when visual alerts may run
 
 STEP 11 — RELEASE & DEPLOY PIPELINE
-IMPLEMENTED / VALIDATION
+IMPLEMENTED / VALIDATED
 - release APK + AAB build
 - optional signing from repository secrets
 - VERSION_NAME / VERSION_CODE injection
@@ -76,16 +77,32 @@ IMPLEMENTED / VALIDATION
 - optional Play Internal Testing upload when signing and service-account credentials exist
 
 STEP 12 — CERTIFIED QA
-IMPLEMENTED / AUTOMATED VALIDATION
+VALIDATED ON BASELINE 1aba585
+- Android CI #55: SUCCESS
+- Certified QA #31: SUCCESS
 - unit-test, lint and release-build gates
 - privacy manifest gates
 - localization gates
 - dependency evidence
 - release binary/checksum evidence
 - Certified Evidence Bundle artifact
-- rule / Critical / Pickup / Pausa Ping / Luminous / backup pure-domain regression coverage
 - physical-device validation remains MANUAL_REQUIRED
-- final CERTIFIED verdict remains BLOCKED until intended-release external config and device checks are completed
+- final store certification remains dependent on intended-release external configuration
+
+POST-BASELINE DELTA PRESERVED
+- four existing branch commits after 1aba585 remain intact
+- includes cumulative MessagingStyle history capture, per-app retention work and Premium Quiet Hours hardening
+- this delta is validated together with the next branch CI rather than rewritten
+
+STEP 13 — CAPTURE QUALITY / MESSAGE VAULT INGESTION HARDENING
+IMPLEMENTED / VALIDATION
+- ignore Android FLAG_GROUP_SUMMARY to avoid duplicate summary capture
+- stable fallback message identity when EXTRA_TEXT_LINES lacks reliable timestamps
+- preserve repeated identical fallback lines as separate occurrences
+- recognize short remove/repost replay even when platformKey changes
+- reuse the existing Vault event instead of creating a duplicate
+- duplicate/replay persistence suppresses a second consumer dispatch
+- no Room schema migration required
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Google OAuth Web client ID for live Sign in with Google
@@ -93,6 +110,6 @@ EXTERNAL CONFIGURATION STILL REQUIRED:
 - Play signing/service credentials for automatic Internal Testing publication
 
 IMMEDIATE NEXT ACTION:
-Close consolidated integration CI. If green, merge to main. Then run the Certified QA workflow and complete the manual device/store configuration gates for the intended release.
+Run Android CI and Certified QA for Step 13 on the full branch head. If green, continue with the remaining product polish/release-reality backlog without reopening already validated hardening blocks.
 
-END ROADMAP v0.8
+END ROADMAP v0.9
