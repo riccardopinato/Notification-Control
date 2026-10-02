@@ -56,4 +56,10 @@ interface MediaRecoveryDao {
 
     @Query("DELETE FROM media_rescue WHERE sourceKey = :sourceKey")
     suspend fun deleteRescueBySourceKey(sourceKey: String)
+
+    @Query("DELETE FROM media_recovery_pending")
+    suspend fun deleteAllPending()
+
+    @Query("DELETE FROM media_rescue")
+    suspend fun deleteAllRescue()
 }
