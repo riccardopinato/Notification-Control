@@ -3,6 +3,7 @@ package com.riccardopinato.notificationcontrol.export
 import android.content.Context
 import android.net.Uri
 import android.util.JsonWriter
+import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.MessageEntity
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
@@ -22,6 +23,7 @@ data class VaultExportResult(
 
 class VaultReadableExportRepository(context: Context) {
     private val appContext = context.applicationContext
+    private val settings by lazy { AppSettings(appContext) }
     private val dao by lazy { NotificationDatabase.get(appContext).notificationDao() }
 
     suspend fun exportCsv(uri: Uri): Result<VaultExportResult> = runCatching {
@@ -86,6 +88,7 @@ class VaultReadableExportRepository(context: Context) {
     }
 
     suspend fun exportJson(uri: Uri): Result<VaultExportResult> = runCatching {
+        check(settings.isPremium) { "Premium is required for structured JSON export" }
         val notifications = dao.allNotificationsForExport()
         val messages = dao.allMessagesForExport()
         val revisions = dao.allRevisionsForExport()
