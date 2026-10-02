@@ -702,9 +702,12 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
     fun deleteAllVault() {
         viewModelScope.launch(Dispatchers.IO) {
             val mediaStore = NotificationMediaStore(getApplication())
-            val paths = dao.allThumbnailPaths()
+            val recoveryDao = database.mediaRecoveryDao()
+            val paths = dao.allThumbnailPaths() + recoveryDao.allRescuePaths()
+            recoveryDao.deleteAllPending()
+            recoveryDao.deleteAllRescue()
             dao.deleteEverything()
-            paths.forEach(mediaStore::delete)
+            paths.distinct().forEach(mediaStore::delete)
             mediaStore.cleanupOrphans(emptyList())
             _vaultDetail.value = null
             refreshStorageStats()
@@ -715,11 +718,11 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         viewModelScope.launch(Dispatchers.IO) {
             val app = getApplication<Application>()
             val mediaStore = NotificationMediaStore(app)
-            val paths = dao.allThumbnailPaths()
+            val paths = dao.allThumbnailPaths() + database.mediaRecoveryDao().allRescuePaths()
             FollowUpScheduler.cancelAll(app)
             CriticalAlertScheduler.cancelAll(app)
             database.clearAllTables()
-            paths.forEach(mediaStore::delete)
+            paths.distinct().forEach(mediaStore::delete)
             mediaStore.cleanupOrphans(emptyList())
             settings.resetToDefaults()
             VaultSecurityManager(app).lock()
