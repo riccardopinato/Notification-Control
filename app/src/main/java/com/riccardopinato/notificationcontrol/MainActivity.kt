@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.riccardopinato.notificationcontrol.billing.PlayBillingManager
 import com.riccardopinato.notificationcontrol.capture.WhatsAppSafMediaSource
+import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.security.VaultSecurityManager
 import com.riccardopinato.notificationcontrol.ui.NotificationControlApp
 import com.riccardopinato.notificationcontrol.ui.NotificationControlViewModel
@@ -70,6 +71,18 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (
+            BuildConfig.AUTOMATION_PRESEED_ALLOWED &&
+            intent.getBooleanExtra(EXTRA_AUTOMATION_PRESEED, false)
+        ) {
+            AppSettings(this).apply {
+                onboardingCompleted = true
+                monitoredPackages = setOf("com.whatsapp")
+                sensitiveProtectionEnabled = false
+            }
+        }
+
         enableEdgeToEdge()
 
         setContent {
