@@ -21,4 +21,5 @@
     <string name="backup_export_success">Backup creato: %1$d notifiche, %2$d regole, %3$d Follow Up.</string>
     <string name="backup_restore_success">Backup ripristinato: %1$d notifiche, %2$d regole, %3$d Follow Up.</string>
     <string name="backup_operation_failed">Operazione di backup non riuscita. Controlla file e password.</string>
+    <string name="backup_restore_success_with_warnings">Backup ripristinato: %1$d notifiche, %2$d regole, %3$d Follow Up. I dati sono stati salvati correttamente, ma %4$d operazioni di manutenzione successive richiedono attenzione.</string>
 </resources>
