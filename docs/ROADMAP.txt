@@ -1,5 +1,5 @@
-NOTIFICATION CONTROL — ROADMAP v1.7.0
-Date: 2026-10-03
+NOTIFICATION CONTROL — ROADMAP v1.8.0
+Date: 2026-10-04
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
 PHASE 0 — DONOR AUDIT & BASELINE
@@ -337,7 +337,27 @@ IMPLEMENTED / VALIDATION
 - Product Bible security wording aligned to actual implementation: Android sandbox + optional biometric/device lock + AES-GCM backup; no false database-encryption claim
 - README/docs aligned to Room v11 and current evidence boundaries
 
-STEP 21 — BATCH DATA SAFETY & RECOVERY POINT
+STEP 20.1 — PREMIUM WHATSAPP MEDIA PACKAGING
+IMPLEMENTED / VALIDATION
+- nuova acquisizione e archiviazione delle preview media è Premium
+- notification-direct media capture, MediaStore recovery, SAF fallback e Media Rescue restano sulla pipeline Step 19/19.2 già validata
+- configurazione del folder SAF e permessi recovery non vengono offerti al Free
+- downgrade: nessuna nuova capture/recovery Premium, ma i media già archiviati restano leggibili/eliminabili dall'utente
+- nessun nuovo listener, nessuna duplicazione storage, nessun accesso a database/storage privato WhatsApp
+
+STEP 21 — PREMIUM NOTIFICATION BUDGET
+IMPLEMENTED / VALIDATION
+- Free conserva Pausa Ping globale
+- Premium mantiene cooldown/esenzione per singola app
+- Premium aggiunge limite di avvisi visivi per app in finestra mobile configurabile
+- default 3 avvisi / 30 minuti, feature disattivata per gli utenti esistenti finché non scelta esplicitamente
+- Critical Alert bypassa cooldown e budget senza consumare quota
+- il budget limita gli alert visivi di Notification Control/Luminous: non pretende di riscrivere selettivamente suono/vibrazione dell'app sorgente
+- impostazioni incluse nel backup cifrato
+- test unitari per Free, Premium, reset finestra, Critical bypass ed esenzione per-app
+- entitlement sempre centralizzato tramite Play Billing/AppSettings
+
+STEP 22 — BATCH DATA SAFETY & RECOVERY POINT
 PLANNED
 - formal restore staging object with complete validation before mutation
 - local pre-restore safety point/rollback strategy sized for the Vault without duplicating media unnecessarily
@@ -346,7 +366,7 @@ PLANNED
 - test fault injection before/during/after atomic commit
 - evidence that failed restore cannot orphan files, schedulers or settings
 
-STEP 22 — PHYSICAL NOTIFICATION & MEDIA RELIABILITY CERTIFICATION
+STEP 23 — PHYSICAL NOTIFICATION & MEDIA RELIABILITY CERTIFICATION
 PLANNED
 - real Notification Listener access on physical Android, including sideload restricted-settings flow
 - WhatsApp direct notification image, MediaStore fallback and SAF fallback tested independently
@@ -356,7 +376,7 @@ PLANNED
 - Xiaomi/HyperOS + Samsung validation where devices are available
 - physical-device evidence pack and regression checklist
 
-STEP 23 — PLAY POLICY + IDENTITY + BILLING RELEASE READINESS
+STEP 24 — PLAY POLICY + IDENTITY + BILLING RELEASE READINESS
 PLANNED
 - decide production path for READ_MEDIA_IMAGES after Play eligibility review; prefer least-privilege SAF/notification path if broad access is not approved
 - create/verify Android OAuth clients for QA and Play App Signing SHA-1
@@ -365,7 +385,7 @@ PLANNED
 - configure release signing/service account and Internal Testing publication
 - verify signed AAB install/update path and purchase entitlement recovery
 
-STEP 24 — ACCESSIBILITY, UX & PERMISSION HEALTH CERTIFICATION
+STEP 25 — ACCESSIBILITY, UX & PERMISSION HEALTH CERTIFICATION
 PLANNED
 - TalkBack traversal and meaningful labels for Home/Vault/Rules/Profile
 - 48dp touch-target audit and dynamic text/font-scale stress
@@ -374,7 +394,7 @@ PLANNED
 - destructive actions and Rescue Inbox cleanup receive explicit consequence copy
 - AppLab visual journey checkpoints for critical non-destructive screens
 
-STEP 25 — PERFORMANCE, BATTERY & LONG-RUN STABILITY
+STEP 26 — PERFORMANCE, BATTERY & LONG-RUN STABILITY
 PLANNED
 - Macrobenchmark cold/warm start and jank on controlled physical device
 - notification hot-path latency and Room query profiling under large Vault
@@ -383,7 +403,7 @@ PLANNED
 - APK/AAB size budget and dependency review
 - memory/leak check around thumbnails, overlays, sensors and notification bursts
 
-STEP 26 — V1.0 RELEASE CANDIDATE CERTIFICATION
+STEP 27 — V1.0 RELEASE CANDIDATE CERTIFICATION
 PLANNED
 - all P0/P1 closed or explicitly waived with rationale
 - Android CI + Certified QA + AppLab CERTIFICATION green on immutable release commit
@@ -411,11 +431,11 @@ BRANCH GOVERNANCE: MANUAL_REQUIRED
 FINAL INTENDED-RELEASE VERDICT: BLOCKED until AppLab/device/store/governance gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Close Android CI + Certified QA + AppLab FULL for STEP 20 and merge only with green evidence.
-2. Execute STEP 21 Batch Data Safety & Recovery Point.
-3. Execute STEP 22 physical notification/media reliability certification.
-4. Complete STEP 23 Play policy, OAuth, Billing and signed Internal Testing configuration.
-5. Run STEP 24 accessibility/UX certification and STEP 25 performance/battery stability.
-6. Promote STEP 26 only from an immutable signed release candidate with all mandatory gates green.
+1. Validate and merge STEP 20.1 + STEP 21 Premium packaging/Notification Budget with Android CI + Certified QA + AppLab.
+2. Execute STEP 22 Batch Data Safety & Recovery Point.
+3. Keep STEP 23 physical notification/media reliability certification deferred until the user is ready to test on devices.
+4. Complete STEP 24 Play policy, OAuth, Billing and signed Internal Testing configuration.
+5. Run STEP 25 accessibility/UX certification and STEP 26 performance/battery stability.
+6. Promote STEP 27 only from an immutable signed release candidate with all mandatory gates green.
 
-END ROADMAP v1.7.0
+END ROADMAP v1.8.0
