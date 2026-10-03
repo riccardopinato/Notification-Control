@@ -743,6 +743,9 @@ class BackupRepository(context: Context) {
         .put("sensitiveProtectionEnabled", settings.sensitiveProtectionEnabled)
         .put("pausePingEnabled", settings.pausePingEnabled)
         .put("pausePingCooldownSeconds", settings.pausePingCooldownSeconds)
+        .put("pausePingBudgetEnabled", settings.pausePingBudgetEnabled)
+        .put("pausePingBudgetMaxAlerts", settings.pausePingBudgetMaxAlerts)
+        .put("pausePingBudgetWindowMinutes", settings.pausePingBudgetWindowMinutes)
         .put(
             "pausePingPerAppCooldowns",
             JSONObject().apply {
@@ -857,6 +860,15 @@ class BackupRepository(context: Context) {
         settings.pausePingCooldownSeconds =
             o.optInt("pausePingCooldownSeconds", settings.pausePingCooldownSeconds)
         if (settings.isPremium) {
+            settings.pausePingBudgetEnabled =
+                o.optBoolean("pausePingBudgetEnabled", settings.pausePingBudgetEnabled)
+            settings.pausePingBudgetMaxAlerts =
+                o.optInt("pausePingBudgetMaxAlerts", settings.pausePingBudgetMaxAlerts)
+            settings.pausePingBudgetWindowMinutes =
+                o.optInt(
+                    "pausePingBudgetWindowMinutes",
+                    settings.pausePingBudgetWindowMinutes
+                )
             val perApp = o.optJSONObject("pausePingPerAppCooldowns")
             if (perApp != null) {
                 val restored = buildMap<String, Int> {
