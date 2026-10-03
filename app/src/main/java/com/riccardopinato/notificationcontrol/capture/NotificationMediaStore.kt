@@ -15,6 +15,7 @@ import android.util.Size
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.toBitmap
+import com.riccardopinato.notificationcontrol.BuildConfig
 import java.io.File
 import java.io.FileOutputStream
 import java.security.MessageDigest
@@ -65,6 +66,7 @@ class NotificationMediaStore(private val context: Context) {
     }
 
     fun canRecoverWhatsAppImages(): Boolean {
+        if (!BuildConfig.BROAD_MEDIA_RECOVERY_ALLOWED) return false
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
         } else {
