@@ -7,6 +7,15 @@ import androidx.room.Query
 
 @Dao
 interface BackupDao {
+    @Query("SELECT * FROM restore_journal WHERE id = 1 LIMIT 1")
+    suspend fun restoreJournal(): RestoreJournalEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertRestoreJournal(item: RestoreJournalEntity)
+
+    @Query("DELETE FROM restore_journal")
+    suspend fun deleteRestoreJournal()
+
     @Query("SELECT * FROM notifications ORDER BY postedAt ASC")
     suspend fun allNotifications(): List<NotificationEntity>
 
