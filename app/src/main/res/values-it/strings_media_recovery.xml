@@ -12,4 +12,5 @@
     <string name="media_rescue_count">%1$d media in attesa di associazione sicura</string>
     <string name="media_rescue_confidence">Punteggio prove: %1$d</string>
     <string name="media_rescue_remove">Rimuovi</string>
+    <string name="whatsapp_media_release_saf_body">La release pubblica usa i media esposti dalla notifica e la cartella WhatsApp Images che colleghi esplicitamente qui sotto. L’accesso ampio alla galleria non viene richiesto.</string>
 </resources>
