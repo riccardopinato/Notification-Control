@@ -7,9 +7,11 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - one `NotificationListenerService` capture core with group-summary and logical replay deduplication
 - Room local Vault with notification revisions, structured messaging content and FTS search
 - local-first retention with per-revision WhatsApp/media archive previews
+- Premium WhatsApp media capture/recovery with notification-first capture plus user-authorized MediaStore/SAF safety nets
 - Premium Saved Vault Filters plus user-initiated readable CSV / structured JSON Vault export
 - Notification Undo history semantics without falsely treating every removal as sender deletion
 - Rules Engine, Critical Alert, Pausa Ping, Follow Up and Pickup Code
+- Pausa Ping Free global cooldown plus Premium per-app rolling Notification Budget for Notification Control visual alerts
 - Luminous visual-alert module with Free baseline and Premium app/sender profiles
 - optional Google profile identity via Credential Manager/Google ID 1.1.1 + stable sub/email token claims, separated from Vault security and Premium
 - biometric/device-credential Vault gate
