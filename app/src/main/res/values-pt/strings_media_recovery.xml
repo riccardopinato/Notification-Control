@@ -12,4 +12,5 @@
     <string name="media_rescue_count">%1$d mídias aguardando associação segura</string>
     <string name="media_rescue_confidence">Pontuação de evidências: %1$d</string>
     <string name="media_rescue_remove">Remover</string>
+    <string name="whatsapp_media_premium_required">O Premium arquiva novas pré-visualizações de imagens do WhatsApp e ativa a recuperação MediaStore/SAF. Os media já arquivados continuam disponíveis após mudar para o Free.</string>
 </resources>
