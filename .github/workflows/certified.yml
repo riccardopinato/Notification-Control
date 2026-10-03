@@ -50,6 +50,19 @@ jobs:
         run: |
           gradle :app:dependencies --configuration releaseRuntimeClasspath --no-daemon > certified-evidence/release-dependencies.txt
 
+      - name: Supply-chain provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "commit=$GITHUB_SHA"
+            echo "checkout=11d5960a326750d5838078e36cf38b85af677262"
+            echo "setup_java=cf277c60eb25467037889841efdb72551f06f6c3"
+            echo "setup_gradle=ed408507eac070d1f99cc633dbcf757c94c7933a"
+            echo "upload_artifact=ea165f8d65b6e75b540449e92b4886f43607fa02"
+            echo "gradle_distribution=9.3.1"
+          } > certified-evidence/CI_PROVENANCE.txt
+
       - name: Privacy and manifest gates
         shell: bash
         run: |
@@ -57,10 +70,18 @@ jobs:
           manifest="app/src/main/AndroidManifest.xml"
           grep -q 'android:allowBackup="false"' "$manifest"
           grep -q 'android:usesCleartextTraffic="false"' "$manifest"
-          if grep -q 'android.permission.QUERY_ALL_PACKAGES' "$manifest"; then
-            echo "QUERY_ALL_PACKAGES must not be used" >&2
-            exit 1
-          fi
+          forbidden_permissions=(
+            "android.permission.QUERY_ALL_PACKAGES"
+            "android.permission.READ_CALL_LOG"
+            "android.permission.RECEIVE_SMS"
+            "android.permission.MANAGE_EXTERNAL_STORAGE"
+          )
+          for permission in "${forbidden_permissions[@]}"; do
+            if grep -q "$permission" "$manifest"; then
+              echo "$permission must not be used without an explicit reviewed product requirement" >&2
+              exit 1
+            fi
+          done
           cp "$manifest" certified-evidence/AndroidManifest.xml
 
       - name: Localization gates
@@ -147,7 +168,10 @@ jobs:
             echo "run_id=$GITHUB_RUN_ID"
             echo "generated_utc=$(date -u +%FT%TZ)"
             echo "automated_gate=PASS"
+            echo "release_binary_status=UNSIGNED_VALIDATION"
+            echo "release_publishable=false"
             echo "device_validation=MANUAL_REQUIRED"
+            echo "applab_runtime=SEPARATE_REQUIRED_GATE"
             echo "macrobenchmark_runtime=MANUAL_REQUIRED"
             echo "play_configuration=EXTERNAL_REQUIRED"
             if [[ -n "${GOOGLE_WEB_CLIENT_ID:-}" ]]; then
