@@ -38,6 +38,7 @@ class BackupRepository(context: Context) {
     private val database = NotificationDatabase.get(appContext)
     private val backupDao = database.backupDao()
     private val notificationDao = database.notificationDao()
+    private val mediaRecoveryDao = database.mediaRecoveryDao()
     private val settings = AppSettings(appContext)
     private val mediaStore = NotificationMediaStore(appContext)
 
@@ -157,7 +158,9 @@ class BackupRepository(context: Context) {
 
         validateReferences(notifications, messages, revisions, rules, actions)
 
-        val previousMedia = notificationDao.allThumbnailPaths().toSet()
+        val previousVaultMedia = notificationDao.allThumbnailPaths().toSet()
+        val previousRescueMedia = mediaRecoveryDao.allRescuePaths().toSet()
+        val previousMedia = previousVaultMedia + previousRescueMedia
         val revisionsWithMedia = revisions.map { revision ->
             revision.copy(
                 thumbnailPath = revisionMediaPayloads[revision.revisionKey]
@@ -190,6 +193,8 @@ class BackupRepository(context: Context) {
 
         try {
             database.withTransaction {
+                mediaRecoveryDao.deleteAllPending()
+                mediaRecoveryDao.deleteAllRescue()
                 database.luminousProfileDao().deleteAll()
                 backupDao.deletePickupCodes()
                 backupDao.deleteFollowUps()
