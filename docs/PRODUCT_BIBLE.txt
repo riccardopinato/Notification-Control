@@ -1,5 +1,5 @@
-NOTIFICATION CONTROL — PRODUCT BIBLE v0.6
-Date: 2026-10-03
+NOTIFICATION CONTROL — PRODUCT BIBLE v0.7
+Date: 2026-10-04
 Status: BASELINE APPROVATA
 
 ==================================================
@@ -96,10 +96,13 @@ E. Follow Up
 - ripetizioni Premium.
 
 F. Pausa Ping
-- cooldown;
-- raggruppamento raffiche;
-- eccezioni Premium;
-- riduzione rumore senza bloccare eventi critici.
+- cooldown globale disponibile nel Free;
+- raggruppamento raffiche degli avvisi visivi di Notification Control;
+- Premium: cooldown/esenzioni per singola app;
+- Premium: Notification Budget con massimo numero di avvisi visivi per app in una finestra mobile;
+- Critical Alert bypassa cooldown e Notification Budget;
+- non modifica selettivamente suono/vibrazione generati dall'app sorgente;
+- riduzione rumore senza bloccare o perdere l'evento nel Vault.
 
 G. Pickup Code
 - estrazione di codici quando tecnicamente rilevabili dal testo della notifica;
@@ -160,12 +163,15 @@ PREMIUM
 - elementi protetti illimitati;
 - ricerca combinata;
 - filtri salvati;
-- thumbnail leggere quando la notifica espone media;
+- nuove thumbnail/media preview WhatsApp archiviate localmente;
+- recupero media WhatsApp Premium tramite notifica, MediaStore/SAF e Media Rescue Inbox;
+- i media già archiviati restano accessibili anche dopo un downgrade;
 - limite massimo spazio Vault configurabile;
 - Smart Cleanup;
 - Follow Up illimitati;
 - Critical Alert avanzato;
 - Pausa Ping avanzato;
+- Notification Budget Premium per app/finestra mobile;
 - Rules Engine illimitato;
 - Pickup Code automatico;
 - Luminous per app e per contatto;
@@ -194,6 +200,12 @@ Premium:
 ==================================================
 Notification Control usa come fonte primaria le immagini realmente esposte dalla notifica.
 Non promette la foto originale inviata via WhatsApp/Telegram.
+
+Contratto commerciale media:
+- il Vault testuale resta disponibile nel Free entro i relativi limiti;
+- la nuova acquisizione/archiviazione di media preview è Premium;
+- MediaStore, SAF e Media Rescue Inbox come recovery automatica sono capacità Premium;
+- il downgrade interrompe nuove acquisizioni/recovery Premium ma non cancella e non nasconde i media già archiviati dall'utente.
 
 Pipeline primaria:
 1. ricezione notifica;
@@ -360,4 +372,4 @@ Correzioni:
 - RECEIVE_SMS / READ_CALL_LOG esclusi dall'architettura target;
 - entitlement non deve stare nei renderer Luminous.
 
-END PRODUCT BIBLE v0.6
+END PRODUCT BIBLE v0.7
