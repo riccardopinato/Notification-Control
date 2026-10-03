@@ -14,6 +14,8 @@ import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.MessageEntity
 import com.riccardopinato.notificationcontrol.data.MessageFtsEntity
 import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
+import com.riccardopinato.notificationcontrol.data.MediaRecoveryPendingEntity
+import com.riccardopinato.notificationcontrol.data.MediaRescueEntity
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
 import com.riccardopinato.notificationcontrol.data.NotificationFtsEntity
@@ -23,6 +25,8 @@ import com.riccardopinato.notificationcontrol.data.RuleActionEntity
 import com.riccardopinato.notificationcontrol.data.RuleEntity
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -30,7 +34,21 @@ data class BackupSummary(
     val notifications: Int,
     val rules: Int,
     val followUps: Int,
-    val warnings: Int = 0
+    val warningCategories: List<String> = emptyList(),
+    val recoveryPointCreated: Boolean = false
+) {
+    val warnings: Int
+        get() = warningCategories.size
+}
+
+data class RecoveryPointInfo(
+    val available: Boolean,
+    val createdAt: Long? = null
+)
+
+private data class BackupRoot(
+    val root: JSONObject,
+    val summary: BackupSummary
 )
 
 class BackupRepository(context: Context) {
