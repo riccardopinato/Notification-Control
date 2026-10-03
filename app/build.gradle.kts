@@ -18,6 +18,14 @@ val releaseSigningReady = listOf(
 val defaultGoogleWebClientId =
     "72691779013-hci9cr313a5ado5skdghs6h7a5pg84md.apps.googleusercontent.com"
 
+val googleIdentityEnabled =
+    System.getenv("GOOGLE_IDENTITY_ENABLED")
+        ?.equals("true", ignoreCase = true)
+        ?: providers.gradleProperty("GOOGLE_IDENTITY_ENABLED")
+            .orNull
+            ?.equals("true", ignoreCase = true)
+        ?: false
+
 val googleWebClientId =
     System.getenv("GOOGLE_WEB_CLIENT_ID")
         ?.takeIf { it.isNotBlank() }
@@ -48,6 +56,7 @@ android {
         buildConfigField("boolean", "QA_PREMIUM_UNLOCKED", "false")
         buildConfigField("boolean", "BROAD_MEDIA_RECOVERY_ALLOWED", "true")
         buildConfigField("boolean", "AUTOMATION_PRESEED_ALLOWED", "false")
+        buildConfigField("boolean", "GOOGLE_IDENTITY_ENABLED", "false")
     }
 
     signingConfigs {
@@ -67,6 +76,11 @@ android {
         release {
             isMinifyEnabled = true
             buildConfigField("boolean", "BROAD_MEDIA_RECOVERY_ALLOWED", "false")
+            buildConfigField(
+                "boolean",
+                "GOOGLE_IDENTITY_ENABLED",
+                googleIdentityEnabled.toString()
+            )
             isShrinkResources = true
             if (releaseSigningReady) {
                 signingConfig = signingConfigs.getByName("release")
@@ -87,6 +101,7 @@ android {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
             buildConfigField("boolean", "AUTOMATION_PRESEED_ALLOWED", "true")
+            buildConfigField("boolean", "GOOGLE_IDENTITY_ENABLED", "true")
             matchingFallbacks += listOf("release")
             isDebuggable = false
             versionNameSuffix = "-qa-premium"
