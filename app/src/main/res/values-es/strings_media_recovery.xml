@@ -12,4 +12,5 @@
     <string name="media_rescue_count">%1$d medios pendientes de asociación segura</string>
     <string name="media_rescue_confidence">Puntuación de evidencias: %1$d</string>
     <string name="media_rescue_remove">Eliminar</string>
+    <string name="whatsapp_media_premium_required">Premium archiva las nuevas vistas previas de imágenes de WhatsApp y habilita la recuperación MediaStore/SAF. Los medios ya archivados siguen disponibles tras bajar de plan.</string>
 </resources>
