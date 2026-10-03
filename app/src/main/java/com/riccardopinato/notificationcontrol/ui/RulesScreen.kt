@@ -99,6 +99,9 @@ fun RulesScreen(
     onDeleteLuminousProfile: (Long) -> Unit,
     onPausePingEnabled: (Boolean) -> Unit,
     onPausePingCooldown: (Int) -> Unit,
+    onPausePingBudgetEnabled: (Boolean) -> Unit,
+    onPausePingBudgetMaxAlerts: (Int) -> Unit,
+    onPausePingBudgetWindowMinutes: (Int) -> Unit,
     onPausePingAppCooldown: (String, Int) -> Unit,
     onRemovePausePingAppCooldown: (String) -> Unit,
     setFlash: (Boolean) -> Unit,
@@ -121,6 +124,12 @@ fun RulesScreen(
     var pausePingAppSeconds by remember { mutableStateOf(30f) }
     var pausePingGlobalSeconds by remember(state.pausePingCooldownSeconds) {
         mutableStateOf(state.pausePingCooldownSeconds.toFloat())
+    }
+    var pausePingBudgetMax by remember(state.pausePingBudgetMaxAlerts) {
+        mutableStateOf(state.pausePingBudgetMaxAlerts.toFloat())
+    }
+    var pausePingBudgetWindow by remember(state.pausePingBudgetWindowMinutes) {
+        mutableStateOf(state.pausePingBudgetWindowMinutes.toFloat())
     }
     val appLabels = remember(apps) {
         apps.associate { it.packageName to it.label }
@@ -307,6 +316,69 @@ fun RulesScreen(
                         },
                         valueRange = 5f..120f
                     )
+
+                    if (state.isPremium) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.pause_ping_budget_title),
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    stringResource(R.string.pause_ping_budget_body),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Switch(
+                                checked = state.pausePingBudgetEnabled,
+                                onCheckedChange = onPausePingBudgetEnabled
+                            )
+                        }
+                        if (state.pausePingBudgetEnabled) {
+                            Text(
+                                stringResource(
+                                    R.string.pause_ping_budget_max,
+                                    pausePingBudgetMax.toInt()
+                                ),
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                            Slider(
+                                value = pausePingBudgetMax,
+                                onValueChange = { pausePingBudgetMax = it },
+                                onValueChangeFinished = {
+                                    onPausePingBudgetMaxAlerts(pausePingBudgetMax.toInt())
+                                },
+                                valueRange = 1f..10f,
+                                steps = 8
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.pause_ping_budget_window,
+                                    pausePingBudgetWindow.toInt()
+                                )
+                            )
+                            Slider(
+                                value = pausePingBudgetWindow,
+                                onValueChange = { pausePingBudgetWindow = it },
+                                onValueChangeFinished = {
+                                    onPausePingBudgetWindowMinutes(
+                                        pausePingBudgetWindow.toInt()
+                                    )
+                                },
+                                valueRange = 5f..120f
+                            )
+                        }
+                    } else {
+                        Text(
+                            stringResource(R.string.pause_ping_budget_premium_required),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
 
                     if (state.isPremium) {
                         Text(
