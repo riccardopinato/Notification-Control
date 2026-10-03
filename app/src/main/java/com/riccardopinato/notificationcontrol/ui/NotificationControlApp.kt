@@ -31,6 +31,8 @@ import kotlinx.coroutines.delay
 
 private enum class MainTab { HOME, VAULT, FOLLOW_UP, RULES, PROFILE }
 
+private const val VAULT_LOCK_POLL_MS = 1_000L
+
 @Composable
 fun NotificationControlApp(
     viewModel: NotificationControlViewModel,
