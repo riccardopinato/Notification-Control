@@ -30,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -236,6 +238,9 @@ private fun CoreSetupPage(
                         checked = app.packageName in selected,
                         onCheckedChange = {
                             limitError = !onToggle(app.packageName)
+                        },
+                        modifier = Modifier.semantics {
+                            contentDescription = app.label
                         }
                     )
                 }
