@@ -22,6 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.riccardopinato.notificationcontrol.R
@@ -158,7 +160,13 @@ private fun ToggleCard(
                 Text(title, fontWeight = FontWeight.SemiBold)
                 body?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
-            Switch(checked = checked, onCheckedChange = onChange)
+            Switch(
+                checked = checked,
+                onCheckedChange = onChange,
+                modifier = Modifier.semantics {
+                    contentDescription = title
+                }
+            )
         }
     }
 }
