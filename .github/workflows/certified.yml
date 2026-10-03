@@ -50,6 +50,14 @@ jobs:
         run: |
           gradle :app:dependencies --configuration releaseRuntimeClasspath --no-daemon > certified-evidence/release-dependencies.txt
 
+      - name: Room schema evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -d app/schemas
+          test -n "$(find app/schemas -type f -name '*.json' -print -quit)"
+          cp -R app/schemas certified-evidence/room-schemas
+
       - name: Supply-chain provenance
         shell: bash
         run: |
