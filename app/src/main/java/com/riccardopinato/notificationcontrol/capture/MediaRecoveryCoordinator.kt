@@ -186,20 +186,26 @@ class MediaRecoveryCoordinator(
     }
 
     suspend fun cleanupRescue(now: Long = System.currentTimeMillis()) {
-        val configuredDays = buildList {
-            add(settings.retentionDays)
-            addAll(settings.retentionDaysPerApp.values)
-        }
-        if (configuredDays.any { it == Int.MAX_VALUE }) return
+        recoveryDao.rescuePackages().forEach { packageName ->
+            val configuredDays =
+                settings.retentionDaysPerApp[packageName] ?: settings.retentionDays
+            if (configuredDays == Int.MAX_VALUE) return@forEach
 
-        val retentionDays = maxOf(
-            MIN_RESCUE_RETENTION_DAYS,
-            configuredDays.maxOrNull() ?: MIN_RESCUE_RETENTION_DAYS
-        )
-        val cutoff = now - TimeUnit.DAYS.toMillis(retentionDays.toLong())
-        val expiredPaths = recoveryDao.rescuePathsOlderThan(cutoff)
-        recoveryDao.deleteRescueOlderThan(cutoff)
-        expiredPaths.forEach(mediaStore::delete)
+            val retentionDays = maxOf(
+                MIN_RESCUE_RETENTION_DAYS,
+                configuredDays
+            )
+            val cutoff = now - TimeUnit.DAYS.toMillis(retentionDays.toLong())
+            val expiredPaths = recoveryDao.rescuePathsOlderThanForPackage(
+                packageName = packageName,
+                cutoffMillis = cutoff
+            )
+            recoveryDao.deleteRescueOlderThanForPackage(
+                packageName = packageName,
+                cutoffMillis = cutoff
+            )
+            expiredPaths.forEach(mediaStore::delete)
+        }
     }
 
     fun hasSafAccess(): Boolean =
