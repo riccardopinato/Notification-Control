@@ -12,4 +12,5 @@
     <string name="media_rescue_count">%1$d media waiting for a safe match</string>
     <string name="media_rescue_confidence">Evidence score: %1$d</string>
     <string name="media_rescue_remove">Remove</string>
+    <string name="whatsapp_media_release_saf_body">Public release uses direct notification media plus the WhatsApp Images folder you explicitly link below. Broad gallery access is intentionally not requested.</string>
 </resources>
