@@ -379,6 +379,10 @@ private fun SecurityCard(
     onTimeoutChange: (Int) -> Unit,
     onSensitiveProtectionChange: (Boolean) -> Unit
 ) {
+    val vaultLockDescription = stringResource(R.string.security_title)
+    val sensitiveProtectionDescription =
+        stringResource(R.string.sensitive_screen_protection)
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Row(
@@ -400,7 +404,7 @@ private fun SecurityCard(
                     onCheckedChange = onEnabledChange,
                     enabled = available,
                     modifier = Modifier.semantics {
-                        contentDescription = "Vault lock"
+                        contentDescription = vaultLockDescription
                     }
                 )
             }
@@ -438,7 +442,7 @@ private fun SecurityCard(
                     checked = sensitiveProtectionEnabled,
                     onCheckedChange = onSensitiveProtectionChange,
                     modifier = Modifier.semantics {
-                        contentDescription = "Sensitive screen protection"
+                        contentDescription = sensitiveProtectionDescription
                     }
                 )
             }
