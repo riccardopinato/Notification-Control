@@ -875,28 +875,36 @@ private fun MediaRecoverySafetyCard(
                 style = MaterialTheme.typography.bodySmall
             )
 
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.whatsapp_folder_fallback))
-                    Text(
-                        stringResource(R.string.whatsapp_folder_fallback_body),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                TextButton(onClick = requestWhatsAppMediaFolder) {
-                    Text(
-                        stringResource(
-                            if (folderLinked) {
-                                R.string.media_folder_linked
-                            } else {
-                                R.string.media_folder_link
-                            }
+            if (state.isPremium) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.whatsapp_folder_fallback))
+                        Text(
+                            stringResource(R.string.whatsapp_folder_fallback_body),
+                            style = MaterialTheme.typography.bodySmall
                         )
-                    )
+                    }
+                    TextButton(onClick = requestWhatsAppMediaFolder) {
+                        Text(
+                            stringResource(
+                                if (folderLinked) {
+                                    R.string.media_folder_linked
+                                } else {
+                                    R.string.media_folder_link
+                                }
+                            )
+                        )
+                    }
                 }
+            } else {
+                Text(
+                    stringResource(R.string.whatsapp_media_premium_required),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             if (rescueItems.isEmpty()) {
