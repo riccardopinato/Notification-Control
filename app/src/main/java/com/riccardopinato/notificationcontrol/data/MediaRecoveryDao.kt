@@ -72,6 +72,18 @@ interface MediaRecoveryDao {
     @Query("DELETE FROM media_rescue WHERE sourceKey = :sourceKey")
     suspend fun deleteRescueBySourceKey(sourceKey: String)
 
+    @Query("SELECT * FROM media_recovery_pending ORDER BY createdAt ASC")
+    suspend fun allPendingForRecoveryPoint(): List<MediaRecoveryPendingEntity>
+
+    @Query("SELECT * FROM media_rescue ORDER BY observedAt ASC")
+    suspend fun allRescueForRecoveryPoint(): List<MediaRescueEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restorePending(items: List<MediaRecoveryPendingEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun restoreRescue(items: List<MediaRescueEntity>)
+
     @Query("DELETE FROM media_recovery_pending")
     suspend fun deleteAllPending()
 
