@@ -4,7 +4,7 @@
     <string name="plan_premium_subscription">Subscrição Premium</string>
     <string name="plan_premium_lifetime">Premium vitalício</string>
     <string name="current_plan">Plano atual: %1$s</string>
-    <string name="premium_value">Apps monitorizadas ilimitadas, automações avançadas, retenção configurável e controlos Luminous mais completos.</string>
+    <string name="premium_value">Apps monitorizadas ilimitadas, arquivo e recuperação de media do WhatsApp, orçamento de notificações, automações avançadas, retenção configurável e controlos Luminous mais completos.</string>
     <string name="buy_subscription">%1$s · %2$s</string>
     <string name="buy_lifetime">Vitalício · %1$s</string>
     <string name="restore_purchases">Restaurar compras</string>
