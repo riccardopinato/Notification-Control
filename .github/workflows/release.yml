@@ -74,6 +74,27 @@ jobs:
             echo "SIGNING_READY=false" >> "$GITHUB_ENV"
           fi
 
+      - name: Release signing gate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${SIGNING_READY}" != "true" ]]; then
+            echo "Tagged releases require Android signing credentials." >&2
+            exit 1
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.publish_play_internal }}" == "true" && "${SIGNING_READY}" != "true" ]]; then
+            echo "Google Play publication requires Android signing credentials." >&2
+            exit 1
+          fi
+
+          if [[ "${SIGNING_READY}" == "true" ]]; then
+            echo "RELEASE_KIND=signed" >> "$GITHUB_ENV"
+          else
+            echo "RELEASE_KIND=unsigned-validation" >> "$GITHUB_ENV"
+          fi
+
       - name: Unit tests
         run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
 
@@ -93,13 +114,20 @@ jobs:
           if [[ -f app/build/outputs/mapping/release/mapping.txt ]]; then
             cp app/build/outputs/mapping/release/mapping.txt release-output/mapping.txt
           fi
+          {
+            echo "release_kind=${RELEASE_KIND}"
+            echo "signing_ready=${SIGNING_READY}"
+            echo "version_name=${VERSION_NAME}"
+            echo "version_code=${VERSION_CODE}"
+            echo "commit=${GITHUB_SHA}"
+          } > release-output/RELEASE_PROVENANCE.txt
           sha256sum release-output/* > release-output/SHA256SUMS.txt
           ls -lh release-output
 
       - name: Upload release build artifacts
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: notification-control-release-${{ env.VERSION_NAME }}
+          name: notification-control-release-${{ env.VERSION_NAME }}-${{ env.RELEASE_KIND }}
           path: release-output/
           if-no-files-found: error
 
