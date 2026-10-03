@@ -125,7 +125,9 @@ fun ProfileScreen(
                 onRestore = onRestorePurchases
             )
         }
-        item { GoogleAccountCard() }
+        if (BuildConfig.GOOGLE_IDENTITY_ENABLED) {
+            item { GoogleAccountCard() }
+        }
         item { EncryptedBackupCard(onBackupRestored = onBackupRestored) }
         item { LanguageCard() }
         item {
