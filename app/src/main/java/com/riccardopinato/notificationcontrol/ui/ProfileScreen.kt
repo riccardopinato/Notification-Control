@@ -966,13 +966,14 @@ private fun PermissionHealthCard(
         Build.VERSION.SDK_INT < 33 ||
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
-    val photoLibraryGranted = if (Build.VERSION.SDK_INT >= 33) {
-        context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
-            PackageManager.PERMISSION_GRANTED
-    } else {
-        context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
-            PackageManager.PERMISSION_GRANTED
-    }
+    val photoLibraryGranted = !BuildConfig.BROAD_MEDIA_RECOVERY_ALLOWED ||
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
+                PackageManager.PERMISSION_GRANTED
+        } else {
+            context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
+                PackageManager.PERMISSION_GRANTED
+        }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -987,7 +988,7 @@ private fun PermissionHealthCard(
                 reminderNotificationsGranted,
                 requestPostNotifications
             )
-            if (state.isPremium) {
+            if (state.isPremium && BuildConfig.BROAD_MEDIA_RECOVERY_ALLOWED) {
                 PermissionHealthRow(
                     stringResource(R.string.whatsapp_media_access),
                     photoLibraryGranted,
@@ -995,6 +996,13 @@ private fun PermissionHealthCard(
                 )
                 Text(
                     stringResource(R.string.whatsapp_media_access_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            } else if (state.isPremium) {
+                PermissionNotNeededRow(stringResource(R.string.whatsapp_media_access))
+                Text(
+                    stringResource(R.string.whatsapp_media_release_saf_body),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
