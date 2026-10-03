@@ -111,6 +111,9 @@ data class SettingsUiState(
     val pausePingEnabled: Boolean = true,
     val pausePingCooldownSeconds: Int = 20,
     val pausePingPerAppCooldowns: Map<String, Int> = emptyMap(),
+    val pausePingBudgetEnabled: Boolean = false,
+    val pausePingBudgetMaxAlerts: Int = 3,
+    val pausePingBudgetWindowMinutes: Int = 30,
     val criticalBypassQuietHours: Boolean = true
 )
 
@@ -492,6 +495,24 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         refresh()
     }
 
+    fun setPausePingBudgetEnabled(enabled: Boolean) {
+        if (!settings.isPremium) return
+        settings.pausePingBudgetEnabled = enabled
+        refresh()
+    }
+
+    fun setPausePingBudgetMaxAlerts(maxAlerts: Int) {
+        if (!settings.isPremium) return
+        settings.pausePingBudgetMaxAlerts = maxAlerts
+        refresh()
+    }
+
+    fun setPausePingBudgetWindowMinutes(minutes: Int) {
+        if (!settings.isPremium) return
+        settings.pausePingBudgetWindowMinutes = minutes
+        refresh()
+    }
+
     fun setPausePingAppCooldown(packageName: String, seconds: Int) {
         if (!settings.isPremium) return
         settings.pausePingPerAppCooldowns =
@@ -825,6 +846,9 @@ class NotificationControlViewModel(application: Application) : AndroidViewModel(
         pausePingEnabled = settings.pausePingEnabled,
         pausePingCooldownSeconds = settings.pausePingCooldownSeconds,
         pausePingPerAppCooldowns = settings.pausePingPerAppCooldowns,
+        pausePingBudgetEnabled = settings.pausePingBudgetEnabled,
+        pausePingBudgetMaxAlerts = settings.pausePingBudgetMaxAlerts,
+        pausePingBudgetWindowMinutes = settings.pausePingBudgetWindowMinutes,
         criticalBypassQuietHours = settings.criticalBypassQuietHours
     )
 
