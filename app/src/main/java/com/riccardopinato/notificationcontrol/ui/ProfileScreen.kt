@@ -39,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -396,7 +398,10 @@ private fun SecurityCard(
                 Switch(
                     checked = enabled,
                     onCheckedChange = onEnabledChange,
-                    enabled = available
+                    enabled = available,
+                    modifier = Modifier.semantics {
+                        contentDescription = "Vault lock"
+                    }
                 )
             }
             if (enabled) {
@@ -431,7 +436,10 @@ private fun SecurityCard(
                 }
                 Switch(
                     checked = sensitiveProtectionEnabled,
-                    onCheckedChange = onSensitiveProtectionChange
+                    onCheckedChange = onSensitiveProtectionChange,
+                    modifier = Modifier.semantics {
+                        contentDescription = "Sensitive screen protection"
+                    }
                 )
             }
         }
