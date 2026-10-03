@@ -12,4 +12,5 @@
     <string name="media_rescue_count">%1$d media in attesa di associazione sicura</string>
     <string name="media_rescue_confidence">Punteggio prove: %1$d</string>
     <string name="media_rescue_remove">Rimuovi</string>
+    <string name="whatsapp_media_premium_required">Premium archivia le nuove anteprime immagini WhatsApp e abilita il recupero MediaStore/SAF. I media già archiviati restano disponibili anche dopo il downgrade.</string>
 </resources>
