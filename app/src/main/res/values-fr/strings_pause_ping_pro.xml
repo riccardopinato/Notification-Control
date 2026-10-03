@@ -2,4 +2,9 @@
     <string name="pause_ping_per_app_title">Cooldown par app</string>
     <string name="pause_ping_per_app_body">Premium peut remplacer le cooldown global pour certaines apps. Réglez 0 pour exclure une app de Pausa Ping.</string>
     <string name="pause_ping_no_cooldown">Aucun cooldown</string>
+    <string name="pause_ping_budget_title">Budget de notifications</string>
+    <string name="pause_ping_budget_body">Premium limite le nombre d’alertes visuelles Notification Control que chaque app peut déclencher dans une fenêtre glissante. Le son et la vibration de l’app source ne changent pas.</string>
+    <string name="pause_ping_budget_max">Alertes visuelles maximales par app : %1$d</string>
+    <string name="pause_ping_budget_window">Fenêtre glissante : %1$d min</string>
+    <string name="pause_ping_budget_premium_required">Premium débloque le budget de notifications, les cooldowns par app et les exemptions.</string>
 </resources>
