@@ -43,6 +43,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
+import com.riccardopinato.notificationcontrol.BuildConfig
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.billing.BillingUiState
 import com.riccardopinato.notificationcontrol.billing.EntitlementTier
@@ -183,6 +184,15 @@ fun ProfileScreen(
             InfoCard(
                 stringResource(R.string.privacy_title),
                 stringResource(R.string.privacy_body)
+            )
+        }
+        item {
+            InfoCard(
+                stringResource(R.string.app_info_title),
+                stringResource(
+                    R.string.app_info_body,
+                    BuildConfig.VERSION_NAME
+                )
             )
         }
         item {
