@@ -12,4 +12,5 @@
     <string name="media_rescue_count">%1$d medios pendientes de asociación segura</string>
     <string name="media_rescue_confidence">Puntuación de evidencias: %1$d</string>
     <string name="media_rescue_remove">Eliminar</string>
+    <string name="whatsapp_media_release_saf_body">La versión pública usa los medios expuestos por la notificación y la carpeta WhatsApp Images que vinculas explícitamente abajo. No se solicita acceso amplio a la galería.</string>
 </resources>

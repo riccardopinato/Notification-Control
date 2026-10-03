@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.riccardopinato.notificationcontrol.billing.PlayBillingManager
 import com.riccardopinato.notificationcontrol.capture.WhatsAppSafMediaSource
+import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.security.VaultSecurityManager
 import com.riccardopinato.notificationcontrol.ui.NotificationControlApp
 import com.riccardopinato.notificationcontrol.ui.NotificationControlViewModel
@@ -70,6 +71,18 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (
+            BuildConfig.AUTOMATION_PRESEED_ALLOWED &&
+            intent.getBooleanExtra(EXTRA_AUTOMATION_PRESEED, false)
+        ) {
+            AppSettings(this).apply {
+                onboardingCompleted = true
+                monitoredPackages = setOf("com.whatsapp")
+                sensitiveProtectionEnabled = false
+            }
+        }
+
         enableEdgeToEdge()
 
         setContent {
@@ -108,19 +121,23 @@ class MainActivity : FragmentActivity() {
                         }
                     },
                     requestPhotoLibraryPermission = {
-                        val requested = when {
-                            Build.VERSION.SDK_INT >= 34 -> arrayOf(
-                                Manifest.permission.READ_MEDIA_IMAGES,
-                                Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
-                            )
-                            Build.VERSION.SDK_INT >= 33 -> arrayOf(
-                                Manifest.permission.READ_MEDIA_IMAGES
-                            )
-                            else -> arrayOf(
-                                Manifest.permission.READ_EXTERNAL_STORAGE
-                            )
+                        if (!BuildConfig.BROAD_MEDIA_RECOVERY_ALLOWED) {
+                            permissionEpoch++
+                        } else {
+                            val requested = when {
+                                Build.VERSION.SDK_INT >= 34 -> arrayOf(
+                                    Manifest.permission.READ_MEDIA_IMAGES,
+                                    Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+                                )
+                                Build.VERSION.SDK_INT >= 33 -> arrayOf(
+                                    Manifest.permission.READ_MEDIA_IMAGES
+                                )
+                                else -> arrayOf(
+                                    Manifest.permission.READ_EXTERNAL_STORAGE
+                                )
+                            }
+                            mediaPermissions.launch(requested)
                         }
-                        mediaPermissions.launch(requested)
                     },
                     requestWhatsAppMediaFolder = {
                         whatsAppMediaFolder.launch(null)
@@ -151,6 +168,11 @@ class MainActivity : FragmentActivity() {
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
+    }
+
+    companion object {
+        const val EXTRA_AUTOMATION_PRESEED =
+            "notification_control_automation_preseed"
     }
 
     private fun requestVaultUnlock() {

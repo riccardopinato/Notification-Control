@@ -100,6 +100,9 @@ interface AutomationDao {
     @Query("SELECT * FROM critical_alerts WHERE status = 'ACTIVE' ORDER BY createdAt DESC")
     fun observeActiveCriticalAlerts(): Flow<List<CriticalAlertEntity>>
 
+    @Query("SELECT * FROM critical_alerts WHERE status = 'ACTIVE' ORDER BY nextAt ASC")
+    suspend fun activeCriticalAlerts(): List<CriticalAlertEntity>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertCriticalAlert(entity: CriticalAlertEntity): Long
 
@@ -125,6 +128,9 @@ interface AutomationDao {
 
     @Query("SELECT * FROM follow_ups WHERE status = 'ACTIVE' ORDER BY dueAt ASC")
     fun observeActiveFollowUps(): Flow<List<FollowUpEntity>>
+
+    @Query("SELECT * FROM follow_ups WHERE status = 'ACTIVE' ORDER BY dueAt ASC")
+    suspend fun activeFollowUps(): List<FollowUpEntity>
 
     @Query("SELECT COUNT(*) FROM follow_ups WHERE status = 'ACTIVE'")
     suspend fun activeFollowUpCount(): Int

@@ -4,8 +4,8 @@ import android.content.Context
 import android.net.Uri
 import android.util.Base64
 import androidx.room.withTransaction
-import com.riccardopinato.notificationcontrol.automation.CriticalAlertScheduler
-import com.riccardopinato.notificationcontrol.automation.FollowUpScheduler
+import com.riccardopinato.notificationcontrol.automation.AutomationReconciler
+import com.riccardopinato.notificationcontrol.automation.AutomationRecoveryScheduler
 import com.riccardopinato.notificationcontrol.capture.NotificationMediaStore
 import com.riccardopinato.notificationcontrol.data.AppSettings
 import com.riccardopinato.notificationcontrol.data.CriticalAlertEntity
@@ -21,8 +21,10 @@ import com.riccardopinato.notificationcontrol.data.NotificationRevisionEntity
 import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
 import com.riccardopinato.notificationcontrol.data.RuleActionEntity
 import com.riccardopinato.notificationcontrol.data.RuleEntity
+import com.riccardopinato.notificationcontrol.data.RestoreJournalEntity
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 import java.io.ByteArrayOutputStream
+import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -30,8 +32,11 @@ data class BackupSummary(
     val notifications: Int,
     val rules: Int,
     val followUps: Int,
-    val warnings: Int = 0
-)
+    val warningCodes: List<String> = emptyList()
+) {
+    val warnings: Int
+        get() = warningCodes.size
+}
 
 class BackupRepository(context: Context) {
     private val appContext = context.applicationContext
@@ -131,6 +136,10 @@ class BackupRepository(context: Context) {
     }
 
     suspend fun restoreFrom(uri: Uri, passphrase: CharArray): Result<BackupSummary> = runCatching {
+        check(backupDao.restoreJournal() == null) {
+            "A previous restore is still pending recovery"
+        }
+
         val encrypted = readLimited(uri)
         val plain = EncryptedBackupCodec.decrypt(encrypted, passphrase)
         val root = JSONObject(plain.toString(Charsets.UTF_8))
@@ -158,34 +167,59 @@ class BackupRepository(context: Context) {
 
         validateReferences(notifications, messages, revisions, rules, actions)
 
+        val notificationKeys = notifications.mapTo(hashSetOf()) { it.sbnKey }
+        val revisionKeys = revisions.mapTo(hashSetOf()) { it.revisionKey }
+        require(mediaPayloads.keys.all { it in notificationKeys }) {
+            "Backup media references an unknown notification"
+        }
+        require(revisionMediaPayloads.keys.all { it in revisionKeys }) {
+            "Backup media references an unknown revision"
+        }
+
+        val sessionId = UUID.randomUUID().toString()
         val previousVaultMedia = notificationDao.allThumbnailPaths().toSet()
         val previousRescueMedia = mediaRecoveryDao.allRescuePaths().toSet()
         val previousMedia = previousVaultMedia + previousRescueMedia
-        val revisionsWithMedia = revisions.map { revision ->
-            revision.copy(
-                thumbnailPath = revisionMediaPayloads[revision.revisionKey]
-                    ?.let {
-                        mediaStore.restorePicture(
-                            "revision:" + revision.revisionKey,
-                            it
-                        )
-                    }
-            )
-        }
-        val latestRevisionMediaByNotification = revisionsWithMedia
-            .asSequence()
-            .filter { it.thumbnailPath != null }
-            .groupBy { it.notificationKey }
-            .mapValues { (_, values) -> values.maxByOrNull { it.capturedAt } }
+        val stagedMedia = linkedSetOf<String>()
 
-        val notificationsWithMedia = notifications.map { notification ->
-            val legacyPath = mediaPayloads[notification.sbnKey]
-                ?.let { mediaStore.restorePicture(notification.sbnKey, it) }
-            notification.copy(
-                thumbnailPath = legacyPath
-                    ?: latestRevisionMediaByNotification[notification.sbnKey]?.thumbnailPath
-            )
+        fun stageMedia(stableKey: String, bytes: ByteArray): String {
+            val path = mediaStore.restorePicture(
+                stableKey = "restore:" + sessionId + ":" + stableKey,
+                bytes = bytes
+            ) ?: error("Unable to stage backup media")
+            stagedMedia += path
+            return path
         }
+
+        val revisionsWithMedia: List<NotificationRevisionEntity>
+        val notificationsWithMedia: List<NotificationEntity>
+        try {
+            revisionsWithMedia = revisions.map { revision ->
+                revision.copy(
+                    thumbnailPath = revisionMediaPayloads[revision.revisionKey]
+                        ?.let { stageMedia("revision:" + revision.revisionKey, it) }
+                )
+            }
+
+            val latestRevisionMediaByNotification = revisionsWithMedia
+                .asSequence()
+                .filter { it.thumbnailPath != null }
+                .groupBy { it.notificationKey }
+                .mapValues { (_, values) -> values.maxByOrNull { it.capturedAt } }
+
+            notificationsWithMedia = notifications.map { notification ->
+                val legacyPath = mediaPayloads[notification.sbnKey]
+                    ?.let { stageMedia("notification:" + notification.sbnKey, it) }
+                notification.copy(
+                    thumbnailPath = legacyPath
+                        ?: latestRevisionMediaByNotification[notification.sbnKey]?.thumbnailPath
+                )
+            }
+        } catch (error: Throwable) {
+            stagedMedia.forEach(mediaStore::delete)
+            throw error
+        }
+
         val restoredMedia = buildSet {
             notificationsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
             revisionsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
@@ -207,6 +241,7 @@ class BackupRepository(context: Context) {
                 backupDao.deleteRevisions()
                 backupDao.deleteMessages()
                 backupDao.deleteNotifications()
+                backupDao.deleteRestoreJournal()
 
                 if (notificationsWithMedia.isNotEmpty()) {
                     backupDao.insertNotifications(notificationsWithMedia)
@@ -252,45 +287,51 @@ class BackupRepository(context: Context) {
                         )
                     )
                 }
+
+                backupDao.upsertRestoreJournal(
+                    RestoreJournalEntity(
+                        sessionId = sessionId,
+                        settingsJson = settingsObject?.toString(),
+                        createdAt = System.currentTimeMillis()
+                    )
+                )
             }
         } catch (error: Throwable) {
-            restoredMedia.filterNot { it in previousMedia }.forEach(mediaStore::delete)
+            stagedMedia.forEach(mediaStore::delete)
             throw error
         }
 
         previousMedia.filterNot { it in restoredMedia }.forEach(mediaStore::delete)
         mediaStore.cleanupOrphans(restoredMedia)
 
-        var postCommitWarnings = 0
-        if (settingsObject != null) {
-            runCatching { restoreSettings(settingsObject) }
-                .onFailure { postCommitWarnings++ }
-        }
-
-        runCatching {
-            FollowUpScheduler.cancelAll(appContext)
-            followUps.filter { it.status == "ACTIVE" }.forEach {
-                FollowUpScheduler.schedule(appContext, it.id, it.dueAt)
+        val warnings = mutableListOf<String>()
+        runCatching { reconcilePendingRestore() }
+            .onFailure {
+                warnings += WARNING_SETTINGS_RECOVERY_PENDING
+                AutomationRecoveryScheduler.enqueue(appContext)
             }
-        }.onFailure {
-            postCommitWarnings++
-        }
 
-        runCatching {
-            CriticalAlertScheduler.cancelAll(appContext)
-            criticalAlerts.filter { it.status == "ACTIVE" }.forEach {
-                CriticalAlertScheduler.schedule(appContext, it.id, it.nextAt)
+        runCatching { AutomationReconciler.reconcile(appContext) }
+            .onFailure {
+                warnings += WARNING_AUTOMATION_RECOVERY_PENDING
+                AutomationRecoveryScheduler.enqueue(appContext)
             }
-        }.onFailure {
-            postCommitWarnings++
-        }
 
         BackupSummary(
             notifications = notificationsWithMedia.size,
             rules = rules.size,
             followUps = followUps.size,
-            warnings = postCommitWarnings
+            warningCodes = warnings.distinct()
         )
+    }
+
+    suspend fun reconcilePendingRestore() {
+        val journal = backupDao.restoreJournal() ?: return
+        val settingsPayload = journal.settingsJson
+        if (!settingsPayload.isNullOrBlank()) {
+            restoreSettings(JSONObject(settingsPayload))
+        }
+        backupDao.deleteRestoreJournal()
     }
 
     private fun parseNotifications(array: JSONArray): List<NotificationEntity> = buildList {
@@ -885,5 +926,8 @@ class BackupRepository(context: Context) {
     companion object {
         private const val FORMAT_VERSION = 1
         private const val MAX_MEDIA_BYTES = 6 * 1024 * 1024
+        private const val WARNING_SETTINGS_RECOVERY_PENDING = "SETTINGS_RECOVERY_PENDING"
+        private const val WARNING_AUTOMATION_RECOVERY_PENDING =
+            "AUTOMATION_RECOVERY_PENDING"
     }
 }

@@ -619,4 +619,76 @@ class NotificationDatabaseMigrationTest {
         context.deleteDatabase(databaseName)
     }
 
+
+    @Test
+    fun migration11To12AddsAtomicRestoreJournal() {
+        val context = RuntimeEnvironment.getApplication()
+        val databaseName = "notification-control-migration-11-12.db"
+        context.deleteDatabase(databaseName)
+
+        val v11 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(11) {
+                        override fun onCreate(db: SupportSQLiteDatabase) = Unit
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) = Unit
+                    }
+                )
+                .build()
+        )
+        v11.writableDatabase
+        v11.close()
+
+        val v12 = FrameworkSQLiteOpenHelperFactory().create(
+            SupportSQLiteOpenHelper.Configuration.builder(context)
+                .name(databaseName)
+                .callback(
+                    object : SupportSQLiteOpenHelper.Callback(12) {
+                        override fun onCreate(db: SupportSQLiteDatabase) = Unit
+
+                        override fun onUpgrade(
+                            db: SupportSQLiteDatabase,
+                            oldVersion: Int,
+                            newVersion: Int
+                        ) {
+                            assertEquals(11, oldVersion)
+                            assertEquals(12, newVersion)
+                            NotificationDatabase.MIGRATION_11_12.migrate(db)
+                        }
+                    }
+                )
+                .build()
+        )
+
+        val db = v12.writableDatabase
+        db.query(
+            "SELECT name FROM sqlite_master WHERE type='table' " +
+                "AND name='restore_journal'"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+        }
+
+        db.execSQL(
+            "INSERT INTO restore_journal(id, sessionId, settingsJson, createdAt) " +
+                "VALUES(1, 'session', '{\"retentionDays\":30}', 123)"
+        )
+        db.query(
+            "SELECT sessionId, settingsJson, createdAt FROM restore_journal WHERE id=1"
+        ).use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("session", cursor.getString(0))
+            assertEquals("{\"retentionDays\":30}", cursor.getString(1))
+            assertEquals(123L, cursor.getLong(2))
+        }
+
+        v12.close()
+        context.deleteDatabase(databaseName)
+    }
+
 }

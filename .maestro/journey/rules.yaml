@@ -1,0 +1,8 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- launchApp:
+    clearState: true
+    arguments:
+      notification_control_automation_preseed: true
+- tapOn: "Rules"
+- assertVisible: "Rules & alerts"
