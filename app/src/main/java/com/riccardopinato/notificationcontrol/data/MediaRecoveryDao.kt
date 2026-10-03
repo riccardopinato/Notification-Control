@@ -48,11 +48,26 @@ interface MediaRecoveryDao {
     @Query("SELECT localPath FROM media_rescue")
     suspend fun allRescuePaths(): List<String>
 
-    @Query("SELECT localPath FROM media_rescue WHERE observedAt < :cutoffMillis")
-    suspend fun rescuePathsOlderThan(cutoffMillis: Long): List<String>
+    @Query("SELECT DISTINCT packageName FROM media_rescue")
+    suspend fun rescuePackages(): List<String>
 
-    @Query("DELETE FROM media_rescue WHERE observedAt < :cutoffMillis")
-    suspend fun deleteRescueOlderThan(cutoffMillis: Long): Int
+    @Query(
+        "SELECT localPath FROM media_rescue " +
+            "WHERE packageName = :packageName AND observedAt < :cutoffMillis"
+    )
+    suspend fun rescuePathsOlderThanForPackage(
+        packageName: String,
+        cutoffMillis: Long
+    ): List<String>
+
+    @Query(
+        "DELETE FROM media_rescue " +
+            "WHERE packageName = :packageName AND observedAt < :cutoffMillis"
+    )
+    suspend fun deleteRescueOlderThanForPackage(
+        packageName: String,
+        cutoffMillis: Long
+    ): Int
 
     @Query("DELETE FROM media_rescue WHERE sourceKey = :sourceKey")
     suspend fun deleteRescueBySourceKey(sourceKey: String)

@@ -10,4 +10,5 @@
     <string name="vault_removed_disclaimer">A remoção não prova que o remetente tenha apagado a mensagem.</string>
     <string name="vault_unknown_sender">Remetente desconhecido</string>
     <string name="close">Fechar</string>
+    <string name="vault_media_preview">Pré-visualização de mídia</string>
 </resources>

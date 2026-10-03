@@ -10,4 +10,5 @@
     <string name="vault_removed_disclaimer">A removal does not prove that the sender deleted the message.</string>
     <string name="vault_unknown_sender">Unknown sender</string>
     <string name="close">Close</string>
+    <string name="vault_media_preview">Media preview</string>
 </resources>

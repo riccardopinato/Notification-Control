@@ -1,5 +1,5 @@
-NOTIFICATION CONTROL — ROADMAP v1.6.0
-Date: 2026-10-02
+NOTIFICATION CONTROL — ROADMAP v1.7.0
+Date: 2026-10-03
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
 PHASE 0 — DONOR AUDIT & BASELINE
@@ -204,7 +204,7 @@ Merge baseline: 6e7a4e3424f705b51a35d2c97fb265fbc01f0387
 - Google ID SDK 1.1.1 mantenuto per compatibilità Kotlin; sub/email letti dall'ID token
 - Google profile usa uniqueId stabile ed email separata; rimosso google.id deprecato
 - nonce casuale per ogni richiesta Sign in with Google
-- GOOGLE_WEB_CLIENT_ID iniettato da build/CI, non hardcoded nel source
+- GOOGLE_WEB_CLIENT_ID supporta override da build/CI; esiste un fallback pubblico non-segreto per QA/configurazione base
 - diagnostica login mostra l'errore reale invece di un messaggio generico
 - build qaPremium release-like, R8/shrink, Premium forzato esclusivamente per QA
 - Billing production resta invariato e non accetta il QA override
@@ -286,7 +286,8 @@ Merge baseline: 4112975550ebe11b07f2ed144c1ac86468673318
 - test unitari dedicati alla policy di recovery e al rifiuto delle associazioni ambigue
 
 STEP 19.1 — GALLERY DOUBLE-CHECK HARDENING
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: 6531962ea51b6b18673f75c2d2a7790b368c2aa4
 - MediaStore usa anche OWNER_PACKAGE_NAME quando disponibile, oltre al percorso WhatsApp
 - package visibility esplicita per WhatsApp e WhatsApp Business
 - candidati con owner esplicitamente diverso dal package notificante vengono rifiutati
@@ -304,7 +305,8 @@ IMPLEMENTED / VALIDATION
 - aggiunti test per owner package, indicizzazione tardiva e limite temporale
 
 STEP 19.2 — RELIABLE MEDIA CAPTURE & CORRELATION ENGINE
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: b657b86d7fee45be2919c5eb16142f3ba0f485ea
 - Room v11: pending media recovery persistenti e Rescue Inbox locale
 - MediaStore GENERATION_ADDED usato come checkpoint su Android 11+ quando la versione MediaStore resta stabile
 - ContentObserver sulle immagini MediaStore per trigger immediato event-driven
@@ -322,27 +324,98 @@ IMPLEMENTED / VALIDATION
 - READ_MEDIA_IMAGES resta un gate Google Play se il percorso MediaStore broad-access viene mantenuto in produzione
 - test dedicati a burst one-to-one, ambiguità, generation checkpoint, perceptual-hash e migrazione 10→11
 
+STEP 20 — MASTER v21 DEEP AUDIT + APPLAB TRUSTED GATE
+IMPLEMENTED / VALIDATION
+- audit against Master Prompt v21 SLIM, Golden Rules, Product Bible, project rules and implementation truth
+- AppLab FULL native Android gate pinned to immutable AppLab SHA
+- trusted runtime coverage for launch/visual/system, persistence, lifecycle, process death, background/Doze and storage integrity where supported
+- GitHub Actions dependencies pinned to immutable commit SHA
+- tagged/public and Play release flows fail closed without Android signing
+- manual unsigned release output explicitly labelled unsigned-validation
+- Certified QA records CI provenance and rejects QUERY_ALL_PACKAGES / READ_CALL_LOG / RECEIVE_SMS / MANAGE_EXTERNAL_STORAGE
+- restore no longer reports false rollback after an already committed Room transaction; post-commit maintenance problems become explicit warnings
+- Product Bible security wording aligned to actual implementation: Android sandbox + optional biometric/device lock + AES-GCM backup; no false database-encryption claim
+- README/docs aligned to Room v11 and current evidence boundaries
+
+STEP 21 — BATCH DATA SAFETY & RECOVERY POINT
+PLANNED
+- formal restore staging object with complete validation before mutation
+- local pre-restore safety point/rollback strategy sized for the Vault without duplicating media unnecessarily
+- restore diagnostics with exact warning categories and repair/retry actions
+- destructive lifecycle audit for Vault events, revisions, Rescue media, Follow Ups, Critical alerts, rules and profiles
+- test fault injection before/during/after atomic commit
+- evidence that failed restore cannot orphan files, schedulers or settings
+
+STEP 22 — PHYSICAL NOTIFICATION & MEDIA RELIABILITY CERTIFICATION
+PLANNED
+- real Notification Listener access on physical Android, including sideload restricted-settings flow
+- WhatsApp direct notification image, MediaStore fallback and SAF fallback tested independently
+- multi-photo bursts, delayed indexing, notification dismissal, listener reconnect, process kill and reboot
+- Android 14+ selected-photo vs full-photo permission behaviour
+- Rescue Inbox ambiguity cases and perceptual-hash proof-of-nine
+- Xiaomi/HyperOS + Samsung validation where devices are available
+- physical-device evidence pack and regression checklist
+
+STEP 23 — PLAY POLICY + IDENTITY + BILLING RELEASE READINESS
+PLANNED
+- decide production path for READ_MEDIA_IMAGES after Play eligibility review; prefer least-privilege SAF/notification path if broad access is not approved
+- create/verify Android OAuth clients for QA and Play App Signing SHA-1
+- validate live Google profile sign-in on signed build
+- configure Play subscription/lifetime products and restoration flows
+- configure release signing/service account and Internal Testing publication
+- verify signed AAB install/update path and purchase entitlement recovery
+
+STEP 24 — ACCESSIBILITY, UX & PERMISSION HEALTH CERTIFICATION
+PLANNED
+- TalkBack traversal and meaningful labels for Home/Vault/Rules/Profile
+- 48dp touch-target audit and dynamic text/font-scale stress
+- dark/light/high-contrast visual regression
+- permission health must distinguish granted, partial, blocked, restricted-settings and not-needed states
+- destructive actions and Rescue Inbox cleanup receive explicit consequence copy
+- AppLab visual journey checkpoints for critical non-destructive screens
+
+STEP 25 — PERFORMANCE, BATTERY & LONG-RUN STABILITY
+PLANNED
+- Macrobenchmark cold/warm start and jank on controlled physical device
+- notification hot-path latency and Room query profiling under large Vault
+- WorkManager/ContentObserver battery and wakeup audit
+- Doze/App Standby/reboot soak tests for Follow Up, Critical and media recovery
+- APK/AAB size budget and dependency review
+- memory/leak check around thumbnails, overlays, sensors and notification bursts
+
+STEP 26 — V1.0 RELEASE CANDIDATE CERTIFICATION
+PLANNED
+- all P0/P1 closed or explicitly waived with rationale
+- Android CI + Certified QA + AppLab CERTIFICATION green on immutable release commit
+- signed release APK/AAB provenance and checksums
+- Play Internal Testing installation/update verified
+- privacy/data-safety/store disclosures matched to actual permissions and features
+- final physical regression on core Free and Premium paths
+- verdict CERTIFIED only when device/store/external gates are actually satisfied
+
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Android OAuth client/package signing configuration must match the intended signed build
 - Google Play/release Android OAuth client must match Play App Signing/release SHA-1
 - Google Play product configuration for live Premium purchase flows
 - Play signing/service credentials for automatic Internal Testing publication
+- Google Play READ_MEDIA_IMAGES eligibility/declaration decision before public release
+- repository branch protection/ruleset: no ruleset is currently visible through the connected GitHub API; configure required checks on main in repository settings
 
 CURRENT RELEASE VERDICT:
 AUTOMATED CORE: PASS
 CERTIFIED AUTOMATION: PASS
+APPLAB FULL: VALIDATION_IN_PROGRESS
 PHYSICAL DEVICE: MANUAL_REQUIRED
 LIVE GOOGLE/PLAY CONFIG: REQUIRED
-FINAL INTENDED-RELEASE VERDICT: BLOCKED until manual/device/store gates are completed
+BRANCH GOVERNANCE: MANUAL_REQUIRED
+FINAL INTENDED-RELEASE VERDICT: BLOCKED until AppLab/device/store/governance gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Close Android CI + Certified QA for STEP 19.2.
-2. Install fresh qaPremium APK and test notification-direct + MediaStore + SAF independently.
-3. Test burst di più foto, indicizzazione ritardata e interruzione/riavvio del listener.
-4. Verificare che un caso ambiguo finisca in Media Rescue Inbox senza associazione errata.
-5. Verificare che il perceptual-hash confermi una foto già esposta come preview dalla notifica.
-6. Decide and complete the Google Play READ_MEDIA_IMAGES declaration path before production release.
-7. Create Google OAuth Android client for QA package + SHA-1.
-8. Execute Macrobenchmark runtime when a controlled Android benchmark device is available.
+1. Close Android CI + Certified QA + AppLab FULL for STEP 20 and merge only with green evidence.
+2. Execute STEP 21 Batch Data Safety & Recovery Point.
+3. Execute STEP 22 physical notification/media reliability certification.
+4. Complete STEP 23 Play policy, OAuth, Billing and signed Internal Testing configuration.
+5. Run STEP 24 accessibility/UX certification and STEP 25 performance/battery stability.
+6. Promote STEP 26 only from an immutable signed release candidate with all mandatory gates green.
 
-END ROADMAP v1.6.0
+END ROADMAP v1.7.0

@@ -23,4 +23,6 @@
     <string name="grant_overlay_for_luminous">Dar acesso de sobreposição para Luminous</string>
     <string name="selected_visual_permissions_required">Conceda a permissão exigida por cada alerta visual selecionado antes de continuar.</string>
     <string name="search_apps">Pesquisar apps</string>
+    <string name="app_info_title">Informações, versão e licenças</string>
+    <string name="app_info_body">Versão %1$s. O Notification Control utiliza componentes AndroidX/Jetpack, Kotlin Coroutines e SDK Google Android ao abrigo das respetivas licenças e termos. As evidências da versão incluem o inventário das dependências runtime.</string>
 </resources>

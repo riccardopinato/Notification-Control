@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -26,8 +27,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.security.VaultSecurityManager
+import kotlinx.coroutines.delay
 
 private enum class MainTab { HOME, VAULT, FOLLOW_UP, RULES, PROFILE }
+
+private const val VAULT_LOCK_POLL_MS = 1_000L
 
 @Composable
 fun NotificationControlApp(
@@ -77,7 +81,21 @@ fun NotificationControlApp(
 
     val context = LocalContext.current
     val security = remember { VaultSecurityManager(context) }
-    val sensitiveLocked = security.isLocked()
+    val sensitiveLocked by produceState(
+        initialValue = security.isLocked(),
+        settings.vaultLockEnabled,
+        settings.vaultLockTimeoutMinutes,
+        vaultUnlockEpoch,
+        permissionEpoch
+    ) {
+        value = security.isLocked()
+        if (settings.vaultLockEnabled) {
+            while (true) {
+                delay(VAULT_LOCK_POLL_MS)
+                value = security.isLocked()
+            }
+        }
+    }
     val snackbar = remember { SnackbarHostState() }
     val protectedLimitMessage = stringResource(R.string.protected_limit_reached)
     val ruleLimitMessage = stringResource(R.string.rule_limit_reached)
@@ -170,7 +188,7 @@ fun NotificationControlApp(
                     viewModel.refreshStorageStats()
                 }
 
-                if (security.isLocked()) {
+                if (sensitiveLocked) {
                     VaultLockedScreen(
                         modifier = Modifier,
                         contentPadding = padding,

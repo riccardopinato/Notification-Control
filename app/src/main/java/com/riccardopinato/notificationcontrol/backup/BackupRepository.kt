@@ -29,7 +29,8 @@ import org.json.JSONObject
 data class BackupSummary(
     val notifications: Int,
     val rules: Int,
-    val followUps: Int
+    val followUps: Int,
+    val warnings: Int = 0
 )
 
 class BackupRepository(context: Context) {
@@ -37,6 +38,7 @@ class BackupRepository(context: Context) {
     private val database = NotificationDatabase.get(appContext)
     private val backupDao = database.backupDao()
     private val notificationDao = database.notificationDao()
+    private val mediaRecoveryDao = database.mediaRecoveryDao()
     private val settings = AppSettings(appContext)
     private val mediaStore = NotificationMediaStore(appContext)
 
@@ -156,7 +158,9 @@ class BackupRepository(context: Context) {
 
         validateReferences(notifications, messages, revisions, rules, actions)
 
-        val previousMedia = notificationDao.allThumbnailPaths().toSet()
+        val previousVaultMedia = notificationDao.allThumbnailPaths().toSet()
+        val previousRescueMedia = mediaRecoveryDao.allRescuePaths().toSet()
+        val previousMedia = previousVaultMedia + previousRescueMedia
         val revisionsWithMedia = revisions.map { revision ->
             revision.copy(
                 thumbnailPath = revisionMediaPayloads[revision.revisionKey]
@@ -189,6 +193,8 @@ class BackupRepository(context: Context) {
 
         try {
             database.withTransaction {
+                mediaRecoveryDao.deleteAllPending()
+                mediaRecoveryDao.deleteAllRescue()
                 database.luminousProfileDao().deleteAll()
                 backupDao.deletePickupCodes()
                 backupDao.deleteFollowUps()
@@ -254,21 +260,36 @@ class BackupRepository(context: Context) {
 
         previousMedia.filterNot { it in restoredMedia }.forEach(mediaStore::delete)
         mediaStore.cleanupOrphans(restoredMedia)
-        settingsObject?.let(::restoreSettings)
 
-        FollowUpScheduler.cancelAll(appContext)
-        followUps.filter { it.status == "ACTIVE" }.forEach {
-            FollowUpScheduler.schedule(appContext, it.id, it.dueAt)
+        var postCommitWarnings = 0
+        if (settingsObject != null) {
+            runCatching { restoreSettings(settingsObject) }
+                .onFailure { postCommitWarnings++ }
         }
-        CriticalAlertScheduler.cancelAll(appContext)
-        criticalAlerts.filter { it.status == "ACTIVE" }.forEach {
-            CriticalAlertScheduler.schedule(appContext, it.id, it.nextAt)
+
+        runCatching {
+            FollowUpScheduler.cancelAll(appContext)
+            followUps.filter { it.status == "ACTIVE" }.forEach {
+                FollowUpScheduler.schedule(appContext, it.id, it.dueAt)
+            }
+        }.onFailure {
+            postCommitWarnings++
+        }
+
+        runCatching {
+            CriticalAlertScheduler.cancelAll(appContext)
+            criticalAlerts.filter { it.status == "ACTIVE" }.forEach {
+                CriticalAlertScheduler.schedule(appContext, it.id, it.nextAt)
+            }
+        }.onFailure {
+            postCommitWarnings++
         }
 
         BackupSummary(
             notifications = notificationsWithMedia.size,
             rules = rules.size,
-            followUps = followUps.size
+            followUps = followUps.size,
+            warnings = postCommitWarnings
         )
     }
 

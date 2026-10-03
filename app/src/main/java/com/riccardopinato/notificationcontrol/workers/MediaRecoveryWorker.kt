@@ -36,7 +36,7 @@ object MediaRecoveryScheduler {
 
         WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
             UNIQUE_NAME,
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.REPLACE,
             request
         )
     }

@@ -10,4 +10,5 @@
     <string name="vault_removed_disclaimer">La retirada no demuestra que el remitente haya borrado el mensaje.</string>
     <string name="vault_unknown_sender">Remitente desconocido</string>
     <string name="close">Cerrar</string>
+    <string name="vault_media_preview">Vista previa multimedia</string>
 </resources>

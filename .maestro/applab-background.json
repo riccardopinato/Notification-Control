@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "enabled": true,
+  "required": false,
+  "background_cycles": 2,
+  "settle_seconds": 1.5,
+  "force_doze": true,
+  "app_standby": true,
+  "require_notification": false,
+  "expected_service_regex": [],
+  "expected_job_regex": [],
+  "expected_text_regex": [],
+  "forbidden_text_regex": ["Fatal error", "keeps stopping", "isn't responding"]
+}

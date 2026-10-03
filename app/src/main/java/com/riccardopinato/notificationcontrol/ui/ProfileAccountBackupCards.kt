@@ -173,12 +173,22 @@ fun EncryptedBackupCard(onBackupRestored: () -> Unit) {
             statusText = result.fold(
                 onSuccess = {
                     onBackupRestored()
-                    context.getString(
-                        R.string.backup_restore_success,
-                        it.notifications,
-                        it.rules,
-                        it.followUps
-                    )
+                    if (it.warnings > 0) {
+                        context.getString(
+                            R.string.backup_restore_success_with_warnings,
+                            it.notifications,
+                            it.rules,
+                            it.followUps,
+                            it.warnings
+                        )
+                    } else {
+                        context.getString(
+                            R.string.backup_restore_success,
+                            it.notifications,
+                            it.rules,
+                            it.followUps
+                        )
+                    }
                 },
                 onFailure = { context.getString(R.string.backup_operation_failed) }
             )

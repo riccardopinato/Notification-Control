@@ -10,4 +10,5 @@
     <string name="vault_removed_disclaimer">La rimozione non dimostra che il mittente abbia eliminato il messaggio.</string>
     <string name="vault_unknown_sender">Mittente sconosciuto</string>
     <string name="close">Chiudi</string>
+    <string name="vault_media_preview">Anteprima media</string>
 </resources>

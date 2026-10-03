@@ -1,5 +1,5 @@
-NOTIFICATION CONTROL — PRODUCT BIBLE v0.4
-Date: 2026-10-02
+NOTIFICATION CONTROL — PRODUCT BIBLE v0.6
+Date: 2026-10-03
 Status: BASELINE APPROVATA
 
 ==================================================
@@ -309,9 +309,13 @@ Principi:
 - accessibilità TalkBack e target touch corretti.
 
 ==================================================
-13. PRIVACY
+13. PRIVACY E SICUREZZA LOCALE
 ==================================================
 - contenuto notifiche locale;
+- il Vault usa lo sandbox privato Android come protezione storage di base;
+- il blocco Vault opzionale usa biometria/credenziale dispositivo e FLAG_SECURE per le superfici sensibili;
+- il backup manuale usa cifratura autenticata AES-GCM derivata da password;
+- la v1 non dichiara cifratura SQL/Room a livello database: non promettere protezioni non implementate;
 - nessun contenuto inviato a server per le funzioni core;
 - nessun advertising basato sul contenuto;
 - nessuna analytics del testo;
@@ -356,4 +360,4 @@ Correzioni:
 - RECEIVE_SMS / READ_CALL_LOG esclusi dall'architettura target;
 - entitlement non deve stare nei renderer Luminous.
 
-END PRODUCT BIBLE v0.5
+END PRODUCT BIBLE v0.6

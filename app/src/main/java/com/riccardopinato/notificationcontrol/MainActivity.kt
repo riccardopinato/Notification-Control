@@ -142,7 +142,11 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun setSecureWindow(enabled: Boolean) {
-        if (enabled) {
+        // qaPremium is a non-publishable, debug-signed validation build.
+        // Keep production screenshot protection intact while allowing AppLab
+        // to inspect the real UI instead of receiving FLAG_SECURE black frames.
+        val secureWindowEnabled = enabled && !BuildConfig.QA_PREMIUM_UNLOCKED
+        if (secureWindowEnabled) {
             window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)

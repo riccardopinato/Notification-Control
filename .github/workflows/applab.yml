@@ -1,0 +1,38 @@
+name: AppLab FULL Runtime Gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: notification-control-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  applab-full:
+    uses: riccardopinato/AppLab/.github/workflows/external-native-android-runner.yml@b69986b78cdadd3e6d9e67a2fed9a7f57753bbec
+    with:
+      repository: riccardopinato/Notification-Control
+      ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      source_ref: ${{ github.head_ref || github.ref_name }}
+      working_directory: "."
+      java_version: "21"
+      gradle_version: "9.3.1"
+      compile_sdk: "36"
+      build_tools: "36.0.0"
+      test_command: "gradle :app:testDebugUnitTest --stacktrace --no-daemon"
+      lint_command: "gradle :app:lintQaPremium --stacktrace --no-daemon"
+      build_command: "gradle :app:assembleQaPremium --stacktrace --no-daemon"
+      apk_path: "app/build/outputs/apk/qaPremium/app-qaPremium.apk"
+      package_id: "com.riccardopinato.notificationcontrol"
+      api_level: "35"
+      emulator_profile: "pixel_7_pro"
+      run_maestro: true
+      history_key: "notification-control"
+      cache_verification: false
+      analysis_mode: "full"

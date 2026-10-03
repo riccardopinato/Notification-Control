@@ -10,4 +10,5 @@
     <string name="vault_removed_disclaimer">Le retrait ne prouve pas que l’expéditeur a supprimé le message.</string>
     <string name="vault_unknown_sender">Expéditeur inconnu</string>
     <string name="close">Fermer</string>
+    <string name="vault_media_preview">Aperçu du média</string>
 </resources>
