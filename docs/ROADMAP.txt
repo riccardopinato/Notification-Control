@@ -204,7 +204,7 @@ Merge baseline: 6e7a4e3424f705b51a35d2c97fb265fbc01f0387
 - Google ID SDK 1.1.1 mantenuto per compatibilità Kotlin; sub/email letti dall'ID token
 - Google profile usa uniqueId stabile ed email separata; rimosso google.id deprecato
 - nonce casuale per ogni richiesta Sign in with Google
-- GOOGLE_WEB_CLIENT_ID iniettato da build/CI, non hardcoded nel source
+- GOOGLE_WEB_CLIENT_ID supporta override da build/CI; esiste un fallback pubblico non-segreto per QA/configurazione base
 - diagnostica login mostra l'errore reale invece di un messaggio generico
 - build qaPremium release-like, R8/shrink, Premium forzato esclusivamente per QA
 - Billing production resta invariato e non accetta il QA override
