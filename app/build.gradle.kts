@@ -46,6 +46,7 @@ android {
             googleWebClientId.asBuildConfigString()
         )
         buildConfigField("boolean", "QA_PREMIUM_UNLOCKED", "false")
+        buildConfigField("boolean", "BROAD_MEDIA_RECOVERY_ALLOWED", "true")
     }
 
     signingConfigs {
@@ -64,6 +65,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            buildConfigField("boolean", "BROAD_MEDIA_RECOVERY_ALLOWED", "false")
             isShrinkResources = true
             if (releaseSigningReady) {
                 signingConfig = signingConfigs.getByName("release")
