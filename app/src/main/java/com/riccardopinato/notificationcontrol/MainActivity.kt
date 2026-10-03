@@ -170,6 +170,11 @@ class MainActivity : FragmentActivity() {
         }
     }
 
+    companion object {
+        const val EXTRA_AUTOMATION_PRESEED =
+            "notification_control_automation_preseed"
+    }
+
     private fun requestVaultUnlock() {
         if (!vaultSecurity.isEnabled()) {
             vaultSecurity.markUnlocked()
