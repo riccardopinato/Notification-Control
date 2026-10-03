@@ -12,4 +12,5 @@
     <string name="media_rescue_count">%1$d mídias aguardando associação segura</string>
     <string name="media_rescue_confidence">Pontuação de evidências: %1$d</string>
     <string name="media_rescue_remove">Remover</string>
+    <string name="whatsapp_media_release_saf_body">A versão pública usa a mídia exposta pela notificação e a pasta WhatsApp Images que você vincula explicitamente abaixo. O acesso amplo à galeria não é solicitado.</string>
 </resources>
