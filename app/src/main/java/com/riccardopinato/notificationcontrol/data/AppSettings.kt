@@ -220,6 +220,20 @@ class AppSettings(context: Context) {
             )
         }
 
+    var pausePingBudgetEnabled: Boolean
+        get() = prefs.getBoolean(KEY_PAUSE_PING_BUDGET_ENABLED, false)
+        set(value) = prefs.edit { putBoolean(KEY_PAUSE_PING_BUDGET_ENABLED, value) }
+
+    var pausePingBudgetMaxAlerts: Int
+        get() = prefs.getInt(KEY_PAUSE_PING_BUDGET_MAX_ALERTS, 3)
+        set(value) = prefs.edit { putInt(KEY_PAUSE_PING_BUDGET_MAX_ALERTS, value.coerceIn(1, 10)) }
+
+    var pausePingBudgetWindowMinutes: Int
+        get() = prefs.getInt(KEY_PAUSE_PING_BUDGET_WINDOW_MINUTES, 30)
+        set(value) = prefs.edit {
+            putInt(KEY_PAUSE_PING_BUDGET_WINDOW_MINUTES, value.coerceIn(1, 120))
+        }
+
     var criticalBypassQuietHours: Boolean
         get() = prefs.getBoolean(KEY_CRITICAL_BYPASS_QUIET, true)
         set(value) = prefs.edit { putBoolean(KEY_CRITICAL_BYPASS_QUIET, value) }
@@ -266,6 +280,9 @@ class AppSettings(context: Context) {
         private const val KEY_PAUSE_PING_ENABLED = "pause_ping_enabled"
         private const val KEY_PAUSE_PING_COOLDOWN = "pause_ping_cooldown_seconds"
         private const val KEY_PAUSE_PING_PER_APP = "pause_ping_per_app_cooldowns"
+        private const val KEY_PAUSE_PING_BUDGET_ENABLED = "pause_ping_budget_enabled"
+        private const val KEY_PAUSE_PING_BUDGET_MAX_ALERTS = "pause_ping_budget_max_alerts"
+        private const val KEY_PAUSE_PING_BUDGET_WINDOW_MINUTES = "pause_ping_budget_window_minutes"
         private const val KEY_CRITICAL_BYPASS_QUIET = "critical_bypass_quiet_hours"
     }
 }
