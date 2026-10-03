@@ -997,6 +997,28 @@ private fun PermissionHealthCard(
                 listenerPermission && health.connected,
                 requestNotificationAccess
             )
+            Text(
+                stringResource(
+                    R.string.listener_last_connected,
+                    formatHealthTimestamp(health.lastConnectedAt)
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                stringResource(
+                    R.string.listener_last_event,
+                    formatHealthTimestamp(health.lastEventAt)
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                stringResource(
+                    R.string.listener_last_reconciliation,
+                    formatHealthTimestamp(health.lastReconciliationAt)
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
             PermissionHealthRow(
                 stringResource(R.string.follow_up_notification_permission),
                 reminderNotificationsGranted,
@@ -1166,6 +1188,16 @@ fun AppPickerDialog(
         }
     )
 }
+
+private fun formatHealthTimestamp(timestamp: Long): String =
+    if (timestamp <= 0L) {
+        "—"
+    } else {
+        DateFormat.getDateTimeInstance(
+            DateFormat.SHORT,
+            DateFormat.MEDIUM
+        ).format(Date(timestamp))
+    }
 
 private fun formatMinutesOfDay(minutes: Int): String {
     val safe = minutes.coerceIn(0, 1439)
