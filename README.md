@@ -16,7 +16,7 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - streamlined core-only onboarding with sideload/restricted-settings recovery
 - lazy screen-scoped data subscriptions and deferred heavy initialization for smoother runtime
 - serialized notification hot path with reactive Rules/Critical/Luminous caches
-- Paging 3 Vault with indexed Room v10 queries and incremental message FTS
+- Paging 3 Vault with indexed Room v11 queries and incremental message FTS
 - hardware-friendly Luminous renderer and on-demand WorkManager startup
 - Luminous overlay compatibility preserved down to minSdk 24
 - optimized installable `perfTest` APK plus Macrobenchmark performance harness
@@ -30,6 +30,7 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - `.github/workflows/android.yml`: standard PR/main CI plus debug/perfTest APKs and benchmark compile gate
 - `.github/workflows/release.yml`: APK/AAB release build, optional signing, GitHub Release and optional Play Internal Testing upload
 - `.github/workflows/certified.yml`: SHOS-style Certified Evidence Bundle with tests, lint, release binaries, privacy/localization gates, checksums and dependency evidence
+- `.github/workflows/applab.yml`: pinned AppLab FULL trusted-runtime gate for PRs, covering emulator launch, visual/runtime checks, persistence, lifecycle stress, process death, background/Doze and storage integrity where supported
 
 See:
 - `docs/PRODUCT_BIBLE.txt`
