@@ -1,0 +1,24 @@
+{
+  "checkpoints": [
+    {
+      "name": "home",
+      "flow": ".maestro/journey/home.yaml"
+    },
+    {
+      "name": "vault",
+      "flow": ".maestro/journey/vault.yaml"
+    },
+    {
+      "name": "follow-up",
+      "flow": ".maestro/journey/follow-up.yaml"
+    },
+    {
+      "name": "rules",
+      "flow": ".maestro/journey/rules.yaml"
+    },
+    {
+      "name": "profile",
+      "flow": ".maestro/journey/profile.yaml"
+    }
+  ]
+}
