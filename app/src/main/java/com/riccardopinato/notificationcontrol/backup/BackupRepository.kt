@@ -61,6 +61,76 @@ class BackupRepository(context: Context) {
     private val mediaStore = NotificationMediaStore(appContext)
 
     suspend fun exportTo(uri: Uri, passphrase: CharArray): Result<BackupSummary> = runCatching {
+        val backup = buildBackupRoot(includeTransientRecovery = false)
+        val encrypted = encryptRoot(backup.root, passphrase)
+
+        appContext.contentResolver.openOutputStream(uri, "w").use { output ->
+            checkNotNull(output) { "Unable to open destination" }
+            output.write(encrypted)
+            output.flush()
+        }
+
+        backup.summary
+    }
+
+    fun recoveryPointInfo(): RecoveryPointInfo {
+        val file = recoveryPointFile()
+        return RecoveryPointInfo(
+            available = file.isFile,
+            createdAt = file.takeIf { it.isFile }?.lastModified()?.takeIf { it > 0L }
+        )
+    }
+
+    fun discardRecoveryPoint() {
+        runCatching { recoveryPointFile().delete() }
+    }
+
+    suspend fun rollbackLastRestore(
+        passphrase: CharArray
+    ): Result<BackupSummary> = runCatching {
+        require(settings.isPremium) { "Premium required for Recovery Point rollback" }
+        val file = recoveryPointFile()
+        require(file.isFile) { "No Recovery Point available" }
+        val encrypted = readLimited(file)
+        val summary = restoreEncrypted(
+            encrypted = encrypted,
+            passphrase = passphrase,
+            createRecoveryPoint = false
+        )
+        if (summary.warningCategories.isEmpty()) {
+            runCatching { file.delete() }
+        }
+        summary
+    }
+
+    private suspend fun createPremiumRecoveryPoint(passphrase: CharArray): Boolean {
+        if (!settings.isPremium) return false
+        val backup = buildBackupRoot(includeTransientRecovery = true)
+        val encrypted = encryptRoot(
+            backup.root.put("recoveryPoint", true),
+            passphrase
+        )
+        val destination = recoveryPointFile()
+        val temp = File(destination.parentFile, destination.name + ".tmp")
+        destination.parentFile?.mkdirs()
+        FileOutputStream(temp).use { output ->
+            output.write(encrypted)
+            output.fd.sync()
+        }
+        if (destination.exists() && !destination.delete()) {
+            temp.delete()
+            error("Unable to rotate Recovery Point")
+        }
+        if (!temp.renameTo(destination)) {
+            temp.delete()
+            error("Unable to commit Recovery Point")
+        }
+        return true
+    }
+
+    private suspend fun buildBackupRoot(
+        includeTransientRecovery: Boolean
+    ): BackupRoot {
         val notifications = backupDao.allNotifications()
         val messages = backupDao.allMessages()
         val revisions = backupDao.allRevisions()
@@ -71,6 +141,16 @@ class BackupRepository(context: Context) {
         val followUps = backupDao.allFollowUps()
         val pickupCodes = backupDao.allPickupCodes()
         val luminousProfiles = database.luminousProfileDao().allProfiles()
+        val pendingRecovery = if (includeTransientRecovery) {
+            mediaRecoveryDao.allPendingForRecoveryPoint()
+        } else {
+            emptyList()
+        }
+        val rescueRecovery = if (includeTransientRecovery) {
+            mediaRecoveryDao.allRescueForRecoveryPoint()
+        } else {
+            emptyList()
+        }
         val revisionMediaPaths = revisions.mapNotNull { it.thumbnailPath }.toSet()
 
         val root = JSONObject()
@@ -129,23 +209,54 @@ class BackupRepository(context: Context) {
             })
             .put("settings", settingsJson())
 
+        if (includeTransientRecovery) {
+            root
+                .put("recoveryPending", JSONArray().apply {
+                    pendingRecovery.forEach { put(recoveryPendingJson(it)) }
+                })
+                .put("recoveryRescue", JSONArray().apply {
+                    rescueRecovery.forEach { put(recoveryRescueJson(it)) }
+                })
+                .put("recoveryRescueMedia", JSONArray().apply {
+                    rescueRecovery.forEach { rescue ->
+                        val bytes = mediaStore.read(rescue.localPath) ?: return@forEach
+                        put(
+                            JSONObject()
+                                .put("rescueKey", rescue.rescueKey)
+                                .put("data", Base64.encodeToString(bytes, Base64.NO_WRAP))
+                        )
+                    }
+                })
+        }
+
+        return BackupRoot(
+            root = root,
+            summary = BackupSummary(
+                notifications = notifications.size,
+                rules = rules.size,
+                followUps = followUps.size
+            )
+        )
+    }
+
+    private fun encryptRoot(root: JSONObject, passphrase: CharArray): ByteArray {
         val plain = root.toString().toByteArray(Charsets.UTF_8)
         val encrypted = EncryptedBackupCodec.encrypt(plain, passphrase)
         check(encrypted.size <= EncryptedBackupCodec.maxEncryptedBytes) {
             "Backup exceeds supported size"
         }
+        return encrypted
+    }
 
-        appContext.contentResolver.openOutputStream(uri, "w").use { output ->
-            checkNotNull(output) { "Unable to open destination" }
-            output.write(encrypted)
-            output.flush()
+    private fun recoveryPointFile(): File =
+        File(File(appContext.filesDir, "restore_recovery"), "last_restore.ncb")
+
+    private fun readLimited(file: File): ByteArray {
+        require(file.isFile) { "Recovery Point not found" }
+        require(file.length() <= EncryptedBackupCodec.maxEncryptedBytes) {
+            "Recovery Point too large"
         }
-
-        BackupSummary(
-            notifications = notifications.size,
-            rules = rules.size,
-            followUps = followUps.size
-        )
+        return file.readBytes()
     }
 
     suspend fun restoreFrom(uri: Uri, passphrase: CharArray): Result<BackupSummary> = runCatching {
