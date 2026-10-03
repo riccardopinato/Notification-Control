@@ -558,7 +558,7 @@ internal fun VaultThumbnail(path: String) {
     image?.let {
         Image(
             bitmap = it,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.vault_media_preview),
             modifier = Modifier.size(72.dp),
             contentScale = ContentScale.Crop
         )
