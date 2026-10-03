@@ -22,6 +22,49 @@ It is intentionally separate from runtime dependency resolution.
   - notification data is sourced from the canonical Vault/capture pipeline.
 - Third-party ownership: no third-party donor ownership is recorded for this donor.
 
+## Retrospective similar-project scan
+
+Golden reuse-first audit completed on 2026-10-03. No source code was copied from
+the repositories below; they were reviewed only for architecture/product comparison.
+
+### aminechraibi/Notification-Recorder
+- Focus: local notification/chat history, NotificationListenerService, Room, Compose.
+- Useful comparison: privacy-first local capture and chat-oriented history.
+- License status from repository metadata: no recognized license detected.
+- Decision: reference-only; do not copy code without explicit license clarification.
+
+### kemalatli/NotifyHistory
+- Focus: Kotlin/Compose notification history with Room as local single source of truth.
+- Useful comparison: permission health, battery/autostart checks and local persistence.
+- License status from repository metadata: no recognized license detected.
+- Decision: architectural reference only.
+
+### dep-ltd/android-notification-history
+- Focus: offline notification history with local encrypted storage and images.
+- Useful comparison: SQLCipher/Keystore is a possible stronger-at-rest option.
+- License: Apache-2.0.
+- Decision: no integration in current v1 audit. Product Truth does not promise encrypted
+  Room storage and adding SQLCipher requires a separate size/performance/threat-model decision.
+
+### afandi-fa/notification-logger
+- Focus: NotificationListenerService + Room + Compose, filtering and OTP-style extraction.
+- Useful comparison: confirms the viability of one listener + local database + reactive UI.
+- License: MIT.
+- Decision: no code reuse required; Notification Control already has stronger canonical modules.
+
+### sinpin/NotificationExplorer
+- Focus: WhatsApp/Business notification history, local Room media/message capture and imports.
+- Useful comparison: media/message archival boundary and explicit user-driven import concepts.
+- License status from repository metadata: no recognized license detected.
+- Decision: reference-only; import/history features outside current Notification Control scope
+  remain out of scope unless explicitly approved later.
+
+Audit conclusion:
+- current Single Capture / Single Vault / Multiple Consumers architecture remains preferable;
+- no external donor was found that justifies replacing the existing core;
+- Apache/MIT sources may be reconsidered only for a concrete future need;
+- unlicensed/unclear-license repositories must never be copied into the product.
+
 ## Runtime libraries
 
 Runtime libraries are declared through Gradle/version catalogs and are not copied into
