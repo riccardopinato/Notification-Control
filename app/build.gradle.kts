@@ -47,6 +47,7 @@ android {
         )
         buildConfigField("boolean", "QA_PREMIUM_UNLOCKED", "false")
         buildConfigField("boolean", "BROAD_MEDIA_RECOVERY_ALLOWED", "true")
+        buildConfigField("boolean", "AUTOMATION_PRESEED_ALLOWED", "false")
     }
 
     signingConfigs {
@@ -78,12 +79,14 @@ android {
         create("perfTest") {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("boolean", "AUTOMATION_PRESEED_ALLOWED", "true")
             matchingFallbacks += listOf("release")
             isDebuggable = false
         }
         create("qaPremium") {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("boolean", "AUTOMATION_PRESEED_ALLOWED", "true")
             matchingFallbacks += listOf("release")
             isDebuggable = false
             versionNameSuffix = "-qa-premium"
