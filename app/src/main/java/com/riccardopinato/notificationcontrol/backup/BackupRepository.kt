@@ -720,12 +720,72 @@ class BackupRepository(context: Context) {
         }
     }
 
+    private fun parseRescueMedia(array: JSONArray): Map<String, ByteArray> = buildMap {
+        for (i in 0 until array.length()) {
+            val o = array.getJSONObject(i)
+            val bytes = Base64.decode(o.getString("data"), Base64.DEFAULT)
+            require(bytes.size <= MAX_MEDIA_BYTES) { "Recovery rescue media too large" }
+            put(o.getString("rescueKey"), bytes)
+        }
+    }
+
+    private fun parseRecoveryPending(
+        array: JSONArray
+    ): List<MediaRecoveryPendingEntity> = buildList {
+        for (i in 0 until array.length()) {
+            val o = array.getJSONObject(i)
+            add(
+                MediaRecoveryPendingEntity(
+                    revisionKey = o.getString("revisionKey"),
+                    notificationKey = o.getString("notificationKey"),
+                    packageName = o.getString("packageName"),
+                    postedAt = o.getLong("postedAt"),
+                    capturedAt = o.getLong("capturedAt"),
+                    createdAt = o.getLong("createdAt"),
+                    expiresAt = o.getLong("expiresAt"),
+                    baselineGeneration = o.longOrNull("baselineGeneration"),
+                    mediaStoreVersion = o.stringOrNull("mediaStoreVersion"),
+                    referencePerceptualHash = o.stringOrNull("referencePerceptualHash"),
+                    attempts = o.optInt("attempts", 0),
+                    lastAttemptAt = o.longOrNull("lastAttemptAt")
+                )
+            )
+        }
+    }
+
+    private fun parseRecoveryRescue(
+        array: JSONArray
+    ): List<MediaRescueEntity> = buildList {
+        for (i in 0 until array.length()) {
+            val o = array.getJSONObject(i)
+            add(
+                MediaRescueEntity(
+                    rescueKey = o.getString("rescueKey"),
+                    sourceKey = o.getString("sourceKey"),
+                    packageName = o.getString("packageName"),
+                    sourceKind = o.getString("sourceKind"),
+                    localPath = o.optString("localPath"),
+                    sourceUri = o.stringOrNull("sourceUri"),
+                    mediaTimestamp = o.getLong("mediaTimestamp"),
+                    observedAt = o.getLong("observedAt"),
+                    mimeType = o.stringOrNull("mimeType"),
+                    width = o.getInt("width"),
+                    height = o.getInt("height"),
+                    sizeBytes = o.getLong("sizeBytes"),
+                    perceptualHash = o.stringOrNull("perceptualHash"),
+                    confidence = o.getInt("confidence")
+                )
+            )
+        }
+    }
+
     private fun validateReferences(
         notifications: List<NotificationEntity>,
         messages: List<MessageEntity>,
         revisions: List<NotificationRevisionEntity>,
         rules: List<RuleEntity>,
-        actions: List<RuleActionEntity>
+        actions: List<RuleActionEntity>,
+        recoveryPending: List<MediaRecoveryPendingEntity>
     ) {
         val notificationKeys = notifications.mapTo(hashSetOf()) { it.sbnKey }
         require(messages.all { it.notificationKey in notificationKeys }) {
@@ -733,6 +793,14 @@ class BackupRepository(context: Context) {
         }
         require(revisions.all { it.notificationKey in notificationKeys }) {
             "Backup contains orphan revisions"
+        }
+        val revisionKeys = revisions.mapTo(hashSetOf()) { it.revisionKey }
+        require(
+            recoveryPending.all {
+                it.notificationKey in notificationKeys && it.revisionKey in revisionKeys
+            }
+        ) {
+            "Recovery Point contains orphan pending media"
         }
         val ruleIds = rules.mapTo(hashSetOf()) { it.id }
         require(actions.all { it.ruleId in ruleIds }) {
@@ -801,6 +869,38 @@ class BackupRepository(context: Context) {
         "subText" to r.subText,
         "conversationTitle" to r.conversationTitle,
         "contentHash" to r.contentHash
+    ))
+
+    private fun recoveryPendingJson(p: MediaRecoveryPendingEntity) = JSONObject(mapOf(
+        "revisionKey" to p.revisionKey,
+        "notificationKey" to p.notificationKey,
+        "packageName" to p.packageName,
+        "postedAt" to p.postedAt,
+        "capturedAt" to p.capturedAt,
+        "createdAt" to p.createdAt,
+        "expiresAt" to p.expiresAt,
+        "baselineGeneration" to p.baselineGeneration,
+        "mediaStoreVersion" to p.mediaStoreVersion,
+        "referencePerceptualHash" to p.referencePerceptualHash,
+        "attempts" to p.attempts,
+        "lastAttemptAt" to p.lastAttemptAt
+    ))
+
+    private fun recoveryRescueJson(r: MediaRescueEntity) = JSONObject(mapOf(
+        "rescueKey" to r.rescueKey,
+        "sourceKey" to r.sourceKey,
+        "packageName" to r.packageName,
+        "sourceKind" to r.sourceKind,
+        "localPath" to r.localPath,
+        "sourceUri" to r.sourceUri,
+        "mediaTimestamp" to r.mediaTimestamp,
+        "observedAt" to r.observedAt,
+        "mimeType" to r.mimeType,
+        "width" to r.width,
+        "height" to r.height,
+        "sizeBytes" to r.sizeBytes,
+        "perceptualHash" to r.perceptualHash,
+        "confidence" to r.confidence
     ))
 
     private fun ruleJson(r: RuleEntity) = JSONObject(mapOf(
@@ -1096,6 +1196,9 @@ class BackupRepository(context: Context) {
         if (isNull(key)) null else getInt(key)
 
     companion object {
+        @Volatile
+        internal var restoreTestHook: ((String) -> Unit)? = null
+
         private const val FORMAT_VERSION = 1
         private const val MAX_MEDIA_BYTES = 6 * 1024 * 1024
     }
