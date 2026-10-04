@@ -22,4 +22,12 @@
     <string name="backup_restore_success">Copia restaurada: %1$d notificaciones, %2$d reglas, %3$d Follow Ups.</string>
     <string name="backup_operation_failed">La operación falló. Comprueba el archivo y la contraseña.</string>
     <string name="backup_restore_success_with_warnings">Copia restaurada: %1$d notificaciones, %2$d reglas, %3$d seguimientos. Los datos se guardaron correctamente, pero %4$d operaciones posteriores requieren atención.</string>
+    <string name="recovery_point_title">Punto de recuperación Premium</string>
+    <string name="recovery_point_available">Hay un punto de recuperación protegido con el estado anterior a la última restauración.</string>
+    <string name="recovery_point_empty">No hay ningún punto de recuperación disponible. Premium crea uno automáticamente antes de restaurar.</string>
+    <string name="recovery_point_rollback">Deshacer última restauración</string>
+    <string name="recovery_point_rollback_body">Restaura el Vault local, automatizaciones, ajustes y estado multimedia transitorio guardados justo antes de la última restauración. Usa la misma contraseña de la copia.</string>
+    <string name="recovery_point_rollback_success">Última restauración deshecha correctamente.</string>
+    <string name="recovery_point_rollback_warnings">Punto de recuperación restaurado, pero %1$d operación(es) posteriores requieren atención.</string>
+    <string name="recovery_point_premium">Premium crea automáticamente un punto de recuperación cifrado antes de restaurar y permite deshacer la última restauración.</string>
 </resources>
