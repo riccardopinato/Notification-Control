@@ -1001,7 +1001,7 @@ private fun PermissionHealthCard(
                 reminderNotificationsGranted,
                 requestPostNotifications
             )
-            if (state.isPremium) {
+            if (state.isPremium && BuildConfig.MEDIASTORE_RECOVERY_ENABLED) {
                 PermissionHealthRow(
                     stringResource(R.string.whatsapp_media_access),
                     photoLibraryGranted,
