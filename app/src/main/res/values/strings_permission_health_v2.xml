@@ -1,0 +1,8 @@
+<resources>
+    <string name="status_partial">Partial</string>
+    <string name="permission_listener_reconnect_pending">Access is granted, but the listener is not currently connected. Open Notification Access if it does not reconnect.</string>
+    <string name="permission_listener_required">Notification Access is required for capture and Vault history.</string>
+    <string name="permission_notifications_required">Notification permission is required for Follow Up and Critical Alert reminders.</string>
+    <string name="permission_photo_selected_partial">Only selected photos are available. Automatic MediaStore recovery needs full library access in QA builds; SAF remains available.</string>
+    <string name="permission_media_saf_release">Public release uses notification-direct media plus the user-selected WhatsApp SAF folder; broad photo-library access is disabled by default.</string>
+</resources>
