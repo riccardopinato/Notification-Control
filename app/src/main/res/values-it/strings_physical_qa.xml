@@ -1,0 +1,15 @@
+<resources>
+    <string name="physical_qa_title">Diagnostica QA fisica</string>
+    <string name="physical_qa_device">Dispositivo: %1$s %2$s · API %3$d</string>
+    <string name="physical_qa_listener">Listener notifiche: permesso %1$s · connesso %2$s</string>
+    <string name="physical_qa_photo_scope">Accesso foto: %1$s</string>
+    <string name="physical_qa_saf">Cartella WhatsApp SAF: %1$s</string>
+    <string name="physical_qa_mediastore">MediaStore: versione %1$s · generazione %2$s</string>
+    <string name="physical_qa_timestamps">Listener connesso: %1$d · ultimo evento: %2$d · riconciliazione: %3$d</string>
+    <string name="physical_qa_manual_note">Diagnostica solo QA. Consegna WhatsApp reale, riavvio, comportamento OEM in background e fallback media richiedono ancora evidenze su dispositivo fisico.</string>
+    <string name="physical_qa_yes">sì</string>
+    <string name="physical_qa_no">no</string>
+    <string name="photo_scope_full">libreria completa</string>
+    <string name="photo_scope_selected_only">solo foto selezionate</string>
+    <string name="photo_scope_none">nessuno</string>
+</resources>
