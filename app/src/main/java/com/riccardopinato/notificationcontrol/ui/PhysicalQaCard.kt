@@ -95,4 +95,4 @@ fun PhysicalQaCard() {
 
 @Composable
 private fun qaStatus(value: Boolean): String =
-    stringResource(if (value) R.string.status_ok else R.string.status_not_ok)
+    stringResource(if (value) R.string.physical_qa_yes else R.string.physical_qa_no)
