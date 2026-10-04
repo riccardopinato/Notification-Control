@@ -881,6 +881,10 @@ private fun MediaRecoverySafetyCard(
                 stringResource(R.string.media_rescue_body),
                 style = MaterialTheme.typography.bodySmall
             )
+            Text(
+                stringResource(R.string.media_rescue_delete_warning),
+                style = MaterialTheme.typography.labelSmall
+            )
 
             if (state.isPremium) {
                 Row(
