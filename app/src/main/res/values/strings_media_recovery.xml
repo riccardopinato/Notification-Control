@@ -13,4 +13,5 @@
     <string name="media_rescue_confidence">Evidence score: %1$d</string>
     <string name="media_rescue_remove">Remove</string>
     <string name="whatsapp_media_premium_required">Premium captures new WhatsApp image previews and enables MediaStore/SAF recovery. Existing archived media remains available if you downgrade.</string>
+    <string name="media_rescue_delete_warning">Removing an item permanently deletes the local Rescue copy. It will not be recoverable from the Rescue Inbox.</string>
 </resources>
