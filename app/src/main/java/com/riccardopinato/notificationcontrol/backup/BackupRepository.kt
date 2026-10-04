@@ -259,8 +259,22 @@ class BackupRepository(context: Context) {
         return file.readBytes()
     }
 
-    suspend fun restoreFrom(uri: Uri, passphrase: CharArray): Result<BackupSummary> = runCatching {
-        val encrypted = readLimited(uri)
+    suspend fun restoreFrom(
+        uri: Uri,
+        passphrase: CharArray
+    ): Result<BackupSummary> = runCatching {
+        restoreEncrypted(
+            encrypted = readLimited(uri),
+            passphrase = passphrase,
+            createRecoveryPoint = settings.isPremium
+        )
+    }
+
+    private suspend fun restoreEncrypted(
+        encrypted: ByteArray,
+        passphrase: CharArray,
+        createRecoveryPoint: Boolean
+    ): BackupSummary {
         val plain = EncryptedBackupCodec.decrypt(encrypted, passphrase)
         val root = JSONObject(plain.toString(Charsets.UTF_8))
         require(root.getInt("format") == FORMAT_VERSION) { "Unsupported backup version" }
@@ -268,6 +282,9 @@ class BackupRepository(context: Context) {
         val mediaPayloads = parseMedia(root.getJSONArray("media"))
         val revisionMediaPayloads = parseRevisionMedia(
             root.optJSONArray("revisionMedia") ?: JSONArray()
+        )
+        val rescueMediaPayloads = parseRescueMedia(
+            root.optJSONArray("recoveryRescueMedia") ?: JSONArray()
         )
         val notifications = parseNotifications(root.getJSONArray("notifications"))
         val messages = parseMessages(root.getJSONArray("messages"))
@@ -283,19 +300,43 @@ class BackupRepository(context: Context) {
         val luminousProfiles = parseLuminousProfiles(
             root.optJSONArray("luminousProfiles") ?: JSONArray()
         )
+        val recoveryPending = parseRecoveryPending(
+            root.optJSONArray("recoveryPending") ?: JSONArray()
+        )
+        val recoveryRescue = parseRecoveryRescue(
+            root.optJSONArray("recoveryRescue") ?: JSONArray()
+        )
         val settingsObject = root.optJSONObject("settings")
 
-        validateReferences(notifications, messages, revisions, rules, actions)
+        validateReferences(
+            notifications = notifications,
+            messages = messages,
+            revisions = revisions,
+            rules = rules,
+            actions = actions,
+            recoveryPending = recoveryPending
+        )
+
+        restoreTestHook?.invoke("BEFORE_RECOVERY_POINT")
+        val recoveryPointCreated =
+            if (createRecoveryPoint && settings.isPremium) {
+                createPremiumRecoveryPoint(passphrase)
+            } else {
+                false
+            }
+        restoreTestHook?.invoke("AFTER_RECOVERY_POINT")
 
         val previousVaultMedia = notificationDao.allThumbnailPaths().toSet()
         val previousRescueMedia = mediaRecoveryDao.allRescuePaths().toSet()
         val previousMedia = previousVaultMedia + previousRescueMedia
+        val restorePrefix = "restore:" + System.currentTimeMillis() + ":"
+
         val revisionsWithMedia = revisions.map { revision ->
             revision.copy(
                 thumbnailPath = revisionMediaPayloads[revision.revisionKey]
                     ?.let {
                         mediaStore.restorePicture(
-                            "revision:" + revision.revisionKey,
+                            restorePrefix + "revision:" + revision.revisionKey,
                             it
                         )
                     }
@@ -309,19 +350,39 @@ class BackupRepository(context: Context) {
 
         val notificationsWithMedia = notifications.map { notification ->
             val legacyPath = mediaPayloads[notification.sbnKey]
-                ?.let { mediaStore.restorePicture(notification.sbnKey, it) }
+                ?.let {
+                    mediaStore.restorePicture(
+                        restorePrefix + "notification:" + notification.sbnKey,
+                        it
+                    )
+                }
             notification.copy(
                 thumbnailPath = legacyPath
                     ?: latestRevisionMediaByNotification[notification.sbnKey]?.thumbnailPath
             )
         }
+
+        val rescueWithMedia = recoveryRescue.map { rescue ->
+            val restoredPath = rescueMediaPayloads[rescue.rescueKey]
+                ?.let {
+                    mediaStore.restorePicture(
+                        restorePrefix + "rescue:" + rescue.rescueKey,
+                        it
+                    )
+                }
+            rescue.copy(localPath = restoredPath ?: rescue.localPath)
+        }
+
         val restoredMedia = buildSet {
             notificationsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
             revisionsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
+            rescueWithMedia.mapNotNullTo(this) { it.localPath }
         }
 
         try {
+            restoreTestHook?.invoke("BEFORE_TRANSACTION")
             database.withTransaction {
+                restoreTestHook?.invoke("TRANSACTION_BEFORE_DELETE")
                 mediaRecoveryDao.deleteAllPending()
                 mediaRecoveryDao.deleteAllRescue()
                 database.luminousProfileDao().deleteAll()
@@ -356,6 +417,12 @@ class BackupRepository(context: Context) {
                 if (revisionsWithMedia.isNotEmpty()) {
                     backupDao.insertRevisions(revisionsWithMedia)
                 }
+                if (recoveryPending.isNotEmpty()) {
+                    mediaRecoveryDao.restorePending(recoveryPending)
+                }
+                if (rescueWithMedia.isNotEmpty()) {
+                    mediaRecoveryDao.restoreRescue(rescueWithMedia)
+                }
                 if (rules.isNotEmpty()) backupDao.insertRules(rules)
                 if (actions.isNotEmpty()) backupDao.insertRuleActions(actions)
                 if (critical.isNotEmpty()) backupDao.insertCriticalPatterns(critical)
@@ -381,6 +448,7 @@ class BackupRepository(context: Context) {
                         )
                     )
                 }
+                restoreTestHook?.invoke("TRANSACTION_AFTER_INSERT")
             }
         } catch (error: Throwable) {
             restoredMedia.filterNot { it in previousMedia }.forEach(mediaStore::delete)
@@ -390,10 +458,13 @@ class BackupRepository(context: Context) {
         previousMedia.filterNot { it in restoredMedia }.forEach(mediaStore::delete)
         mediaStore.cleanupOrphans(restoredMedia)
 
-        var postCommitWarnings = 0
+        val warningCategories = mutableListOf<String>()
+        runCatching { restoreTestHook?.invoke("AFTER_TRANSACTION") }
+            .onFailure { warningCategories += "TEST_AFTER_TRANSACTION" }
+
         if (settingsObject != null) {
             runCatching { restoreSettings(settingsObject) }
-                .onFailure { postCommitWarnings++ }
+                .onFailure { warningCategories += "SETTINGS_RESTORE" }
         }
 
         runCatching {
@@ -402,7 +473,7 @@ class BackupRepository(context: Context) {
                 FollowUpScheduler.schedule(appContext, it.id, it.dueAt)
             }
         }.onFailure {
-            postCommitWarnings++
+            warningCategories += "FOLLOW_UP_SCHEDULER"
         }
 
         runCatching {
@@ -411,14 +482,15 @@ class BackupRepository(context: Context) {
                 CriticalAlertScheduler.schedule(appContext, it.id, it.nextAt)
             }
         }.onFailure {
-            postCommitWarnings++
+            warningCategories += "CRITICAL_ALERT_SCHEDULER"
         }
 
-        BackupSummary(
+        return BackupSummary(
             notifications = notificationsWithMedia.size,
             rules = rules.size,
             followUps = followUps.size,
-            warnings = postCommitWarnings
+            warningCategories = warningCategories.distinct(),
+            recoveryPointCreated = recoveryPointCreated
         )
     }
 
