@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — PRODUCT BIBLE v0.7
+NOTIFICATION CONTROL — PRODUCT BIBLE v0.8
 Date: 2026-10-04
 Status: BASELINE APPROVATA
 
@@ -178,7 +178,18 @@ PREMIUM
 - colori/pattern/glow/spessore/animazioni avanzati;
 - più Quiet Hours + eccezioni;
 - Battery Guard configurabile;
-- backup/export avanzati.
+- backup/export avanzati;
+- Recovery Point cifrato automatico prima dei restore;
+- annullamento dell’ultimo restore tramite Recovery Point;
+- Notification Budget per app/finestra mobile;
+- acquisizione e recovery media WhatsApp Premium.
+
+Contratto Recovery Point:
+- il backup/export manuale dei dati utente resta disponibile e non diventa ostaggio dell’abbonamento;
+- Premium crea automaticamente un solo Recovery Point rotante prima del restore;
+- il Recovery Point è cifrato con la stessa password del backup ed è conservato solo nello storage privato dell’app;
+- il rollback ripristina Vault, automazioni, impostazioni e stato media transitorio compatibile;
+- un downgrade non nasconde né cancella i dati già acquisiti.
 
 Nota: Luminous base può reagire alle notifiche anche indipendentemente dal limite di 3 app del Vault, per non impoverire la funzione di accessibilità.
 
@@ -221,8 +232,8 @@ Pipeline primaria:
 Fallback WhatsApp opzionale:
 - Premium;
 - consenso esplicito dell'utente;
-- sorgente 1: Android MediaStore con accesso foto completo quando consentito;
-- sorgente 2 indipendente: cartella WhatsApp Images scelta dall'utente tramite SAF, con sola lettura persistente;
+- sorgente primaria di recovery in release pubblica: cartella WhatsApp Images scelta dall'utente tramite SAF, con sola lettura persistente;
+- MediaStore con accesso foto completo resta disponibile nelle build QA/debug per test e può essere riattivato in release solo dopo una futura decisione Play esplicita;
 - mai database o storage privato WhatsApp;
 - su Android 11+ viene registrato il checkpoint MediaStore GENERATION_ADDED e verificata la versione MediaStore prima del confronto;
 - un ContentObserver rilancia il motore appena cambia la raccolta immagini;
@@ -236,7 +247,9 @@ Fallback WhatsApp opzionale:
 - il riferimento SAF non è portabile tra dispositivi e deve essere riconcesso dopo un restore su un altro device;
 - nessuna scansione retroattiva indiscriminata della galleria;
 - su Android 14+ l'accesso alle sole foto selezionate non basta per il percorso MediaStore automatico;
-- READ_MEDIA_IMAGES richiede valutazione/dichiarazione Google Play se mantenuto nella build pubblica.
+- la release pubblica v1 rimuove READ_MEDIA_IMAGES / READ_MEDIA_VISUAL_USER_SELECTED / READ_EXTERNAL_STORAGE dal manifest finale;
+- Android 14+ "solo foto selezionate" è trattato come accesso parziale, non equivalente alla libreria completa;
+- l'eventuale ritorno a MediaStore broad-access in produzione richiede una decisione Play separata.
 
 Il file originale a piena risoluzione non viene conservato di default: anche una foto recuperata dai media condivisi viene copiata nel Vault come versione locale compressa fino a circa 1280 px, sufficiente per una consultazione più affidabile senza trasformare il Vault in una copia completa della galleria.
 
@@ -294,14 +307,14 @@ STEP 4 — Sicurezza + account opzionale
 11. PERMISSION HEALTH
 ==================================================
 Profilo > Stato Notification Control:
-- Notification Access;
-- Camera;
-- Overlay;
-- Exact alarm solo se necessario;
-- battery/background dove rilevante;
-- biometria;
-- Luminous;
-- eventuali errori di servizio.
+- stati distinti: OK / Parziale / Azione richiesta / Non necessario;
+- Notification Access distingue permesso concesso da listener realmente connesso;
+- Android 14+ distingue accesso foto completo da "solo foto selezionate";
+- Camera e Overlay risultano richiesti solo quando la relativa funzione è attiva;
+- Follow Up/Critical mostrano lo stato del permesso POST_NOTIFICATIONS;
+- la release least-privilege spiega che il recovery media usa notifica + SAF;
+- target touch minimi 48 dp per le righe di correzione;
+- diagnostica QA separata per listener, MediaStore, SAF e timestamp di riconciliazione.
 
 ==================================================
 12. DESIGN SYSTEM
@@ -327,6 +340,7 @@ Principi:
 - il Vault usa lo sandbox privato Android come protezione storage di base;
 - il blocco Vault opzionale usa biometria/credenziale dispositivo e FLAG_SECURE per le superfici sensibili;
 - il backup manuale usa cifratura autenticata AES-GCM derivata da password;
+- Premium può creare un Recovery Point locale cifrato e rotante prima del restore; non esistono copie automatiche illimitate;
 - la v1 non dichiara cifratura SQL/Room a livello database: non promettere protezioni non implementate;
 - nessun contenuto inviato a server per le funzioni core;
 - nessun advertising basato sul contenuto;
@@ -337,7 +351,19 @@ Principi:
 - backup cloud automatico Android disattivato finché non esiste un design cifrato esplicito.
 
 ==================================================
-14. OUT OF SCOPE V1
+14. MODELLO PREMIUM V1
+==================================================
+- prodotto subscription-first;
+- prodotto Play canonico: notification_control_premium;
+- base plan canonico mensile: monthly;
+- base plan annuale: annual;
+- il mensile è il piano mostrato per primo quando entrambi sono disponibili;
+- Lifetime resta compatibilità opzionale e compare solo se configurato esplicitamente su Google Play;
+- entitlement verificato esclusivamente tramite Billing/EntitlementStore; nessun renderer o modulo singolo decide Premium autonomamente;
+- Google profile resta indipendente da Premium.
+
+==================================================
+15. OUT OF SCOPE V1
 ==================================================
 - recupero retroattivo messaggi non notificati;
 - accesso al database privato WhatsApp/Telegram;
@@ -351,7 +377,7 @@ Principi:
 - True Notification Undo con ripubblicazione/ricreazione della notifica nel notification shade (deferred).
 
 ==================================================
-15. DONOR AUDIT DECISIONS
+16. DONOR AUDIT DECISIONS
 ==================================================
 Confermato riutilizzabile:
 - CameraManager flash engine concept;
@@ -372,4 +398,4 @@ Correzioni:
 - RECEIVE_SMS / READ_CALL_LOG esclusi dall'architettura target;
 - entitlement non deve stare nei renderer Luminous.
 
-END PRODUCT BIBLE v0.7
+END PRODUCT BIBLE v0.8
