@@ -7,11 +7,12 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - one `NotificationListenerService` capture core with group-summary and logical replay deduplication
 - Room local Vault with notification revisions, structured messaging content and FTS search
 - local-first retention with per-revision WhatsApp/media archive previews
-- Premium WhatsApp media capture/recovery with notification-first capture plus user-authorized MediaStore/SAF safety nets
+- Premium WhatsApp media capture/recovery with notification-first capture; public release uses explicit SAF fallback, while broad MediaStore recovery is QA/debug-only unless later Play-approved
 - Premium Saved Vault Filters plus user-initiated readable CSV / structured JSON Vault export
 - Notification Undo history semantics without falsely treating every removal as sender deletion
 - Rules Engine, Critical Alert, Pausa Ping, Follow Up and Pickup Code
 - Pausa Ping Free global cooldown plus Premium per-app rolling Notification Budget for Notification Control visual alerts
+- Premium encrypted rotating Recovery Point before restore, with one-step rollback of the last restore
 - Luminous visual-alert module with Free baseline and Premium app/sender profiles
 - optional Google profile identity via Credential Manager/Google ID 1.1.1 + stable sub/email token claims, separated from Vault security and Premium
 - biometric/device-credential Vault gate
@@ -24,7 +25,8 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - optimized installable `perfTest` APK plus Macrobenchmark performance harness
 - isolated `qaPremium` APK for owner testing; production entitlement remains Play Billing-only
 - encrypted manual backup/restore through Android Storage Access Framework
-- Google Play Billing entitlement engine with subscription/lifetime support
+- subscription-first Google Play Billing entitlement engine with canonical monthly + annual base plans; Lifetime remains optional compatibility
+- QA-only physical reliability diagnostics for Notification Listener, Android 14+ photo scope, SAF and MediaStore evidence
 - EN/IT/ES/FR/PT resources and per-app language override
 - automatic Android cloud backup disabled
 
@@ -42,4 +44,4 @@ See:
 - `AGENTS.txt`
 
 ## External release configuration
-Live Google Sign-In, Premium purchases and Play publication require their corresponding OAuth / Play Console / signing credentials. The app remains local-first and usable without Google identity.
+Live Google Sign-In, Premium monthly/annual purchases and Play publication require their corresponding OAuth / Play Console / signing credentials. Public release defaults to notification-direct media plus explicit SAF rather than broad gallery access. The app remains local-first and usable without Google identity.
