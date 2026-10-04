@@ -177,6 +177,7 @@ fun ProfileScreen(
                 requestOverlayPermission = requestOverlayPermission
             )
         }
+        item { PhysicalQaCard() }
         item {
             MediaRecoverySafetyCard(
                 state = state,
