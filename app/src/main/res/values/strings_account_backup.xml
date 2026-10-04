@@ -22,4 +22,12 @@
     <string name="backup_restore_success">Backup restored: %1$d notifications, %2$d rules, %3$d Follow Ups.</string>
     <string name="backup_operation_failed">Backup operation failed. Check the file and password.</string>
     <string name="backup_restore_success_with_warnings">Backup restored: %1$d notifications, %2$d rules, %3$d Follow Ups. Data was committed successfully, but %4$d post-restore maintenance step(s) need attention.</string>
+    <string name="recovery_point_title">Premium Recovery Point</string>
+    <string name="recovery_point_available">A protected Recovery Point is available for the state before your last restore.</string>
+    <string name="recovery_point_empty">No Recovery Point is currently available. One is created automatically before a Premium restore.</string>
+    <string name="recovery_point_rollback">Undo last restore</string>
+    <string name="recovery_point_rollback_body">Restore the local Vault, automations, settings and transient media state captured immediately before your last restore. Use the same backup password.</string>
+    <string name="recovery_point_rollback_success">Last restore undone successfully.</string>
+    <string name="recovery_point_rollback_warnings">Recovery Point restored, but %1$d post-restore maintenance step(s) need attention.</string>
+    <string name="recovery_point_premium">Premium adds an automatic encrypted Recovery Point before restore and lets you undo the last restore.</string>
 </resources>
