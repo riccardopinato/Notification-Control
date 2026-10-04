@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v1.8.0
+NOTIFICATION CONTROL — ROADMAP v1.9.0
 Date: 2026-10-04
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
@@ -357,42 +357,61 @@ IMPLEMENTED / VALIDATION
 - test unitari per Free, Premium, reset finestra, Critical bypass ed esenzione per-app
 - entitlement sempre centralizzato tramite Play Billing/AppSettings
 
-STEP 22 — BATCH DATA SAFETY & RECOVERY POINT
-PLANNED
-- formal restore staging object with complete validation before mutation
-- local pre-restore safety point/rollback strategy sized for the Vault without duplicating media unnecessarily
-- restore diagnostics with exact warning categories and repair/retry actions
-- destructive lifecycle audit for Vault events, revisions, Rescue media, Follow Ups, Critical alerts, rules and profiles
-- test fault injection before/during/after atomic commit
-- evidence that failed restore cannot orphan files, schedulers or settings
+STEP 22 — PREMIUM BATCH DATA SAFETY & RECOVERY POINT
+IMPLEMENTED / AUTOMATED VALIDATION
+- Premium crea automaticamente un Recovery Point cifrato prima di un restore manuale
+- un solo Recovery Point rotante nello storage privato: niente accumulo illimitato di copie
+- backup/export manuale resta disponibile per ownership dei dati anche senza Premium
+- restore completamente decifrato, parsato e validato prima di qualsiasi mutazione persistente
+- Recovery Point include Vault, revisions, Rules, Follow Ups, Critical alerts, Pickup, Luminous, settings e stato media transitorio compatibile
+- restore incoming media usa chiavi/path separati per evitare collisioni con i media correnti prima del commit
+- transazione Room atomica per sostituzione del dataset
+- fault hooks prima/durante/dopo commit per QA e regressioni
+- diagnostica post-commit per categorie: settings, Follow Up scheduler, Critical scheduler
+- rollback "Annulla ultimo ripristino" esposto nel Profilo Premium
+- downgrade non nasconde né cancella media/dati già posseduti dall'utente
+- EN/IT/ES/FR/PT aggiornati
 
 STEP 23 — PHYSICAL NOTIFICATION & MEDIA RELIABILITY CERTIFICATION
-PLANNED
-- real Notification Listener access on physical Android, including sideload restricted-settings flow
-- WhatsApp direct notification image, MediaStore fallback and SAF fallback tested independently
-- multi-photo bursts, delayed indexing, notification dismissal, listener reconnect, process kill and reboot
-- Android 14+ selected-photo vs full-photo permission behaviour
-- Rescue Inbox ambiguity cases and perceptual-hash proof-of-nine
-- Xiaomi/HyperOS + Samsung validation where devices are available
-- physical-device evidence pack and regression checklist
+TOOLING IMPLEMENTED / PHYSICAL EVIDENCE REQUIRED
+- QA probe locale per manufacturer/model/API, Notification Listener permission/connection, timestamp eventi e riconciliazione
+- classificazione Android 14+ FULL / SELECTED_ONLY / NONE per accesso foto
+- stato SAF WhatsApp e MediaStore version/generation esposto solo in build QA/debug
+- test unitari dedicati alla classificazione selected-photo
+- protocollo fisico versionato in docs/STEP_23_PHYSICAL_CERTIFICATION.md
+- matrice prevista: Xiaomi/HyperOS, Samsung/One UI, almeno un Android 14+
+- scenari: reconnect listener, reboot, kill processo, dedup replay, WhatsApp direct media, MediaStore QA fallback, SAF fallback, burst, indicizzazione ritardata, Rescue ambiguity e perceptual-hash
+- AppLab valida tooling/UI/runtime generico, ma non sostituisce WhatsApp reale, Notification Listener secure access e comportamento OEM
+- VERDETTO STEP 23: MANUAL_REQUIRED finché manca evidenza dai device fisici
 
 STEP 24 — PLAY POLICY + IDENTITY + BILLING RELEASE READINESS
-PLANNED
-- decide production path for READ_MEDIA_IMAGES after Play eligibility review; prefer least-privilege SAF/notification path if broad access is not approved
-- create/verify Android OAuth clients for QA and Play App Signing SHA-1
-- validate live Google profile sign-in on signed build
-- configure Play subscription/lifetime products and restoration flows
-- configure release signing/service account and Internal Testing publication
-- verify signed AAB install/update path and purchase entitlement recovery
+IMPLEMENTED IN CODE / EXTERNAL CONFIG REQUIRED
+- release pubblica v1 passa al percorso least-privilege: media dalla notifica + SAF esplicito
+- release manifest rimuove READ_MEDIA_IMAGES, READ_MEDIA_VISUAL_USER_SELECTED e READ_EXTERNAL_STORAGE
+- MediaStore broad-access resta abilitato in QA/debug per test, disabilitato in release via BuildConfig
+- Certified QA verifica il merged release manifest e fallisce se ricompaiono permessi media broad
+- modello commerciale subscription-first
+- prodotto Play: notification_control_premium
+- base plan monthly prioritario e annual secondario
+- Lifetime mantenuto solo come compatibilità opzionale se configurato esplicitamente
+- entitlement resta centralizzato tramite PlayBillingManager + EntitlementStore
+- OAuth Android client/SHA Play App Signing resta configurazione esterna
+- attivazione reale prodotti Play, signing, service account e Internal Testing restano configurazione esterna
+- signed Google profile + purchase/restore reali devono essere verificati su Play/Internal Testing prima della release pubblica
 
 STEP 25 — ACCESSIBILITY, UX & PERMISSION HEALTH CERTIFICATION
-PLANNED
-- TalkBack traversal and meaningful labels for Home/Vault/Rules/Profile
-- 48dp touch-target audit and dynamic text/font-scale stress
-- dark/light/high-contrast visual regression
-- permission health must distinguish granted, partial, blocked, restricted-settings and not-needed states
-- destructive actions and Rescue Inbox cleanup receive explicit consequence copy
-- AppLab visual journey checkpoints for critical non-destructive screens
+IMPLEMENTED / AUTOMATED VALIDATION
+- Permission Health distingue OK / Parziale / Azione richiesta / Non necessario
+- Notification Access distingue permesso concesso da listener realmente connesso
+- Android 14+ selected-photo viene mostrato come stato parziale, non come accesso completo
+- release least-privilege spiega chiaramente notification-direct + SAF
+- Camera/Overlay sono richiesti solo quando le funzioni relative sono attive
+- POST_NOTIFICATIONS collegato esplicitamente a Follow Up/Critical reminders
+- righe di correzione con target minimo 48dp
+- copy distruttiva esplicita per rimozione definitiva dalla Media Rescue Inbox
+- nuove stringhe complete EN/IT/ES/FR/PT
+- QA-only physical diagnostics non vengono esposte come feature consumer
+- AppLab FULL resta gate runtime/visuale; TalkBack reale e font-scale estremo restano da includere nella regressione fisica finale
 
 STEP 26 — PERFORMANCE, BATTERY & LONG-RUN STABILITY
 PLANNED
@@ -416,10 +435,11 @@ PLANNED
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Android OAuth client/package signing configuration must match the intended signed build
 - Google Play/release Android OAuth client must match Play App Signing/release SHA-1
-- Google Play product configuration for live Premium purchase flows
+- activate notification_control_premium with monthly/annual base plans in Play Console
 - Play signing/service credentials for automatic Internal Testing publication
-- Google Play READ_MEDIA_IMAGES eligibility/declaration decision before public release
-- repository branch protection/ruleset: no ruleset is currently visible through the connected GitHub API; configure required checks on main in repository settings
+- verify live purchase, restore and Google profile on signed Play/Internal Testing build
+- broad MediaStore recovery in public release is OPTIONAL and remains disabled unless a future Play-policy decision explicitly approves it
+- repository branch protection/ruleset: configure required checks on main if not already enforced
 
 CURRENT RELEASE VERDICT:
 AUTOMATED CORE: PASS
@@ -431,11 +451,11 @@ BRANCH GOVERNANCE: MANUAL_REQUIRED
 FINAL INTENDED-RELEASE VERDICT: BLOCKED until AppLab/device/store/governance gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Validate and merge STEP 20.1 + STEP 21 Premium packaging/Notification Budget with Android CI + Certified QA + AppLab.
-2. Execute STEP 22 Batch Data Safety & Recovery Point.
-3. Keep STEP 23 physical notification/media reliability certification deferred until the user is ready to test on devices.
-4. Complete STEP 24 Play policy, OAuth, Billing and signed Internal Testing configuration.
-5. Run STEP 25 accessibility/UX certification and STEP 26 performance/battery stability.
-6. Promote STEP 27 only from an immutable signed release candidate with all mandatory gates green.
+1. Run final Android CI + Certified QA + AppLab FULL on the immutable Steps 20.1–25 head and merge only if green.
+2. Keep STEP 23 physical certification MANUAL_REQUIRED until Xiaomi/Samsung/Android 14+ evidence is collected.
+3. Complete external OAuth + Play product/signing/Internal Testing configuration from STEP 24.
+4. Execute STEP 26 performance, battery and long-run stability.
+5. Promote STEP 27 only from a signed immutable release candidate with mandatory automated + physical + store gates satisfied.
 
-END ROADMAP v1.8.0
+END ROADMAP v1.9.0
+
