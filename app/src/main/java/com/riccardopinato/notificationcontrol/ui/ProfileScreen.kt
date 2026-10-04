@@ -124,7 +124,12 @@ fun ProfileScreen(
             )
         }
         item { GoogleAccountCard() }
-        item { EncryptedBackupCard(onBackupRestored = onBackupRestored) }
+        item {
+            EncryptedBackupCard(
+                isPremium = state.isPremium,
+                onBackupRestored = onBackupRestored
+            )
+        }
         item { LanguageCard() }
         item {
             SecurityCard(
