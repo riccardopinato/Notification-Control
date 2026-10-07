@@ -49,6 +49,45 @@ jobs:
       - name: Build QA Premium validation APK
         run: gradle :app:assembleQaPremium --stacktrace --no-daemon
 
+      - name: Binary size budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          release_aab="$(find app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)"
+          qa_apk="$(find app/build/outputs/apk/qaPremium -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$release_apk"
+          test -n "$release_aab"
+          test -n "$qa_apk"
+
+          release_apk_bytes="$(stat -c%s "$release_apk")"
+          release_aab_bytes="$(stat -c%s "$release_aab")"
+          qa_apk_bytes="$(stat -c%s "$qa_apk")"
+
+          apk_budget=$((6 * 1024 * 1024))
+          aab_budget=$((8 * 1024 * 1024))
+
+          {
+            echo "release_apk_bytes=$release_apk_bytes"
+            echo "qa_premium_apk_bytes=$qa_apk_bytes"
+            echo "release_aab_bytes=$release_aab_bytes"
+            echo "apk_budget_bytes=$apk_budget"
+            echo "aab_budget_bytes=$aab_budget"
+          } > certified-evidence/binary-size-budget.txt
+
+          (( release_apk_bytes <= apk_budget )) || {
+            echo "Release APK exceeds 6 MiB budget." >&2
+            exit 1
+          }
+          (( qa_apk_bytes <= apk_budget )) || {
+            echo "QA Premium APK exceeds 6 MiB budget." >&2
+            exit 1
+          }
+          (( release_aab_bytes <= aab_budget )) || {
+            echo "Release AAB exceeds 8 MiB budget." >&2
+            exit 1
+          }
+
       - name: Dependency evidence
         shell: bash
         run: |
