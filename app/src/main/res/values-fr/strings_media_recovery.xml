@@ -12,4 +12,5 @@
     <string name="media_rescue_count">%1$d médias en attente de correspondance sûre</string>
     <string name="media_rescue_confidence">Score des preuves : %1$d</string>
     <string name="media_rescue_remove">Supprimer</string>
+    <string name="whatsapp_media_release_saf_body">La version publique utilise les médias exposés par la notification et le dossier WhatsApp Images que vous liez explicitement ci-dessous. Aucun accès large à la galerie n’est demandé.</string>
 </resources>

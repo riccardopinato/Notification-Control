@@ -145,7 +145,10 @@ class NotificationCaptureService : NotificationListenerService() {
         health.connected = true
         health.lastConnectedAt = System.currentTimeMillis()
         ensureMediaObserver()
-        serviceScope.launch { recoveryCoordinator.resolvePending() }
+        serviceScope.launch {
+            updatePostureMonitoring()
+            recoveryCoordinator.resolvePending()
+        }
         eventQueue.trySend(ListenerCommand.Reconcile)
     }
 

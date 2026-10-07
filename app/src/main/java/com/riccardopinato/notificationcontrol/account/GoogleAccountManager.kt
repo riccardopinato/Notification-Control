@@ -41,14 +41,14 @@ class GoogleAccountManager private constructor(context: Context) {
     private val _state = MutableStateFlow(
         AccountUiState(
             profile = readCachedProfile(),
-            configured = serverClientId().isNotBlank()
+            configured = isConfigured()
         )
     )
     val state: StateFlow<AccountUiState> = _state.asStateFlow()
 
     suspend fun signIn(activity: Activity) {
         val clientId = serverClientId()
-        if (clientId.isBlank()) {
+        if (!isConfigured()) {
             _state.value = _state.value.copy(
                 loading = false,
                 configured = false,
@@ -124,9 +124,12 @@ class GoogleAccountManager private constructor(context: Context) {
         _state.value = AccountUiState(
             profile = null,
             loading = false,
-            configured = serverClientId().isNotBlank()
+            configured = isConfigured()
         )
     }
+
+    private fun isConfigured(): Boolean =
+        BuildConfig.GOOGLE_IDENTITY_ENABLED && serverClientId().isNotBlank()
 
     private fun serverClientId(): String =
         BuildConfig.GOOGLE_WEB_CLIENT_ID.trim()

@@ -25,4 +25,7 @@
     <string name="search_apps">Pesquisar apps</string>
     <string name="app_info_title">Informações, versão e licenças</string>
     <string name="app_info_body">Versão %1$s. O Notification Control utiliza componentes AndroidX/Jetpack, Kotlin Coroutines e SDK Google Android ao abrigo das respetivas licenças e termos. As evidências da versão incluem o inventário das dependências runtime.</string>
+    <string name="listener_last_connected">Última ligação do listener: %1$s</string>
+    <string name="listener_last_event">Último evento capturado pelo listener: %1$s</string>
+    <string name="listener_last_reconciliation">Última reconciliação do listener: %1$s</string>
 </resources>

@@ -1,0 +1,12 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- launchApp:
+    clearState: true
+    arguments:
+      notification_control_automation_preseed: true
+- assertVisible: "Notification Control"
+- assertVisible: "Home"
+- assertVisible: "Vault"
+- assertVisible: "Follow Up"
+- assertVisible: "Rules"
+- assertVisible: "Profile"

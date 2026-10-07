@@ -32,6 +32,9 @@ jobs:
       SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      PLAY_PRODUCTS_READY: ${{ vars.PLAY_PRODUCTS_READY || 'false' }}
+      GOOGLE_IDENTITY_ENABLED: ${{ vars.GOOGLE_IDENTITY_ENABLED || 'false' }}
+      GOOGLE_OAUTH_READY: ${{ vars.GOOGLE_OAUTH_READY || 'false' }}
       GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID || '72691779013-hci9cr313a5ado5skdghs6h7a5pg84md.apps.googleusercontent.com' }}
 
     steps:
@@ -95,6 +98,32 @@ jobs:
             echo "RELEASE_KIND=unsigned-validation" >> "$GITHUB_ENV"
           fi
 
+      - name: Product readiness gate
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          release_intent=false
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]] || \
+             [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.publish_play_internal }}" == "true" ]]; then
+            release_intent=true
+          fi
+
+          if [[ "$release_intent" == "true" && "${PLAY_PRODUCTS_READY}" != "true" ]]; then
+            echo "Premium Play products/base plans must be configured before a publishable release." >&2
+            exit 1
+          fi
+
+          if [[ "${GOOGLE_IDENTITY_ENABLED}" == "true" && "${GOOGLE_OAUTH_READY}" != "true" ]]; then
+            echo "Google identity is enabled but Android/Play OAuth readiness is not confirmed." >&2
+            exit 1
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.publish_play_internal }}" == "true" && -z "${PLAY_SERVICE_ACCOUNT_JSON}" ]]; then
+            echo "Play Internal Testing upload requires PLAY_SERVICE_ACCOUNT_JSON." >&2
+            exit 1
+          fi
+
       - name: Unit tests
         run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
 
@@ -103,6 +132,39 @@ jobs:
 
       - name: Build release APK and AAB
         run: gradle :app:assembleRelease :app:bundleRelease --stacktrace --no-daemon
+
+      - name: Enforce binary size budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          release_aab="$(find app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)"
+          test -n "$release_apk"
+          test -n "$release_aab"
+          (( $(stat -c%s "$release_apk") <= 6 * 1024 * 1024 )) || {
+            echo "Release APK exceeds 6 MiB budget." >&2
+            exit 1
+          }
+          (( $(stat -c%s "$release_aab") <= 8 * 1024 * 1024 )) || {
+            echo "Release AAB exceeds 8 MiB budget." >&2
+            exit 1
+          }
+
+      - name: Verify least-privilege Play manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_manifest="$(find app/build/intermediates -type f -name AndroidManifest.xml | grep -E '/release/' | head -n 1)"
+          test -n "$release_manifest"
+          for permission in \
+            android.permission.READ_MEDIA_IMAGES \
+            android.permission.READ_MEDIA_VISUAL_USER_SELECTED \
+            android.permission.READ_EXTERNAL_STORAGE; do
+            if grep -q "$permission" "$release_manifest"; then
+              echo "Release contains forbidden broad media permission: $permission" >&2
+              exit 1
+            fi
+          done
 
       - name: Collect release outputs
         shell: bash
@@ -120,6 +182,9 @@ jobs:
             echo "version_name=${VERSION_NAME}"
             echo "version_code=${VERSION_CODE}"
             echo "commit=${GITHUB_SHA}"
+            echo "play_products_ready=${PLAY_PRODUCTS_READY}"
+            echo "google_identity_enabled=${GOOGLE_IDENTITY_ENABLED}"
+            echo "google_oauth_ready=${GOOGLE_OAUTH_READY}"
           } > release-output/RELEASE_PROVENANCE.txt
           sha256sum release-output/* > release-output/SHA256SUMS.txt
           ls -lh release-output

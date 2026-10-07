@@ -33,7 +33,9 @@ class StartupAndJankBenchmark {
             pressHome()
         }
     ) {
-        startActivityAndWait()
+        startActivityAndWait { intent ->
+            intent.putExtra(EXTRA_AUTOMATION_PRESEED, true)
+        }
     }
 
     @Test
@@ -45,14 +47,15 @@ class StartupAndJankBenchmark {
         startupMode = StartupMode.WARM,
         setupBlock = {
             pressHome()
-            startActivityAndWait()
+            startActivityAndWait { intent ->
+                intent.putExtra(EXTRA_AUTOMATION_PRESEED, true)
+            }
         }
     ) {
         val width = device.displayWidth
         val height = device.displayHeight
         val navigationY = (height * 0.93f).toInt()
 
-        // Requires one-time onboarding on the benchmark device.
         device.click((width * 0.30f).toInt(), navigationY)
         device.waitForIdle()
         repeat(4) {
@@ -73,5 +76,7 @@ class StartupAndJankBenchmark {
     companion object {
         private const val PACKAGE_NAME =
             "com.riccardopinato.notificationcontrol"
+        private const val EXTRA_AUTOMATION_PRESEED =
+            "notification_control_automation_preseed"
     }
 }

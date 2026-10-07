@@ -39,6 +39,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -123,7 +125,9 @@ fun ProfileScreen(
                 onRestore = onRestorePurchases
             )
         }
-        item { GoogleAccountCard() }
+        if (BuildConfig.GOOGLE_IDENTITY_ENABLED) {
+            item { GoogleAccountCard() }
+        }
         item { EncryptedBackupCard(onBackupRestored = onBackupRestored) }
         item { LanguageCard() }
         item {
@@ -377,6 +381,10 @@ private fun SecurityCard(
     onTimeoutChange: (Int) -> Unit,
     onSensitiveProtectionChange: (Boolean) -> Unit
 ) {
+    val vaultLockDescription = stringResource(R.string.security_title)
+    val sensitiveProtectionDescription =
+        stringResource(R.string.sensitive_screen_protection)
+
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Row(
@@ -396,7 +404,10 @@ private fun SecurityCard(
                 Switch(
                     checked = enabled,
                     onCheckedChange = onEnabledChange,
-                    enabled = available
+                    enabled = available,
+                    modifier = Modifier.semantics {
+                        contentDescription = vaultLockDescription
+                    }
                 )
             }
             if (enabled) {
@@ -431,7 +442,10 @@ private fun SecurityCard(
                 }
                 Switch(
                     checked = sensitiveProtectionEnabled,
-                    onCheckedChange = onSensitiveProtectionChange
+                    onCheckedChange = onSensitiveProtectionChange,
+                    modifier = Modifier.semantics {
+                        contentDescription = sensitiveProtectionDescription
+                    }
                 )
             }
         }
@@ -966,13 +980,14 @@ private fun PermissionHealthCard(
         Build.VERSION.SDK_INT < 33 ||
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
-    val photoLibraryGranted = if (Build.VERSION.SDK_INT >= 33) {
-        context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
-            PackageManager.PERMISSION_GRANTED
-    } else {
-        context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
-            PackageManager.PERMISSION_GRANTED
-    }
+    val photoLibraryGranted = !BuildConfig.BROAD_MEDIA_RECOVERY_ALLOWED ||
+        if (Build.VERSION.SDK_INT >= 33) {
+            context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
+                PackageManager.PERMISSION_GRANTED
+        } else {
+            context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
+                PackageManager.PERMISSION_GRANTED
+        }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -982,12 +997,34 @@ private fun PermissionHealthCard(
                 listenerPermission && health.connected,
                 requestNotificationAccess
             )
+            Text(
+                stringResource(
+                    R.string.listener_last_connected,
+                    formatHealthTimestamp(health.lastConnectedAt)
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                stringResource(
+                    R.string.listener_last_event,
+                    formatHealthTimestamp(health.lastEventAt)
+                ),
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                stringResource(
+                    R.string.listener_last_reconciliation,
+                    formatHealthTimestamp(health.lastReconciliationAt)
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
             PermissionHealthRow(
                 stringResource(R.string.follow_up_notification_permission),
                 reminderNotificationsGranted,
                 requestPostNotifications
             )
-            if (state.isPremium) {
+            if (state.isPremium && BuildConfig.BROAD_MEDIA_RECOVERY_ALLOWED) {
                 PermissionHealthRow(
                     stringResource(R.string.whatsapp_media_access),
                     photoLibraryGranted,
@@ -995,6 +1032,13 @@ private fun PermissionHealthCard(
                 )
                 Text(
                     stringResource(R.string.whatsapp_media_access_body),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            } else if (state.isPremium) {
+                PermissionNotNeededRow(stringResource(R.string.whatsapp_media_access))
+                Text(
+                    stringResource(R.string.whatsapp_media_release_saf_body),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
@@ -1144,6 +1188,16 @@ fun AppPickerDialog(
         }
     )
 }
+
+private fun formatHealthTimestamp(timestamp: Long): String =
+    if (timestamp <= 0L) {
+        "—"
+    } else {
+        DateFormat.getDateTimeInstance(
+            DateFormat.SHORT,
+            DateFormat.MEDIUM
+        ).format(Date(timestamp))
+    }
 
 private fun formatMinutesOfDay(minutes: Int): String {
     val safe = minutes.coerceIn(0, 1439)

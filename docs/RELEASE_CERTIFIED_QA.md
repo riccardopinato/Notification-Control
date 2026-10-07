@@ -35,3 +35,19 @@ Live Sign in with Google additionally requires the OAuth Web client ID in `googl
 PRs also run the pinned AppLab native Android FULL gate against the release-like `qaPremium` APK. The trusted verifier covers runtime launch, visual/system checks, persistence/restart, lifecycle stress, process death, background/Doze and storage integrity where the hosted Android environment supports them. Notification Listener secure access and real WhatsApp delivery still require physical-device validation.
 
 Automated PASS does not substitute for physical-device validation. Final product verdict remains **BLOCKED** until required manual/device checks and external store/OAuth configuration are completed for the intended release.
+
+
+## v1 RC media-permission split
+The publishable release variant is least-privilege: it does **not** carry
+READ_MEDIA_IMAGES, READ_MEDIA_VISUAL_USER_SELECTED or legacy READ_EXTERNAL_STORAGE.
+Production WhatsApp recovery therefore relies on notification-provided media plus the
+explicit user-authorized SAF WhatsApp Images folder.
+
+The non-publishable qaPremium validation variant intentionally retains broad image
+permission and enables BROAD_MEDIA_RECOVERY_ALLOWED so the physical certification
+matrix can still exercise the MediaStore fallback. Certified QA verifies this split in
+the merged manifests. This permission in QA must never be interpreted as permission
+to ship broad gallery access in the Play release.
+
+Default validation version is 1.0.0-rc.1; the release workflow still injects explicit
+VERSION_NAME and VERSION_CODE for signed/tagged artifacts.
