@@ -46,7 +46,7 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
-        versionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.1.0"
+        versionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "1.0.0-rc.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField(
             "String",
@@ -100,6 +100,7 @@ android {
         create("qaPremium") {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("boolean", "BROAD_MEDIA_RECOVERY_ALLOWED", "true")
             buildConfigField("boolean", "AUTOMATION_PRESEED_ALLOWED", "true")
             buildConfigField("boolean", "GOOGLE_IDENTITY_ENABLED", "true")
             matchingFallbacks += listOf("release")
