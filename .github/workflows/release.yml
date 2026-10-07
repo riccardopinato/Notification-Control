@@ -133,6 +133,23 @@ jobs:
       - name: Build release APK and AAB
         run: gradle :app:assembleRelease :app:bundleRelease --stacktrace --no-daemon
 
+      - name: Enforce binary size budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          release_aab="$(find app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)"
+          test -n "$release_apk"
+          test -n "$release_aab"
+          (( $(stat -c%s "$release_apk") <= 6 * 1024 * 1024 )) || {
+            echo "Release APK exceeds 6 MiB budget." >&2
+            exit 1
+          }
+          (( $(stat -c%s "$release_aab") <= 8 * 1024 * 1024 )) || {
+            echo "Release AAB exceeds 8 MiB budget." >&2
+            exit 1
+          }
+
       - name: Verify least-privilege Play manifest
         shell: bash
         run: |
