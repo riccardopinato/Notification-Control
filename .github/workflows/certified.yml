@@ -112,6 +112,14 @@ jobs:
             fi
           done
 
+          qa_manifest="$(find app/build/intermediates -type f -name AndroidManifest.xml | grep -E '/qaPremium/' | head -n 1)"
+          test -n "$qa_manifest"
+          cp "$qa_manifest" certified-evidence/AndroidManifest-qaPremium-merged.xml
+          grep -q "android.permission.READ_MEDIA_IMAGES" "$qa_manifest" || {
+            echo "QA Premium must retain READ_MEDIA_IMAGES so physical MediaStore recovery can be certified." >&2
+            exit 1
+          }
+
       - name: Localization gates
         shell: bash
         run: |
