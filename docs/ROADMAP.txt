@@ -1,5 +1,5 @@
-NOTIFICATION CONTROL — ROADMAP v1.7.0
-Date: 2026-10-03
+NOTIFICATION CONTROL — ROADMAP v1.8.0
+Date: 2026-10-07
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
 PHASE 0 — DONOR AUDIT & BASELINE
@@ -325,97 +325,101 @@ Merge baseline: b657b86d7fee45be2919c5eb16142f3ba0f485ea
 - test dedicati a burst one-to-one, ambiguità, generation checkpoint, perceptual-hash e migrazione 10→11
 
 STEP 20 — MASTER v21 DEEP AUDIT + APPLAB TRUSTED GATE
-IMPLEMENTED / VALIDATION
-- audit against Master Prompt v21 SLIM, Golden Rules, Product Bible, project rules and implementation truth
-- AppLab FULL native Android gate pinned to immutable AppLab SHA
-- trusted runtime coverage for launch/visual/system, persistence, lifecycle, process death, background/Doze and storage integrity where supported
-- GitHub Actions dependencies pinned to immutable commit SHA
-- tagged/public and Play release flows fail closed without Android signing
-- manual unsigned release output explicitly labelled unsigned-validation
-- Certified QA records CI provenance and rejects QUERY_ALL_PACKAGES / READ_CALL_LOG / RECEIVE_SMS / MANAGE_EXTERNAL_STORAGE
-- restore no longer reports false rollback after an already committed Room transaction; post-commit maintenance problems become explicit warnings
-- Product Bible security wording aligned to actual implementation: Android sandbox + optional biometric/device lock + AES-GCM backup; no false database-encryption claim
-- README/docs aligned to Room v11 and current evidence boundaries
+COMPLETED / MERGED
+Merge baseline: 105b581ed624285c91501a555ae576c095497be2
+- Master v21 / Golden Rules / Product Truth deep audit completed
+- pinned AppLab FULL trusted runtime gate
+- GitHub Actions pinned to immutable SHAs
+- public/Play release flows fail closed without signing
+- restore truth, Vault lock timeout, media lifecycle and provenance hardened
+- Product Bible/README security wording aligned to implementation truth
+- AppLab FULL passed before merge on the immutable audit head
 
 STEP 21 — BATCH DATA SAFETY & RECOVERY POINT
-PLANNED
-- formal restore staging object with complete validation before mutation
-- local pre-restore safety point/rollback strategy sized for the Vault without duplicating media unnecessarily
-- restore diagnostics with exact warning categories and repair/retry actions
-- destructive lifecycle audit for Vault events, revisions, Rescue media, Follow Ups, Critical alerts, rules and profiles
-- test fault injection before/during/after atomic commit
-- evidence that failed restore cannot orphan files, schedulers or settings
+IMPLEMENTED / AUTOMATED GATES PASSING
+- Room v12 restore journal records post-commit recovery state atomically with restored data
+- restore media use unique per-session keys so pre-commit staging cannot overwrite current Vault media
+- staging failures clean newly materialized files before any Room mutation
+- Room transaction failure preserves previous Vault state and removes staged restore files
+- process death after Room commit is recoverable: startup worker completes pending settings recovery
+- Follow Up and Critical Alert schedules are rebuilt idempotently from Room source-of-truth
+- orphan media reconciliation runs from persisted DB references
+- fault-injection tests cover rollback-before-commit and journal-after-commit boundaries
+- migration 11->12 regression coverage added
 
 STEP 22 — PHYSICAL NOTIFICATION & MEDIA RELIABILITY CERTIFICATION
-PLANNED
-- real Notification Listener access on physical Android, including sideload restricted-settings flow
-- WhatsApp direct notification image, MediaStore fallback and SAF fallback tested independently
-- multi-photo bursts, delayed indexing, notification dismissal, listener reconnect, process kill and reboot
-- Android 14+ selected-photo vs full-photo permission behaviour
-- Rescue Inbox ambiguity cases and perceptual-hash proof-of-nine
-- Xiaomi/HyperOS + Samsung validation where devices are available
-- physical-device evidence pack and regression checklist
+AUTOMATED PREPARATION COMPLETE / PHYSICAL DEVICE REQUIRED
+- media correlation/recovery engine already covers direct notification media, MediaStore, SAF, WorkManager and Rescue Inbox
+- QA/perf preseed hook is isolated to non-publishable validation builds
+- listener health exposes last connection, last captured event and last reconciliation timestamps
+- AppLab covers process/lifecycle/runtime paths that do not require privileged Notification Listener setup
+- remaining proof requires real Notification Access and real WhatsApp delivery on physical Android
+- required matrix: direct image, SAF fallback, burst photos, delayed indexing, dismiss, reconnect, kill, reboot, Rescue ambiguity
+- Xiaomi/HyperOS and Samsung remain the target OEM validation set
 
 STEP 23 — PLAY POLICY + IDENTITY + BILLING RELEASE READINESS
-PLANNED
-- decide production path for READ_MEDIA_IMAGES after Play eligibility review; prefer least-privilege SAF/notification path if broad access is not approved
-- create/verify Android OAuth clients for QA and Play App Signing SHA-1
-- validate live Google profile sign-in on signed build
-- configure Play subscription/lifetime products and restoration flows
-- configure release signing/service account and Internal Testing publication
-- verify signed AAB install/update path and purchase entitlement recovery
+IMPLEMENTED IN REPOSITORY / EXTERNAL ACCOUNT GATES REMAIN
+- Play release removes READ_MEDIA_IMAGES, READ_MEDIA_VISUAL_USER_SELECTED and legacy READ_EXTERNAL_STORAGE
+- publishable release therefore uses notification media + explicit persisted SAF folder instead of broad gallery permission
+- Certified and Release workflows fail if broad media permissions reappear in merged release manifest
+- Google identity is explicitly optional and hidden/disabled in release unless configured
+- if Google identity is enabled, release fails closed unless OAuth readiness is explicitly confirmed
+- Play publication fails closed unless Premium products/base plans, signing and service-account credentials are configured
+- Play Billing 9.x retained; current Google support deadline for version 9 is 2028-08-31
+- live OAuth client, Play products, Play App Signing identity and Internal Testing publication remain external console operations
 
 STEP 24 — ACCESSIBILITY, UX & PERMISSION HEALTH CERTIFICATION
-PLANNED
-- TalkBack traversal and meaningful labels for Home/Vault/Rules/Profile
-- 48dp touch-target audit and dynamic text/font-scale stress
-- dark/light/high-contrast visual regression
-- permission health must distinguish granted, partial, blocked, restricted-settings and not-needed states
-- destructive actions and Rescue Inbox cleanup receive explicit consequence copy
-- AppLab visual journey checkpoints for critical non-destructive screens
+IMPLEMENTED / AUTOMATED VALIDATION
+- screen-reader labels added to interactive switch controls and security/Luminous toggles
+- Vault media previews expose meaningful accessibility labels
+- permission health includes listener connection/event/reconciliation diagnostics
+- diagnostics localized EN/IT/ES/FR/PT
+- critical Home/Vault/Follow Up/Rules/Profile AppLab visual journey checkpoints added
+- localization parity remains a Certified QA gate
+- physical TalkBack/font-scale/OEM permission-panel validation remains part of final device matrix
 
 STEP 25 — PERFORMANCE, BATTERY & LONG-RUN STABILITY
-PLANNED
-- Macrobenchmark cold/warm start and jank on controlled physical device
-- notification hot-path latency and Room query profiling under large Vault
-- WorkManager/ContentObserver battery and wakeup audit
-- Doze/App Standby/reboot soak tests for Follow Up, Critical and media recovery
-- APK/AAB size budget and dependency review
-- memory/leak check around thumbnails, overlays, sensors and notification bursts
+IMPLEMENTED / AUTOMATED + PHYSICAL RUNTIME SPLIT
+- deterministic macrobenchmark preseed avoids onboarding-dependent benchmark noise
+- perf/QA-only preseed cannot be enabled in publishable release
+- Luminous posture sensors warm before the first visual alert to avoid uninitialized first-event state
+- existing perfTest + benchmark harness remains compiled by CI/Certified
+- listener pipeline remains serialized; Room/Paging/cache/FTS hot-path hardening retained
+- Room schema generation serialized across variants to remove nondeterministic CI schema races
+- physical cold/warm startup, jank, Doze/reboot soak and OEM battery validation still require device execution
 
 STEP 26 — V1.0 RELEASE CANDIDATE CERTIFICATION
-PLANNED
-- all P0/P1 closed or explicitly waived with rationale
-- Android CI + Certified QA + AppLab CERTIFICATION green on immutable release commit
-- signed release APK/AAB provenance and checksums
-- Play Internal Testing installation/update verified
-- privacy/data-safety/store disclosures matched to actual permissions and features
-- final physical regression on core Free and Premium paths
-- verdict CERTIFIED only when device/store/external gates are actually satisfied
+IN FINAL VALIDATION
+- Android CI: PASS on current RC head before final visual rerun
+- Certified QA: PASS on current RC head before final visual rerun
+- AppLab RC Certification workflow added and pinned to immutable AppLab SHA
+- AppLab FULL + RC use release-like qaPremium APK and critical multi-screen journeys
+- signed public/Play release cannot be emitted without signing readiness
+- Premium publication cannot proceed without Play product readiness
+- optional Google identity cannot be published half-configured
+- final CERTIFIED verdict is intentionally withheld until the current immutable head has all automated gates green AND physical/store external gates are completed
 
-EXTERNAL CONFIGURATION STILL REQUIRED:
-- Android OAuth client/package signing configuration must match the intended signed build
-- Google Play/release Android OAuth client must match Play App Signing/release SHA-1
-- Google Play product configuration for live Premium purchase flows
-- Play signing/service credentials for automatic Internal Testing publication
-- Google Play READ_MEDIA_IMAGES eligibility/declaration decision before public release
-- repository branch protection/ruleset: no ruleset is currently visible through the connected GitHub API; configure required checks on main in repository settings
+EXTERNAL / PHYSICAL GATES THAT CODE CANNOT SELF-SATISFY:
+- real-device Notification Access + WhatsApp media matrix on target OEMs
+- physical TalkBack/font-scale and battery/Doze/reboot regression
+- persistent Android release signing secrets/keystore
+- Google Play Premium products/base plans and service account
+- Play Internal Testing upload/install/update verification
+- Google OAuth Android clients only if optional Google identity is enabled
+- repository branch-protection/ruleset configuration where desired
 
 CURRENT RELEASE VERDICT:
-AUTOMATED CORE: PASS
-CERTIFIED AUTOMATION: PASS
-APPLAB FULL: VALIDATION_IN_PROGRESS
+AUTOMATED CODE/CI: PASSING EXCEPT FINAL APPLAB VISUAL RERUN IN PROGRESS
+PLAY PERMISSION STRATEGY: LEAST-PRIVILEGE RELEASE PATH IMPLEMENTED
 PHYSICAL DEVICE: MANUAL_REQUIRED
-LIVE GOOGLE/PLAY CONFIG: REQUIRED
-BRANCH GOVERNANCE: MANUAL_REQUIRED
-FINAL INTENDED-RELEASE VERDICT: BLOCKED until AppLab/device/store/governance gates are completed
+LIVE GOOGLE/PLAY CONFIG: EXTERNAL_REQUIRED FOR THE FEATURES THAT ARE ENABLED
+FINAL V1 RC VERDICT: NOT YET CERTIFIED — no false certification until every mandatory intended-release gate is evidenced
 
 IMMEDIATE NEXT ACTION:
-1. Close Android CI + Certified QA + AppLab FULL for STEP 20 and merge only with green evidence.
-2. Execute STEP 21 Batch Data Safety & Recovery Point.
-3. Execute STEP 22 physical notification/media reliability certification.
-4. Complete STEP 23 Play policy, OAuth, Billing and signed Internal Testing configuration.
-5. Run STEP 24 accessibility/UX certification and STEP 25 performance/battery stability.
-6. Promote STEP 26 only from an immutable signed release candidate with all mandatory gates green.
+1. Re-run Android CI + Certified QA + AppLab FULL + AppLab RC from this updated immutable head.
+2. Fix every reproducible automated failure before merge.
+3. Merge only when automated gates are green.
+4. Produce the QA Premium/RC evidence artifacts.
+5. Complete physical-device and Play/Internal Testing evidence before changing the final verdict to CERTIFIED.
 
-END ROADMAP v1.7.0
+END ROADMAP v1.8.0
