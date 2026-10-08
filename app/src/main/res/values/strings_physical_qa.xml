@@ -12,4 +12,6 @@
     <string name="photo_scope_full">full library</string>
     <string name="photo_scope_selected_only">selected photos only</string>
     <string name="photo_scope_none">none</string>
+    <string name="physical_qa_pipeline_perf">Pipeline: queue %1$d (peak %2$d) · processed %3$d · avg %4$d ms · max %5$d ms · slow %6$d</string>
+    <string name="physical_qa_media_perf">Media recovery: signals %1$d · runs %2$d · avg %3$d ms · max %4$d ms · pending %5$d</string>
 </resources>
