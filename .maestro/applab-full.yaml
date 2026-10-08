@@ -16,7 +16,7 @@ appId: com.riccardopinato.notificationcontrol
 - tapOn: "Search apps"
 - inputText: "Settings"
 - assertVisible: "Settings"
-- tapOn: "Settings"
+- tapOn: "Monitor Settings"
 - pressKey: BACK
 - tapOn: "Finish setup"
 
