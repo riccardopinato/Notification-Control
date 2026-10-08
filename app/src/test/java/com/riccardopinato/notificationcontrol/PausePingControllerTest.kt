@@ -9,6 +9,24 @@ import org.junit.Test
 
 class PausePingControllerTest {
     @Test
+    fun delayedEmissionAnchorsCooldownAtActualEmissionTime() {
+        val controller = PausePingController(
+            enabledProvider = { true },
+            cooldownSecondsProvider = { 20 }
+        )
+        val reservation =
+            controller.evaluateAndReserve("com.example", false, 1_000L).reservation!!
+        controller.confirmVisualAlert(reservation, now = 9_000L)
+
+        assertTrue(
+            controller.evaluateAndReserve("com.example", false, 20_000L).suppress
+        )
+        assertFalse(
+            controller.evaluateAndReserve("com.example", false, 29_001L).suppress
+        )
+    }
+
+    @Test
     fun burstReservationSuppressesSecondAlertBeforeAsyncEmission() {
         val controller = PausePingController(
             enabledProvider = { true },
@@ -41,7 +59,7 @@ class PausePingControllerTest {
         )
 
         val emitted = controller.evaluateAndReserve("com.other", false, 3_000L)
-        controller.confirmVisualAlert(emitted.reservation!!)
+        controller.confirmVisualAlert(emitted.reservation!!, 3_000L)
         assertTrue(
             controller.evaluateAndReserve("com.other", false, 4_000L).suppress
         )
@@ -60,7 +78,7 @@ class PausePingControllerTest {
             budgetMaxAlertsProvider = { 1 }
         )
         val first = controller.evaluateAndReserve("com.example", false, 1_000L)
-        controller.confirmVisualAlert(first.reservation!!)
+        controller.confirmVisualAlert(first.reservation!!, 1_000L)
         assertFalse(
             controller.evaluateAndReserve("com.example", false, 3_000L).suppress
         )
@@ -77,7 +95,7 @@ class PausePingControllerTest {
             budgetWindowMinutesProvider = { 30 }
         )
         val first = controller.evaluateAndReserve("com.example", false, 1_000L)
-        controller.confirmVisualAlert(first.reservation!!)
+        controller.confirmVisualAlert(first.reservation!!, 1_000L)
 
         val second = controller.evaluateAndReserve("com.example", false, 3_000L)
         assertFalse(second.suppress)
@@ -89,7 +107,7 @@ class PausePingControllerTest {
         val replacement =
             controller.evaluateAndReserve("com.example", false, 5_001L)
         assertFalse(replacement.suppress)
-        controller.confirmVisualAlert(replacement.reservation!!)
+        controller.confirmVisualAlert(replacement.reservation!!, 5_001L)
         assertTrue(
             controller.evaluateAndReserve("com.example", false, 7_000L).suppress
         )
@@ -106,7 +124,7 @@ class PausePingControllerTest {
             budgetWindowMinutesProvider = { 1 }
         )
         val first = controller.evaluateAndReserve("com.example", false, 1_000L)
-        controller.confirmVisualAlert(first.reservation!!)
+        controller.confirmVisualAlert(first.reservation!!, 1_000L)
         assertTrue(
             controller.evaluateAndReserve("com.example", false, 3_000L).suppress
         )
@@ -130,7 +148,7 @@ class PausePingControllerTest {
 
         val normal = controller.evaluateAndReserve("com.example", false, 2_000L)
         assertFalse(normal.suppress)
-        controller.confirmVisualAlert(normal.reservation!!)
+        controller.confirmVisualAlert(normal.reservation!!, 2_000L)
         assertTrue(
             controller.evaluateAndReserve("com.example", false, 3_000L).suppress
         )
@@ -174,9 +192,9 @@ class PausePingControllerTest {
         }
         val first = createController()
         val one = first.evaluateAndReserve("com.example", false, 1_000L)
-        first.confirmVisualAlert(one.reservation!!)
+        first.confirmVisualAlert(one.reservation!!, 1_000L)
         val two = first.evaluateAndReserve("com.example", false, 3_000L)
-        first.confirmVisualAlert(two.reservation!!)
+        first.confirmVisualAlert(two.reservation!!, 3_000L)
 
         val recreated = createController()
         assertTrue(

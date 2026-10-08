@@ -135,14 +135,17 @@ class PausePingController(
         }
     }
 
-    fun confirmVisualAlert(reservation: VisualAlertReservation) {
+    fun confirmVisualAlert(
+        reservation: VisualAlertReservation,
+        now: Long = System.currentTimeMillis()
+    ) {
         val lock = packageLocks.computeIfAbsent(reservation.packageName) { Any() }
         synchronized(lock) {
             if (pendingReservations.remove(reservation.id) == null) return
 
             lastAlertAt.merge(
                 reservation.packageName,
-                reservation.timestamp,
+                now,
                 ::maxOf
             )
             if (reservation.budgetReserved) {
@@ -150,8 +153,8 @@ class PausePingController(
                     reservation.packageName
                 ) { ArrayDeque() }
                 synchronized(history) {
-                    pruneHistory(history, reservation.timestamp, budgetWindowMs())
-                    history.addLast(reservation.timestamp)
+                    pruneHistory(history, now, budgetWindowMs())
+                    history.addLast(now)
                     while (history.size > MAX_BUDGET_ALERTS) history.removeFirst()
                 }
                 persistBudgetHistory()
