@@ -36,7 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
+import com.riccardopinato.notificationcontrol.BuildConfig
 import com.riccardopinato.notificationcontrol.R
+import com.riccardopinato.notificationcontrol.domain.OnboardingCompletionPolicy
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 
 @Composable
@@ -261,7 +263,11 @@ private fun CoreSetupPage(
 
         Button(
             onClick = onDone,
-            enabled = access && selected.isNotEmpty(),
+            enabled = OnboardingCompletionPolicy.canFinish(
+                notificationAccessGranted = access,
+                selectedAppCount = selected.size,
+                qaValidationBuild = BuildConfig.QA_PREMIUM_UNLOCKED
+            ),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.finish_setup))

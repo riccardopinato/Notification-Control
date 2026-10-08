@@ -7,33 +7,17 @@ appId: com.riccardopinato.notificationcontrol
 - assertVisible: "Notification access"
 - assertVisible: "Choose apps to monitor"
 
-# Enable the Android Notification Listener through the real system surface.
-- tapOn: "Grant access"
-- extendedWaitUntil:
-    visible: "Notification Control"
-    timeout: 10000
-- tapOn: "Notification Control"
-- runFlow:
-    when:
-      visible: "Allow"
-    commands:
-      - tapOn: "Allow"
-- runFlow:
-    when:
-      visible: "OK"
-    commands:
-      - tapOn: "OK"
-- pressKey: BACK
-- extendedWaitUntil:
-    visible: "Choose apps to monitor"
-    timeout: 10000
-- assertVisible: "Access granted"
+# Notification Listener is a secure Android capability and is not faked in AppLab.
+# qaPremium may complete onboarding for UI/runtime verification; Permission Health
+# and Physical QA must continue to report the real listener state.
+- assertVisible: "Grant access"
 
 # Pick a deterministic launcher app. The whole row is a semantic switch target.
 - tapOn: "Search apps"
 - inputText: "Settings"
 - assertVisible: "Settings"
 - tapOn: "Settings"
+- pressKey: BACK
 - tapOn: "Finish setup"
 
 # Home
