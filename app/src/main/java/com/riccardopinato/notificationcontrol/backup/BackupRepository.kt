@@ -312,13 +312,13 @@ class BackupRepository(context: Context) {
             }
             output.fd.sync()
             atomicFile.finishWrite(output)
-            require(staged.delete() || !staged.exists()) {
-                "Unable to remove promoted Recovery Point metadata staging file"
-            }
         } catch (error: Throwable) {
             atomicFile.failWrite(output)
             throw error
         }
+        // Deletion happens after the AtomicFile commit. If process death occurs
+        // here, startup reconciliation safely replays the same metadata.
+        runCatching { staged.delete() }
         return true
     }
 
@@ -546,9 +546,17 @@ class BackupRepository(context: Context) {
         }
 
     private fun recoveryMediaSources(root: JSONObject): RecoveryMediaSources? {
+        if (!root.optBoolean("recoveryPoint", false)) return null
+        val operationId = root.optString("recoveryPointOperationId")
+        require(RECOVERY_OPERATION_ID.matches(operationId)) {
+            "Invalid Recovery Point operation"
+        }
         val directoryName = root.optString("recoveryMediaDir").takeIf { it.isNotBlank() }
             ?: return null
-        require(RECOVERY_MEDIA_DIRECTORY.matches(directoryName)) {
+        require(
+            RECOVERY_MEDIA_DIRECTORY.matches(directoryName) &&
+                directoryName == "media-$operationId"
+        ) {
             "Invalid Recovery Point media directory"
         }
         val rootDirectory = recoveryPointRootDirectory().canonicalFile
@@ -579,11 +587,14 @@ class BackupRepository(context: Context) {
             ) {
                 "Recovery Point media file is missing or invalid"
             }
-            when (kind) {
-                RECOVERY_MEDIA_NOTIFICATION -> notifications[key] = file
-                RECOVERY_MEDIA_REVISION -> revisions[key] = file
-                RECOVERY_MEDIA_RESCUE -> rescue[key] = file
+            val target = when (kind) {
+                RECOVERY_MEDIA_NOTIFICATION -> notifications
+                RECOVERY_MEDIA_REVISION -> revisions
+                RECOVERY_MEDIA_RESCUE -> rescue
                 else -> error("Unsupported Recovery Point media kind")
+            }
+            require(target.put(key, file) == null) {
+                "Duplicate Recovery Point media entry"
             }
         }
         return RecoveryMediaSources(notifications, revisions, rescue)
