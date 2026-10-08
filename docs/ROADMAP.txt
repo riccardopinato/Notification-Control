@@ -1,5 +1,5 @@
-NOTIFICATION CONTROL — ROADMAP v1.9.0
-Date: 2026-10-04
+NOTIFICATION CONTROL — ROADMAP v1.10.0
+Date: 2026-10-08
 Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
 
 PHASE 0 — DONOR AUDIT & BASELINE
@@ -325,7 +325,8 @@ Merge baseline: b657b86d7fee45be2919c5eb16142f3ba0f485ea
 - test dedicati a burst one-to-one, ambiguità, generation checkpoint, perceptual-hash e migrazione 10→11
 
 STEP 20 — MASTER v21 DEEP AUDIT + APPLAB TRUSTED GATE
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: 2b0d189416a1ca416b12f27ee701838ce0079cd4
 - audit against Master Prompt v21 SLIM, Golden Rules, Product Bible, project rules and implementation truth
 - AppLab FULL native Android gate pinned to immutable AppLab SHA
 - trusted runtime coverage for launch/visual/system, persistence, lifecycle, process death, background/Doze and storage integrity where supported
@@ -338,7 +339,8 @@ IMPLEMENTED / VALIDATION
 - README/docs aligned to current Room schema and evidence boundaries
 
 STEP 20.1 — PREMIUM WHATSAPP MEDIA PACKAGING
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: 2b0d189416a1ca416b12f27ee701838ce0079cd4
 - nuova acquisizione e archiviazione delle preview media è Premium
 - notification-direct media capture, MediaStore recovery, SAF fallback e Media Rescue restano sulla pipeline Step 19/19.2 già validata
 - configurazione del folder SAF e permessi recovery non vengono offerti al Free
@@ -346,7 +348,8 @@ IMPLEMENTED / VALIDATION
 - nessun nuovo listener, nessuna duplicazione storage, nessun accesso a database/storage privato WhatsApp
 
 STEP 21 — PREMIUM NOTIFICATION BUDGET
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED
+Merge baseline: 2b0d189416a1ca416b12f27ee701838ce0079cd4
 - Free conserva Pausa Ping globale
 - Premium mantiene cooldown/esenzione per singola app
 - Premium aggiunge limite di avvisi visivi per app in finestra mobile configurabile
@@ -358,7 +361,8 @@ IMPLEMENTED / VALIDATION
 - entitlement sempre centralizzato tramite Play Billing/AppSettings
 
 STEP 22 — PREMIUM BATCH DATA SAFETY & RECOVERY POINT
-IMPLEMENTED / AUTOMATED VALIDATION
+COMPLETED / MERGED + AUTOMATED VALIDATION
+Merge baseline: 2b0d189416a1ca416b12f27ee701838ce0079cd4
 - Premium crea automaticamente un Recovery Point protetto prima di un restore manuale: metadata AES-GCM + media sidecar nello storage privato app
 - un solo Recovery Point rotante nello storage privato: niente accumulo illimitato di copie
 - backup/export manuale resta disponibile per ownership dei dati anche senza Premium
@@ -373,7 +377,8 @@ IMPLEMENTED / AUTOMATED VALIDATION
 - EN/IT/ES/FR/PT aggiornati
 
 STEP 23 — PHYSICAL NOTIFICATION & MEDIA RELIABILITY CERTIFICATION
-TOOLING IMPLEMENTED / PHYSICAL EVIDENCE REQUIRED
+TOOLING MERGED / PHYSICAL EVIDENCE REQUIRED
+Merge baseline: 2b0d189416a1ca416b12f27ee701838ce0079cd4
 - QA probe locale per manufacturer/model/API, Notification Listener permission/connection, timestamp eventi e riconciliazione
 - classificazione Android 14+ FULL / SELECTED_ONLY / NONE per accesso foto
 - stato SAF WhatsApp e MediaStore version/generation esposto solo in build QA/debug
@@ -385,7 +390,8 @@ TOOLING IMPLEMENTED / PHYSICAL EVIDENCE REQUIRED
 - VERDETTO STEP 23: MANUAL_REQUIRED finché manca evidenza dai device fisici
 
 STEP 24 — PLAY POLICY + IDENTITY + BILLING RELEASE READINESS
-IMPLEMENTED IN CODE / EXTERNAL CONFIG REQUIRED
+CODE MERGED / EXTERNAL CONFIG REQUIRED
+Merge baseline: 2b0d189416a1ca416b12f27ee701838ce0079cd4
 - release pubblica v1 passa al percorso least-privilege: media dalla notifica + SAF esplicito
 - release manifest rimuove READ_MEDIA_IMAGES, READ_MEDIA_VISUAL_USER_SELECTED e READ_EXTERNAL_STORAGE
 - MediaStore broad-access resta abilitato in QA/debug per test, disabilitato in release via BuildConfig
@@ -400,7 +406,8 @@ IMPLEMENTED IN CODE / EXTERNAL CONFIG REQUIRED
 - signed Google profile + purchase/restore reali devono essere verificati su Play/Internal Testing prima della release pubblica
 
 STEP 25 — ACCESSIBILITY, UX & PERMISSION HEALTH CERTIFICATION
-IMPLEMENTED / AUTOMATED VALIDATION
+COMPLETED / MERGED + AUTOMATED VALIDATION
+Merge baseline: 2b0d189416a1ca416b12f27ee701838ce0079cd4
 - Permission Health distingue OK / Parziale / Azione richiesta / Non necessario
 - Notification Access distingue permesso concesso da listener realmente connesso
 - Android 14+ selected-photo viene mostrato come stato parziale, non come accesso completo
@@ -414,13 +421,18 @@ IMPLEMENTED / AUTOMATED VALIDATION
 - AppLab FULL resta gate runtime/visuale; TalkBack reale e font-scale estremo restano da includere nella regressione fisica finale
 
 STEP 26 — PERFORMANCE, BATTERY & LONG-RUN STABILITY
-PLANNED
-- Macrobenchmark cold/warm start and jank on controlled physical device
-- notification hot-path latency and Room query profiling under large Vault
-- WorkManager/ContentObserver battery and wakeup audit
-- Doze/App Standby/reboot soak tests for Follow Up, Critical and media recovery
-- APK/AAB size budget and dependency review
-- memory/leak check around thumbnails, overlays, sensors and notification bursts
+IMPLEMENTED / VALIDATION
+- runtime telemetry QA/perf: queue depth/high-water, command latency, slow-command count and media-recovery timing
+- release build keeps performance diagnostics disabled; no analytics/network telemetry added
+- MediaStore recovery coalesced: 250 ms after notification registration, 750 ms after observer changes
+- WorkManager media recovery switched from REPLACE to KEEP to avoid retry-chain churn/wakeup amplification
+- rescue cleanup in media worker deferred until pending recovery is drained; periodic retention still owns regular cleanup
+- large-Vault query-plan/profile regression test seeds 5,000 events and verifies capture/paging indexes
+- Macrobenchmark harness covers cold start, warm start, regular jank and sustained navigation/Vault scrolling
+- Certified QA enforces binary size budget: release APK <= 8 MiB, AAB <= 12 MiB
+- dedicated protocol: docs/STEP_26_PERFORMANCE_STABILITY.md
+- AppLab resource/background/process-death/performance evidence remains part of FULL
+- physical Xiaomi/Samsung macrobenchmark, battery/Doze/reboot soak and extended memory/leak observation remain MANUAL_REQUIRED
 
 STEP 27 — V1.0 RELEASE CANDIDATE CERTIFICATION
 PLANNED
@@ -442,19 +454,20 @@ EXTERNAL CONFIGURATION STILL REQUIRED:
 - repository branch protection/ruleset: configure required checks on main if not already enforced
 
 CURRENT RELEASE VERDICT:
-AUTOMATED CORE: PASS
-CERTIFIED AUTOMATION: PASS
-APPLAB FULL: VALIDATION_IN_PROGRESS
+AUTOMATED CORE (merged baseline 2b0d189): PASS
+CERTIFIED AUTOMATION (merged baseline 2b0d189): PASS
+APPLAB FULL (source SHA 9e3cb8c): PASS
+STEP 26 AUTOMATION: VALIDATION_IN_PROGRESS
 PHYSICAL DEVICE: MANUAL_REQUIRED
 LIVE GOOGLE/PLAY CONFIG: REQUIRED
 BRANCH GOVERNANCE: MANUAL_REQUIRED
-FINAL INTENDED-RELEASE VERDICT: BLOCKED until AppLab/device/store/governance gates are completed
+FINAL INTENDED-RELEASE VERDICT: BLOCKED until Step 26 validation + device/store/governance gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Run final Android CI + Certified QA + AppLab FULL on the immutable Steps 20.1–25 head and merge only if green.
-2. Keep STEP 23 physical certification MANUAL_REQUIRED until Xiaomi/Samsung/Android 14+ evidence is collected.
+1. Run Android CI + Certified QA + AppLab FULL on Step 26 and merge only if green.
+2. Execute STEP 23 + STEP 26 physical evidence on Xiaomi/Samsung/Android 14+.
 3. Complete external OAuth + Play product/signing/Internal Testing configuration from STEP 24.
-4. Execute STEP 26 performance, battery and long-run stability.
+4. Review Step 26 telemetry/size/macrobenchmark evidence; fix real regressions before RC.
 5. Promote STEP 27 only from a signed immutable release candidate with mandatory automated + physical + store gates satisfied.
 
 END ROADMAP v1.9.0
