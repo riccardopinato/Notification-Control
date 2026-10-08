@@ -29,5 +29,5 @@
     <string name="recovery_point_rollback_body">Ripristina Vault locale, automazioni, impostazioni e stato media transitorio salvati subito prima dell’ultimo ripristino. Usa la stessa password del backup.</string>
     <string name="recovery_point_rollback_success">Ultimo ripristino annullato correttamente.</string>
     <string name="recovery_point_rollback_warnings">Recovery Point ripristinato, ma %1$d operazioni di manutenzione successive richiedono attenzione.</string>
-    <string name="recovery_point_premium">Premium crea automaticamente un Recovery Point cifrato prima del ripristino e permette di annullare l’ultimo ripristino.</string>
+    <string name="recovery_point_premium">Premium crea automaticamente un Recovery Point protetto prima del ripristino: i metadati sono cifrati e i media restano nello storage privato dell’app. Puoi annullare l’ultimo ripristino.</string>
 </resources>
