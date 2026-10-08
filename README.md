@@ -12,14 +12,14 @@ Android notification-control utility built around **Single Capture / Single Vaul
 - Notification Undo history semantics without falsely treating every removal as sender deletion
 - Rules Engine, Critical Alert, Pausa Ping, Follow Up and Pickup Code
 - Pausa Ping Free global cooldown plus Premium per-app rolling Notification Budget for Notification Control visual alerts
-- Premium encrypted rotating Recovery Point before restore, with one-step rollback of the last restore
+- Premium rotating protected Recovery Point before restore, with AES-GCM encrypted metadata, app-private media sidecars and one-step rollback of the last restore
 - Luminous visual-alert module with Free baseline and Premium app/sender profiles
 - optional Google profile identity via Credential Manager/Google ID 1.1.1 + stable sub/email token claims, separated from Vault security and Premium
 - biometric/device-credential Vault gate
 - streamlined core-only onboarding with sideload/restricted-settings recovery
 - lazy screen-scoped data subscriptions and deferred heavy initialization for smoother runtime
 - serialized notification hot path with reactive Rules/Critical/Luminous caches
-- Paging 3 Vault with indexed Room v11 queries and incremental message FTS
+- Paging 3 Vault with indexed Room v12 queries, transactional restore journal and incremental message FTS
 - hardware-friendly Luminous renderer and on-demand WorkManager startup
 - Luminous overlay compatibility preserved down to minSdk 24
 - optimized installable `perfTest` APK plus Macrobenchmark performance harness
