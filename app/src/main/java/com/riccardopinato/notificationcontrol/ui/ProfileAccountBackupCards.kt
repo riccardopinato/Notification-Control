@@ -114,10 +114,13 @@ fun GoogleAccountCard() {
     }
 }
 
-private enum class BackupDialogMode { EXPORT, RESTORE }
+private enum class BackupDialogMode { EXPORT, RESTORE, ROLLBACK }
 
 @Composable
-fun EncryptedBackupCard(onBackupRestored: () -> Unit) {
+fun EncryptedBackupCard(
+    isPremium: Boolean,
+    onBackupRestored: () -> Unit
+) {
     val context = LocalContext.current
     val repository = remember(context) { BackupRepository(context) }
     val scope = rememberCoroutineScope()
@@ -125,6 +128,7 @@ fun EncryptedBackupCard(onBackupRestored: () -> Unit) {
     var dialogMode by remember { mutableStateOf<BackupDialogMode?>(null) }
     var pendingPassphrase by remember { mutableStateOf("") }
     var statusText by remember { mutableStateOf<String?>(null) }
+    var recoveryPoint by remember { mutableStateOf(repository.recoveryPointInfo()) }
 
     val createDocument = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/octet-stream")
@@ -173,6 +177,7 @@ fun EncryptedBackupCard(onBackupRestored: () -> Unit) {
             statusText = result.fold(
                 onSuccess = {
                     onBackupRestored()
+                    recoveryPoint = repository.recoveryPointInfo()
                     if (it.warnings > 0) {
                         context.getString(
                             R.string.backup_restore_success_with_warnings,
@@ -229,6 +234,36 @@ fun EncryptedBackupCard(onBackupRestored: () -> Unit) {
                     modifier = Modifier.padding(top = 8.dp)
                 )
             }
+            if (isPremium) {
+                Text(
+                    stringResource(R.string.recovery_point_title),
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                Text(
+                    if (recoveryPoint.available) {
+                        stringResource(R.string.recovery_point_available)
+                    } else {
+                        stringResource(R.string.recovery_point_empty)
+                    },
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (recoveryPoint.available) {
+                    TextButton(
+                        onClick = { dialogMode = BackupDialogMode.ROLLBACK },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(stringResource(R.string.recovery_point_rollback))
+                    }
+                }
+            } else {
+                Text(
+                    stringResource(R.string.recovery_point_premium),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 10.dp)
+                )
+            }
             Text(
                 stringResource(R.string.backup_password_warning),
                 style = MaterialTheme.typography.labelSmall,
@@ -244,10 +279,40 @@ fun EncryptedBackupCard(onBackupRestored: () -> Unit) {
             onConfirm = { passphrase ->
                 pendingPassphrase = passphrase
                 dialogMode = null
-                if (mode == BackupDialogMode.EXPORT) {
-                    createDocument.launch("notification-control-backup.ncb")
-                } else {
-                    openDocument.launch(arrayOf("*/*"))
+                when (mode) {
+                    BackupDialogMode.EXPORT ->
+                        createDocument.launch("notification-control-backup.ncb")
+                    BackupDialogMode.RESTORE ->
+                        openDocument.launch(arrayOf("*/*"))
+                    BackupDialogMode.ROLLBACK -> {
+                        val chars = passphrase.toCharArray()
+                        scope.launch {
+                            val result = try {
+                                withContext(Dispatchers.IO) {
+                                    repository.rollbackLastRestore(chars)
+                                }
+                            } finally {
+                                chars.fill('\u0000')
+                            }
+                            statusText = result.fold(
+                                onSuccess = {
+                                    onBackupRestored()
+                                    recoveryPoint = repository.recoveryPointInfo()
+                                    if (it.warnings > 0) {
+                                        context.getString(
+                                            R.string.recovery_point_rollback_warnings,
+                                            it.warnings
+                                        )
+                                    } else {
+                                        context.getString(R.string.recovery_point_rollback_success)
+                                    }
+                                },
+                                onFailure = {
+                                    context.getString(R.string.backup_operation_failed)
+                                }
+                            )
+                        }
+                    }
                 }
             }
         )
@@ -263,26 +328,27 @@ private fun BackupPassphraseDialog(
     var passphrase by remember { mutableStateOf("") }
     var confirmation by remember { mutableStateOf("") }
     val export = mode == BackupDialogMode.EXPORT
+    val rollback = mode == BackupDialogMode.ROLLBACK
     val valid = passphrase.length >= 8 && (!export || passphrase == confirmation)
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                if (export) {
-                    stringResource(R.string.backup_export)
-                } else {
-                    stringResource(R.string.backup_restore)
+                when {
+                    export -> stringResource(R.string.backup_export)
+                    rollback -> stringResource(R.string.recovery_point_rollback)
+                    else -> stringResource(R.string.backup_restore)
                 }
             )
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    if (export) {
-                        stringResource(R.string.backup_export_dialog_body)
-                    } else {
-                        stringResource(R.string.backup_restore_dialog_body)
+                    when {
+                        export -> stringResource(R.string.backup_export_dialog_body)
+                        rollback -> stringResource(R.string.recovery_point_rollback_body)
+                        else -> stringResource(R.string.backup_restore_dialog_body)
                     }
                 )
                 OutlinedTextField(
@@ -324,10 +390,10 @@ private fun BackupPassphraseDialog(
                 enabled = valid
             ) {
                 Text(
-                    if (export) {
-                        stringResource(R.string.backup_export)
-                    } else {
-                        stringResource(R.string.backup_restore)
+                    when {
+                        export -> stringResource(R.string.backup_export)
+                        rollback -> stringResource(R.string.recovery_point_rollback)
+                        else -> stringResource(R.string.backup_restore)
                     }
                 )
             }

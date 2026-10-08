@@ -299,6 +299,7 @@ class PlayBillingManager private constructor(context: Context) : PurchasesUpdate
             _state.value = _state.value.copy(
                 offers = offers.sortedWith(
                     compareBy<PremiumOffer> { it.isLifetime }
+                        .thenBy { BillingProducts.basePlanRank(it.planLabel) }
                         .thenBy { it.planLabel }
                 )
             )

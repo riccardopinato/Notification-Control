@@ -33,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.riccardopinato.notificationcontrol.R
@@ -99,6 +101,9 @@ fun RulesScreen(
     onDeleteLuminousProfile: (Long) -> Unit,
     onPausePingEnabled: (Boolean) -> Unit,
     onPausePingCooldown: (Int) -> Unit,
+    onPausePingBudgetEnabled: (Boolean) -> Unit,
+    onPausePingBudgetMaxAlerts: (Int) -> Unit,
+    onPausePingBudgetWindowMinutes: (Int) -> Unit,
     onPausePingAppCooldown: (String, Int) -> Unit,
     onRemovePausePingAppCooldown: (String) -> Unit,
     setFlash: (Boolean) -> Unit,
@@ -121,6 +126,12 @@ fun RulesScreen(
     var pausePingAppSeconds by remember { mutableStateOf(30f) }
     var pausePingGlobalSeconds by remember(state.pausePingCooldownSeconds) {
         mutableStateOf(state.pausePingCooldownSeconds.toFloat())
+    }
+    var pausePingBudgetMax by remember(state.pausePingBudgetMaxAlerts) {
+        mutableStateOf(state.pausePingBudgetMaxAlerts.toFloat())
+    }
+    var pausePingBudgetWindow by remember(state.pausePingBudgetWindowMinutes) {
+        mutableStateOf(state.pausePingBudgetWindowMinutes.toFloat())
     }
     val appLabels = remember(apps) {
         apps.associate { it.packageName to it.label }
@@ -307,6 +318,79 @@ fun RulesScreen(
                         },
                         valueRange = 5f..120f
                     )
+
+                    if (state.isPremium) {
+                        val budgetTitle = stringResource(R.string.pause_ping_budget_title)
+                        Row(
+                            Modifier.fillMaxWidth().padding(top = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    budgetTitle,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Text(
+                                    stringResource(R.string.pause_ping_budget_body),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                            Switch(
+                                checked = state.pausePingBudgetEnabled,
+                                onCheckedChange = onPausePingBudgetEnabled,
+                                modifier = Modifier.semantics {
+                                    contentDescription = budgetTitle
+                                }
+                            )
+                        }
+                        if (state.pausePingBudgetEnabled) {
+                            val budgetMaxLabel = stringResource(
+                                R.string.pause_ping_budget_max,
+                                pausePingBudgetMax.toInt()
+                            )
+                            Text(
+                                budgetMaxLabel,
+                                modifier = Modifier.padding(top = 6.dp)
+                            )
+                            Slider(
+                                value = pausePingBudgetMax,
+                                onValueChange = { pausePingBudgetMax = it },
+                                onValueChangeFinished = {
+                                    onPausePingBudgetMaxAlerts(pausePingBudgetMax.toInt())
+                                },
+                                valueRange = 1f..10f,
+                                steps = 8,
+                                modifier = Modifier.semantics {
+                                    contentDescription = budgetMaxLabel
+                                }
+                            )
+                            val budgetWindowLabel = stringResource(
+                                R.string.pause_ping_budget_window,
+                                pausePingBudgetWindow.toInt()
+                            )
+                            Text(budgetWindowLabel)
+                            Slider(
+                                value = pausePingBudgetWindow,
+                                onValueChange = { pausePingBudgetWindow = it },
+                                onValueChangeFinished = {
+                                    onPausePingBudgetWindowMinutes(
+                                        pausePingBudgetWindow.toInt()
+                                    )
+                                },
+                                valueRange = 5f..120f,
+                                modifier = Modifier.semantics {
+                                    contentDescription = budgetWindowLabel
+                                }
+                            )
+                        }
+                    } else {
+                        Text(
+                            stringResource(R.string.pause_ping_budget_premium_required),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
 
                     if (state.isPremium) {
                         Text(

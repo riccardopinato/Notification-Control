@@ -1,0 +1,8 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- scrollUntilVisible:
+    element:
+      text: "Physical QA diagnostics"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Physical QA diagnostics"

@@ -1,0 +1,110 @@
+appId: com.riccardopinato.notificationcontrol
+---
+# AppLab launches the freshly installed qaPremium APK before this flow.
+# This journey deliberately verifies the real onboarding and all primary screen families.
+- assertVisible: "Your notifications. Under your control."
+- tapOn: "Start"
+- assertVisible: "Notification access"
+- assertVisible: "Choose apps to monitor"
+
+# Notification Listener is a secure Android capability and is not faked in AppLab.
+# qaPremium may complete onboarding for UI/runtime verification; Permission Health
+# and Physical QA must continue to report the real listener state.
+- assertVisible: "Grant access"
+
+# Pick a deterministic launcher app. The whole row is a semantic switch target.
+- tapOn: "Search apps"
+- inputText: "Settings"
+- assertVisible: "Settings"
+- tapOn: "Monitor Settings"
+- pressKey: BACK
+- tapOn: "Finish setup"
+
+# Home
+- extendedWaitUntil:
+    visible: "Notification Control"
+    timeout: 10000
+- assertVisible: "Notification listener"
+- assertVisible: "Configure apps"
+- tapOn: "Configure apps"
+- assertVisible: "Search apps"
+- pressKey: BACK
+- assertVisible: "Notification Control"
+
+# Vault
+- tapOn: "Vault"
+- assertVisible: "Local Vault"
+- assertVisible: "Search Vault"
+- assertVisible: "No captured notifications yet."
+
+# Follow Up
+- tapOn: "Follow Up"
+- assertVisible: "To handle"
+- assertVisible: "Nothing pending."
+
+# Rules and rule editor
+- tapOn: "Rules"
+- assertVisible: "Rules & alerts"
+- assertVisible: "Add rule"
+- tapOn: "Add rule"
+- assertVisible: "Rule name"
+- assertVisible: "Any app"
+- tapOn: "Cancel"
+- assertVisible: "Rules & alerts"
+
+# Premium notification budget and the embedded Luminous sub-screen.
+- scrollUntilVisible:
+    element:
+      text: "Notification Budget"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Notification Budget"
+- scrollUntilVisible:
+    element:
+      text: "Luminous settings"
+    direction: DOWN
+    timeout: 15000
+- tapOn: "Luminous settings"
+- assertVisible: "Luminous visual alerts"
+- assertVisible: "Camera flash"
+- assertVisible: "Luminous screen overlay"
+- tapOn: "Back"
+- assertVisible: "Rules & alerts"
+
+# Profile, Premium, encrypted recovery, capability truth and QA diagnostics.
+- tapOn: "Profile"
+- assertVisible: "Profile & control center"
+- scrollUntilVisible:
+    element:
+      text: "Notification Control Premium"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Notification Control Premium"
+- scrollUntilVisible:
+    element:
+      text: "Encrypted backup"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Encrypted backup"
+- assertVisible: "Premium Recovery Point"
+- scrollUntilVisible:
+    element:
+      text: "Permission health"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Permission health"
+- scrollUntilVisible:
+    element:
+      text: "Physical QA diagnostics"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Physical QA diagnostics"
+
+# App state must survive a normal stop/relaunch without repeating onboarding.
+- stopApp
+- launchApp:
+    clearState: false
+- extendedWaitUntil:
+    visible: "Notification Control"
+    timeout: 10000
+- assertNotVisible: "Your notifications. Under your control."

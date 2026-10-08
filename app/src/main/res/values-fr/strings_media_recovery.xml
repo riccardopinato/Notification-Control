@@ -12,4 +12,6 @@
     <string name="media_rescue_count">%1$d médias en attente de correspondance sûre</string>
     <string name="media_rescue_confidence">Score des preuves : %1$d</string>
     <string name="media_rescue_remove">Supprimer</string>
+    <string name="whatsapp_media_premium_required">Premium archive les nouveaux aperçus d’images WhatsApp et active la récupération MediaStore/SAF. Les médias déjà archivés restent disponibles après un changement vers Free.</string>
+    <string name="media_rescue_delete_warning">La suppression efface définitivement la copie locale de la boîte de secours. Elle ne pourra plus être récupérée depuis cette section.</string>
 </resources>

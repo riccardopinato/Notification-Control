@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -124,7 +125,12 @@ fun ProfileScreen(
             )
         }
         item { GoogleAccountCard() }
-        item { EncryptedBackupCard(onBackupRestored = onBackupRestored) }
+        item {
+            EncryptedBackupCard(
+                isPremium = state.isPremium,
+                onBackupRestored = onBackupRestored
+            )
+        }
         item { LanguageCard() }
         item {
             SecurityCard(
@@ -172,6 +178,7 @@ fun ProfileScreen(
                 requestOverlayPermission = requestOverlayPermission
             )
         }
+        item { PhysicalQaCard() }
         item {
             MediaRecoverySafetyCard(
                 state = state,
@@ -874,29 +881,41 @@ private fun MediaRecoverySafetyCard(
                 stringResource(R.string.media_rescue_body),
                 style = MaterialTheme.typography.bodySmall
             )
+            Text(
+                stringResource(R.string.media_rescue_delete_warning),
+                style = MaterialTheme.typography.labelSmall
+            )
 
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.whatsapp_folder_fallback))
-                    Text(
-                        stringResource(R.string.whatsapp_folder_fallback_body),
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                TextButton(onClick = requestWhatsAppMediaFolder) {
-                    Text(
-                        stringResource(
-                            if (folderLinked) {
-                                R.string.media_folder_linked
-                            } else {
-                                R.string.media_folder_link
-                            }
+            if (state.isPremium) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.whatsapp_folder_fallback))
+                        Text(
+                            stringResource(R.string.whatsapp_folder_fallback_body),
+                            style = MaterialTheme.typography.bodySmall
                         )
-                    )
+                    }
+                    TextButton(onClick = requestWhatsAppMediaFolder) {
+                        Text(
+                            stringResource(
+                                if (folderLinked) {
+                                    R.string.media_folder_linked
+                                } else {
+                                    R.string.media_folder_link
+                                }
+                            )
+                        )
+                    }
                 }
+            } else {
+                Text(
+                    stringResource(R.string.whatsapp_media_premium_required),
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
 
             if (rescueItems.isEmpty()) {
@@ -945,6 +964,13 @@ private fun MediaRecoverySafetyCard(
     }
 }
 
+private enum class PermissionHealthState {
+    OK,
+    PARTIAL,
+    ACTION_REQUIRED,
+    NOT_NEEDED
+}
+
 @Composable
 private fun PermissionHealthCard(
     state: SettingsUiState,
@@ -966,59 +992,97 @@ private fun PermissionHealthCard(
         Build.VERSION.SDK_INT < 33 ||
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
-    val photoLibraryGranted = if (Build.VERSION.SDK_INT >= 33) {
+    val fullPhotoLibraryGranted = if (Build.VERSION.SDK_INT >= 33) {
         context.checkSelfPermission(Manifest.permission.READ_MEDIA_IMAGES) ==
             PackageManager.PERMISSION_GRANTED
     } else {
         context.checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) ==
             PackageManager.PERMISSION_GRANTED
     }
+    val selectedPhotoAccess =
+        Build.VERSION.SDK_INT >= 34 &&
+            context.checkSelfPermission(
+                Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+            ) == PackageManager.PERMISSION_GRANTED
+
+    val listenerState = when {
+        listenerPermission && health.connected -> PermissionHealthState.OK
+        listenerPermission -> PermissionHealthState.PARTIAL
+        else -> PermissionHealthState.ACTION_REQUIRED
+    }
+    val photoState = when {
+        !state.isPremium || !BuildConfig.MEDIASTORE_RECOVERY_ENABLED ->
+            PermissionHealthState.NOT_NEEDED
+        fullPhotoLibraryGranted -> PermissionHealthState.OK
+        selectedPhotoAccess -> PermissionHealthState.PARTIAL
+        else -> PermissionHealthState.ACTION_REQUIRED
+    }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(stringResource(R.string.permission_health), fontWeight = FontWeight.Bold)
             PermissionHealthRow(
-                stringResource(R.string.notification_access_title),
-                listenerPermission && health.connected,
-                requestNotificationAccess
+                label = stringResource(R.string.notification_access_title),
+                state = listenerState,
+                detail = when (listenerState) {
+                    PermissionHealthState.PARTIAL ->
+                        stringResource(R.string.permission_listener_reconnect_pending)
+                    PermissionHealthState.ACTION_REQUIRED ->
+                        stringResource(R.string.permission_listener_required)
+                    else -> null
+                },
+                onFix = requestNotificationAccess
             )
             PermissionHealthRow(
-                stringResource(R.string.follow_up_notification_permission),
-                reminderNotificationsGranted,
-                requestPostNotifications
+                label = stringResource(R.string.follow_up_notification_permission),
+                state = if (reminderNotificationsGranted) {
+                    PermissionHealthState.OK
+                } else {
+                    PermissionHealthState.ACTION_REQUIRED
+                },
+                detail = if (reminderNotificationsGranted) {
+                    null
+                } else {
+                    stringResource(R.string.permission_notifications_required)
+                },
+                onFix = requestPostNotifications
             )
-            if (state.isPremium) {
-                PermissionHealthRow(
-                    stringResource(R.string.whatsapp_media_access),
-                    photoLibraryGranted,
-                    requestPhotoLibraryPermission
-                )
-                Text(
-                    stringResource(R.string.whatsapp_media_access_body),
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(bottom = 4.dp)
-                )
-            } else {
-                PermissionNotNeededRow(stringResource(R.string.whatsapp_media_access))
-            }
-            if (state.flashEnabled) {
-                PermissionHealthRow(
-                    stringResource(R.string.camera_permission),
-                    cameraGranted,
-                    requestCameraPermission
-                )
-            } else {
-                PermissionNotNeededRow(stringResource(R.string.camera_permission))
-            }
-            if (state.overlayEnabled) {
-                PermissionHealthRow(
-                    stringResource(R.string.overlay_permission),
-                    overlayGranted,
-                    requestOverlayPermission
-                )
-            } else {
-                PermissionNotNeededRow(stringResource(R.string.overlay_permission))
-            }
+            PermissionHealthRow(
+                label = stringResource(R.string.whatsapp_media_access),
+                state = photoState,
+                detail = when (photoState) {
+                    PermissionHealthState.PARTIAL ->
+                        stringResource(R.string.permission_photo_selected_partial)
+                    PermissionHealthState.ACTION_REQUIRED ->
+                        stringResource(R.string.whatsapp_media_access_body)
+                    PermissionHealthState.NOT_NEEDED ->
+                        if (state.isPremium) {
+                            stringResource(R.string.permission_media_saf_release)
+                        } else {
+                            null
+                        }
+                    else -> null
+                },
+                onFix = requestPhotoLibraryPermission
+            )
+            PermissionHealthRow(
+                label = stringResource(R.string.camera_permission),
+                state = when {
+                    !state.flashEnabled -> PermissionHealthState.NOT_NEEDED
+                    cameraGranted -> PermissionHealthState.OK
+                    else -> PermissionHealthState.ACTION_REQUIRED
+                },
+                onFix = requestCameraPermission
+            )
+            PermissionHealthRow(
+                label = stringResource(R.string.overlay_permission),
+                state = when {
+                    !state.overlayEnabled -> PermissionHealthState.NOT_NEEDED
+                    overlayGranted -> PermissionHealthState.OK
+                    else -> PermissionHealthState.ACTION_REQUIRED
+                },
+                onFix = requestOverlayPermission
+            )
         }
     }
 }
@@ -1026,38 +1090,55 @@ private fun PermissionHealthCard(
 @Composable
 private fun PermissionHealthRow(
     label: String,
-    ok: Boolean,
+    state: PermissionHealthState,
+    detail: String? = null,
     onFix: () -> Unit
 ) {
     Row(
-        Modifier.fillMaxWidth(),
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, Modifier.weight(1f))
-        if (ok) {
-            Text(
-                stringResource(R.string.status_ok),
-                color = MaterialTheme.colorScheme.primary
-            )
-        } else {
-            TextButton(onClick = onFix) {
-                Text(stringResource(R.string.fix))
+        Column(Modifier.weight(1f).padding(vertical = 6.dp)) {
+            Text(label)
+            detail?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
         }
-    }
-}
-
-@Composable
-private fun PermissionNotNeededRow(label: String) {
-    Row(
-        Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, Modifier.weight(1f))
-        Text(
-            stringResource(R.string.status_not_needed),
-            style = MaterialTheme.typography.labelMedium
-        )
+        when (state) {
+            PermissionHealthState.OK -> {
+                Text(
+                    stringResource(R.string.status_ok),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            PermissionHealthState.PARTIAL -> {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        stringResource(R.string.status_partial),
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                    TextButton(onClick = onFix) {
+                        Text(stringResource(R.string.fix))
+                    }
+                }
+            }
+            PermissionHealthState.ACTION_REQUIRED -> {
+                TextButton(onClick = onFix) {
+                    Text(stringResource(R.string.fix))
+                }
+            }
+            PermissionHealthState.NOT_NEEDED -> {
+                Text(
+                    stringResource(R.string.status_not_needed),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
     }
 }
 

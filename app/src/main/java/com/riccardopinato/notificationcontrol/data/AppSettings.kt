@@ -220,6 +220,61 @@ class AppSettings(context: Context) {
             )
         }
 
+    var pausePingBudgetEnabled: Boolean
+        get() = prefs.getBoolean(KEY_PAUSE_PING_BUDGET_ENABLED, false)
+        set(value) = prefs.edit { putBoolean(KEY_PAUSE_PING_BUDGET_ENABLED, value) }
+
+    var pausePingBudgetMaxAlerts: Int
+        get() = prefs.getInt(KEY_PAUSE_PING_BUDGET_MAX_ALERTS, 3)
+        set(value) = prefs.edit { putInt(KEY_PAUSE_PING_BUDGET_MAX_ALERTS, value.coerceIn(1, 10)) }
+
+    var pausePingBudgetWindowMinutes: Int
+        get() = prefs.getInt(KEY_PAUSE_PING_BUDGET_WINDOW_MINUTES, 30)
+        set(value) = prefs.edit {
+            putInt(KEY_PAUSE_PING_BUDGET_WINDOW_MINUTES, value.coerceIn(1, 120))
+        }
+
+    var pausePingBudgetHistory: Map<String, List<Long>>
+        get() = prefs.getStringSet(KEY_PAUSE_PING_BUDGET_HISTORY, emptySet())
+            .orEmpty()
+            .mapNotNull { entry ->
+                val separator = entry.lastIndexOf('=')
+                if (separator <= 0 || separator >= entry.lastIndex) {
+                    null
+                } else {
+                    val packageName = entry.substring(0, separator)
+                    val timestamps = entry.substring(separator + 1)
+                        .split(',')
+                        .mapNotNull { it.toLongOrNull() }
+                        .filter { it > 0L }
+                        .distinct()
+                        .sorted()
+                        .takeLast(MAX_PERSISTED_BUDGET_ALERTS)
+                    if (timestamps.isEmpty()) null else packageName to timestamps
+                }
+            }
+            .toMap()
+        set(value) = prefs.edit {
+            putStringSet(
+                KEY_PAUSE_PING_BUDGET_HISTORY,
+                value
+                    .filterKeys(String::isNotBlank)
+                    .mapNotNull { (packageName, timestamps) ->
+                        val normalized = timestamps
+                            .filter { it > 0L }
+                            .distinct()
+                            .sorted()
+                            .takeLast(MAX_PERSISTED_BUDGET_ALERTS)
+                        if (normalized.isEmpty()) {
+                            null
+                        } else {
+                            packageName + "=" + normalized.joinToString(",")
+                        }
+                    }
+                    .toSet()
+            )
+        }
+
     var criticalBypassQuietHours: Boolean
         get() = prefs.getBoolean(KEY_CRITICAL_BYPASS_QUIET, true)
         set(value) = prefs.edit { putBoolean(KEY_CRITICAL_BYPASS_QUIET, value) }
@@ -266,6 +321,11 @@ class AppSettings(context: Context) {
         private const val KEY_PAUSE_PING_ENABLED = "pause_ping_enabled"
         private const val KEY_PAUSE_PING_COOLDOWN = "pause_ping_cooldown_seconds"
         private const val KEY_PAUSE_PING_PER_APP = "pause_ping_per_app_cooldowns"
+        private const val KEY_PAUSE_PING_BUDGET_ENABLED = "pause_ping_budget_enabled"
+        private const val KEY_PAUSE_PING_BUDGET_MAX_ALERTS = "pause_ping_budget_max_alerts"
+        private const val KEY_PAUSE_PING_BUDGET_WINDOW_MINUTES = "pause_ping_budget_window_minutes"
+        private const val KEY_PAUSE_PING_BUDGET_HISTORY = "pause_ping_budget_history"
         private const val KEY_CRITICAL_BYPASS_QUIET = "critical_bypass_quiet_hours"
+        private const val MAX_PERSISTED_BUDGET_ALERTS = 10
     }
 }

@@ -2,4 +2,9 @@
     <string name="pause_ping_per_app_title">Per-app cooldown</string>
     <string name="pause_ping_per_app_body">Premium can override the global cooldown for individual apps. Set 0 to exempt an app from Pausa Ping.</string>
     <string name="pause_ping_no_cooldown">No cooldown</string>
+    <string name="pause_ping_budget_title">Notification Budget</string>
+    <string name="pause_ping_budget_body">Premium limits how many Notification Control visual alerts each app can trigger in a rolling window. Source-app sound and vibration are unchanged.</string>
+    <string name="pause_ping_budget_max">Maximum visual alerts per app: %1$d</string>
+    <string name="pause_ping_budget_window">Rolling window: %1$d min</string>
+    <string name="pause_ping_budget_premium_required">Premium unlocks Notification Budget, per-app cooldowns and exemptions.</string>
 </resources>

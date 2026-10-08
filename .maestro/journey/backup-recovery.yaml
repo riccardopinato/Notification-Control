@@ -1,0 +1,9 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- scrollUntilVisible:
+    element:
+      text: "Encrypted backup"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Encrypted backup"
+- assertVisible: "Premium Recovery Point"

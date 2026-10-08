@@ -1,0 +1,8 @@
+<resources>
+    <string name="status_partial">Parziale</string>
+    <string name="permission_listener_reconnect_pending">L’accesso è concesso, ma il listener non è connesso in questo momento. Apri Accesso notifiche se non si riconnette.</string>
+    <string name="permission_listener_required">L’Accesso notifiche è necessario per la cattura e lo storico del Vault.</string>
+    <string name="permission_notifications_required">Il permesso notifiche è necessario per i promemoria Follow Up e Critical Alert.</string>
+    <string name="permission_photo_selected_partial">Sono disponibili solo le foto selezionate. Il recupero MediaStore automatico richiede la libreria completa nelle build QA; SAF resta disponibile.</string>
+    <string name="permission_media_saf_release">La release pubblica usa i media esposti dalla notifica e la cartella WhatsApp SAF scelta dall’utente; l’accesso ampio alla libreria foto è disattivato di default.</string>
+</resources>

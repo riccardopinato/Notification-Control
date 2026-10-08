@@ -1,5 +1,7 @@
 package com.riccardopinato.notificationcontrol.capture
 
+import com.riccardopinato.notificationcontrol.BuildConfig
+
 import android.Manifest
 import android.app.Notification
 import android.content.ContentUris
@@ -65,6 +67,7 @@ class NotificationMediaStore(private val context: Context) {
     }
 
     fun canRecoverWhatsAppImages(): Boolean {
+        if (!BuildConfig.MEDIASTORE_RECOVERY_ENABLED) return false
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Manifest.permission.READ_MEDIA_IMAGES
         } else {

@@ -1,0 +1,9 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- tapOn: "Cancel"
+- scrollUntilVisible:
+    element:
+      text: "Notification Budget"
+    direction: DOWN
+    timeout: 15000
+- assertVisible: "Notification Budget"

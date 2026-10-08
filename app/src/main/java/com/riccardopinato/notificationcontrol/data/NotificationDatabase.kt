@@ -22,9 +22,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PickupCodeEntity::class,
         LuminousProfileEntity::class,
         MediaRecoveryPendingEntity::class,
-        MediaRescueEntity::class
+        MediaRescueEntity::class,
+        RestoreJournalEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = true
 )
 abstract class NotificationDatabase : RoomDatabase() {
@@ -439,6 +440,21 @@ abstract class NotificationDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS restore_journal (
+                        id INTEGER NOT NULL,
+                        operationId TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun get(context: Context): NotificationDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
@@ -455,7 +471,8 @@ abstract class NotificationDatabase : RoomDatabase() {
                     MIGRATION_7_8,
                     MIGRATION_8_9,
                     MIGRATION_9_10,
-                    MIGRATION_10_11
+                    MIGRATION_10_11,
+                    MIGRATION_11_12
                 )
                 .build()
                 .also { instance = it }

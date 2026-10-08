@@ -22,4 +22,12 @@
     <string name="backup_restore_success">Sauvegarde restaurée : %1$d notifications, %2$d règles, %3$d Follow Ups.</string>
     <string name="backup_operation_failed">Échec de l’opération. Vérifiez le fichier et le mot de passe.</string>
     <string name="backup_restore_success_with_warnings">Sauvegarde restaurée : %1$d notifications, %2$d règles, %3$d suivis. Les données ont bien été validées, mais %4$d opérations de maintenance nécessitent une attention.</string>
+    <string name="recovery_point_title">Point de récupération Premium</string>
+    <string name="recovery_point_available">Un point de récupération protégé contient l’état précédant la dernière restauration.</string>
+    <string name="recovery_point_empty">Aucun point de récupération disponible. Premium en crée automatiquement un avant chaque restauration.</string>
+    <string name="recovery_point_rollback">Annuler la dernière restauration</string>
+    <string name="recovery_point_rollback_body">Restaure le Vault local, les automatisations, les réglages et l’état média transitoire enregistrés juste avant la dernière restauration. Utilisez le même mot de passe de sauvegarde.</string>
+    <string name="recovery_point_rollback_success">Dernière restauration annulée avec succès.</string>
+    <string name="recovery_point_rollback_warnings">Point de récupération restauré, mais %1$d opération(s) de maintenance nécessitent une attention.</string>
+    <string name="recovery_point_premium">Premium crée automatiquement un point de récupération protégé avant restauration : les métadonnées sont chiffrées et les médias restent dans le stockage privé de l’app. Vous pouvez annuler la dernière restauration.</string>
 </resources>

@@ -28,10 +28,18 @@ class FlashCoordinator private constructor(context: Context) {
     fun startStrobe(
         cycles: Int = 5,
         onMs: Long = 150L,
-        offMs: Long = 150L
+        offMs: Long = 150L,
+        onFirstEmission: (() -> Unit)? = null,
+        onNoEmission: (() -> Unit)? = null
     ) {
-        val id = cameraId ?: return
-        if (SystemClock.elapsedRealtime() < unavailableUntilElapsed.get()) return
+        val id = cameraId ?: run {
+            runCatching { onNoEmission?.invoke() }
+            return
+        }
+        if (SystemClock.elapsedRealtime() < unavailableUntilElapsed.get()) {
+            runCatching { onNoEmission?.invoke() }
+            return
+        }
 
         stopLocked()
         val safeCycles = cycles.coerceIn(1, 30)
@@ -42,10 +50,15 @@ class FlashCoordinator private constructor(context: Context) {
 
         try {
             currentTask = executor.submit {
+                var emissionSignaled = false
                 try {
                     repeat(safeCycles) {
                         if (!isCurrent(myGeneration)) return@submit
                         if (!setTorch(id, true)) return@submit
+                        if (!emissionSignaled) {
+                            emissionSignaled = true
+                            runCatching { onFirstEmission?.invoke() }
+                        }
                         if (!sleep(safeOn, myGeneration)) return@submit
                         setTorch(id, false)
                         if (!sleep(safeOff, myGeneration)) return@submit
@@ -54,11 +67,15 @@ class FlashCoordinator private constructor(context: Context) {
                     Thread.currentThread().interrupt()
                 } finally {
                     setTorch(id, false, recordFailure = false)
+                    if (!emissionSignaled) {
+                        runCatching { onNoEmission?.invoke() }
+                    }
                     if (generation.get() == myGeneration) running.set(false)
                 }
             }
         } catch (_: RejectedExecutionException) {
             running.set(false)
+            runCatching { onNoEmission?.invoke() }
         }
     }
 

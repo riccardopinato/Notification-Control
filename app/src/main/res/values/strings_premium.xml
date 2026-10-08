@@ -4,7 +4,7 @@
     <string name="plan_premium_subscription">Premium subscription</string>
     <string name="plan_premium_lifetime">Premium lifetime</string>
     <string name="current_plan">Current plan: %1$s</string>
-    <string name="premium_value">Unlimited monitored apps, advanced automation, configurable retention and richer Luminous controls.</string>
+    <string name="premium_value">Unlimited monitored apps, WhatsApp media archive and recovery, Notification Budget, advanced automation, configurable retention and richer Luminous controls.</string>
     <string name="buy_subscription">%1$s · %2$s</string>
     <string name="buy_lifetime">Lifetime · %1$s</string>
     <string name="restore_purchases">Restore purchases</string>

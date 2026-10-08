@@ -1,0 +1,10 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- scrollUntilVisible:
+    element:
+      text: "Luminous settings"
+    direction: DOWN
+    timeout: 15000
+- tapOn: "Luminous settings"
+- assertVisible: "Luminous visual alerts"
+- assertVisible: "Camera flash"

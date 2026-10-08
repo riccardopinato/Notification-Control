@@ -2,6 +2,7 @@ package com.riccardopinato.notificationcontrol.backup
 
 import android.content.Context
 import android.net.Uri
+import android.util.AtomicFile
 import android.util.Base64
 import androidx.room.withTransaction
 import com.riccardopinato.notificationcontrol.automation.CriticalAlertScheduler
@@ -14,6 +15,8 @@ import com.riccardopinato.notificationcontrol.data.FollowUpEntity
 import com.riccardopinato.notificationcontrol.data.MessageEntity
 import com.riccardopinato.notificationcontrol.data.MessageFtsEntity
 import com.riccardopinato.notificationcontrol.data.LuminousProfileEntity
+import com.riccardopinato.notificationcontrol.data.MediaRecoveryPendingEntity
+import com.riccardopinato.notificationcontrol.data.MediaRescueEntity
 import com.riccardopinato.notificationcontrol.data.NotificationDatabase
 import com.riccardopinato.notificationcontrol.data.NotificationEntity
 import com.riccardopinato.notificationcontrol.data.NotificationFtsEntity
@@ -21,8 +24,14 @@ import com.riccardopinato.notificationcontrol.data.NotificationRevisionEntity
 import com.riccardopinato.notificationcontrol.data.PickupCodeEntity
 import com.riccardopinato.notificationcontrol.data.RuleActionEntity
 import com.riccardopinato.notificationcontrol.data.RuleEntity
+import com.riccardopinato.notificationcontrol.data.RestoreJournalEntity
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.util.UUID
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -30,7 +39,50 @@ data class BackupSummary(
     val notifications: Int,
     val rules: Int,
     val followUps: Int,
-    val warnings: Int = 0
+    val warningCategories: List<String> = emptyList(),
+    val recoveryPointCreated: Boolean = false
+) {
+    val warnings: Int
+        get() = warningCategories.size
+}
+
+data class RecoveryPointInfo(
+    val available: Boolean,
+    val createdAt: Long? = null
+)
+
+private data class BackupRoot(
+    val root: JSONObject,
+    val summary: BackupSummary,
+    val dataset: BackupDataset
+)
+
+private data class StagedRecoveryPoint(
+    val operationId: String,
+    val metadataFile: File,
+    val pendingMediaDirectory: File,
+    val finalMediaDirectory: File
+)
+
+private data class RecoveryMediaSources(
+    val notifications: Map<String, File>,
+    val revisions: Map<String, File>,
+    val rescue: Map<String, File>
+)
+
+private data class BackupDataset(
+    val notifications: List<NotificationEntity>,
+    val messages: List<MessageEntity>,
+    val revisions: List<NotificationRevisionEntity>,
+    val rules: List<RuleEntity>,
+    val actions: List<RuleActionEntity>,
+    val critical: List<CriticalPatternEntity>,
+    val criticalAlerts: List<CriticalAlertEntity>,
+    val followUps: List<FollowUpEntity>,
+    val pickupCodes: List<PickupCodeEntity>,
+    val luminousProfiles: List<LuminousProfileEntity>,
+    val pendingRecovery: List<MediaRecoveryPendingEntity>,
+    val rescueRecovery: List<MediaRescueEntity>
 )
 
 class BackupRepository(context: Context) {
@@ -43,16 +95,313 @@ class BackupRepository(context: Context) {
     private val mediaStore = NotificationMediaStore(appContext)
 
     suspend fun exportTo(uri: Uri, passphrase: CharArray): Result<BackupSummary> = runCatching {
-        val notifications = backupDao.allNotifications()
-        val messages = backupDao.allMessages()
-        val revisions = backupDao.allRevisions()
-        val rules = backupDao.allRules()
-        val actions = backupDao.allRuleActions()
-        val critical = backupDao.allCriticalPatterns()
-        val criticalAlerts = backupDao.allCriticalAlerts()
-        val followUps = backupDao.allFollowUps()
-        val pickupCodes = backupDao.allPickupCodes()
-        val luminousProfiles = database.luminousProfileDao().allProfiles()
+        val backup = buildBackupRoot(includeTransientRecovery = false)
+        val encrypted = encryptRoot(backup.root, passphrase)
+
+        appContext.contentResolver.openOutputStream(uri, "w").use { output ->
+            checkNotNull(output) { "Unable to open destination" }
+            output.write(encrypted)
+            output.flush()
+        }
+
+        backup.summary
+    }
+
+    fun recoveryPointInfo(): RecoveryPointInfo {
+        val atomicFile = recoveryPointAtomicFile()
+        val available = runCatching {
+            atomicFile.openRead().use { input ->
+                require(input.read() >= 0) { "Recovery Point is empty" }
+            }
+            true
+        }.getOrDefault(false)
+        val file = recoveryPointFile()
+        return RecoveryPointInfo(
+            available = available,
+            createdAt = file.takeIf { available }?.lastModified()?.takeIf { it > 0L }
+        )
+    }
+
+    fun discardRecoveryPoint() {
+        runCatching { recoveryPointAtomicFile().delete() }
+        runCatching { recoveryPointRootDirectory().deleteRecursively() }
+    }
+
+    suspend fun reconcileInterruptedRecoveryPoint() {
+        recoveryMutex.withLock {
+            reconcileInterruptedRecoveryPointLocked()
+        }
+    }
+
+    private suspend fun reconcileInterruptedRecoveryPointLocked() {
+        val journal = backupDao.restoreJournal()
+        if (journal == null) {
+            cleanupAbandonedRecoveryStaging()
+            return
+        }
+        finalizeCommittedRecoveryPoint(journal.operationId)
+    }
+
+    suspend fun rollbackLastRestore(
+        passphrase: CharArray
+    ): Result<BackupSummary> = runCatching {
+        recoveryMutex.withLock {
+            require(settings.isPremium) { "Premium required for Recovery Point rollback" }
+            reconcileInterruptedRecoveryPointLocked()
+            val encrypted = readRecoveryPointLimited()
+            val summary = restoreEncrypted(
+                encrypted = encrypted,
+                passphrase = passphrase,
+                createRecoveryPoint = false
+            )
+            if (summary.warningCategories.isEmpty()) {
+                discardRecoveryPoint()
+            }
+            summary
+        }
+    }
+
+    private suspend fun stagePremiumRecoveryPoint(
+        passphrase: CharArray
+    ): StagedRecoveryPoint? {
+        if (!settings.isPremium) return null
+
+        val operationId = UUID.randomUUID().toString()
+        val rootDirectory = recoveryPointRootDirectory()
+        val pendingMetadata = recoveryPointPendingFile(operationId)
+        val pendingMedia = recoveryPointPendingMediaDirectory(operationId)
+        val finalMedia = recoveryPointMediaDirectory(operationId)
+
+        runCatching { pendingMetadata.delete() }
+        runCatching { pendingMedia.deleteRecursively() }
+        runCatching { finalMedia.deleteRecursively() }
+
+        try {
+            val backup = buildBackupRoot(
+                includeTransientRecovery = true,
+                includeMediaPayloads = false
+            )
+            val mediaEntries = stageRecoveryPointMedia(
+                dataset = backup.dataset,
+                destination = pendingMedia
+            )
+            val root = backup.root
+                .put("recoveryPoint", true)
+                .put("recoveryPointOperationId", operationId)
+                .put("recoveryMediaDir", finalMedia.name)
+                .put("recoveryMedia", mediaEntries)
+            val encrypted = encryptRoot(root, passphrase)
+
+            rootDirectory.mkdirs()
+            FileOutputStream(pendingMetadata).use { output ->
+                output.write(encrypted)
+                output.fd.sync()
+            }
+            return StagedRecoveryPoint(
+                operationId = operationId,
+                metadataFile = pendingMetadata,
+                pendingMediaDirectory = pendingMedia,
+                finalMediaDirectory = finalMedia
+            )
+        } catch (error: Throwable) {
+            runCatching { pendingMetadata.delete() }
+            runCatching { pendingMedia.deleteRecursively() }
+            runCatching { finalMedia.deleteRecursively() }
+            throw error
+        }
+    }
+
+    private fun stageRecoveryPointMedia(
+        dataset: BackupDataset,
+        destination: File
+    ): JSONArray {
+        require(destination.mkdirs() || destination.isDirectory) {
+            "Unable to create Recovery Point media staging directory"
+        }
+
+        val entries = JSONArray()
+        val stagedByPath = linkedMapOf<String, String>()
+        var nextFileIndex = 0
+
+        fun stage(kind: String, key: String, path: String?) {
+            if (path.isNullOrBlank()) return
+            val canonicalPath = File(path).canonicalPath
+            val fileName = stagedByPath[canonicalPath] ?: run {
+                val bytes = requireNotNull(mediaStore.read(path)) {
+                    "Unable to snapshot Recovery Point media: " + key
+                }
+                val generated = "%05d.bin".format(nextFileIndex++)
+                val target = File(destination, generated)
+                FileOutputStream(target).use { output ->
+                    output.write(bytes)
+                    output.fd.sync()
+                }
+                stagedByPath[canonicalPath] = generated
+                generated
+            }
+            entries.put(
+                JSONObject()
+                    .put("kind", kind)
+                    .put("key", key)
+                    .put("file", fileName)
+            )
+        }
+
+        dataset.notifications.forEach {
+            stage(RECOVERY_MEDIA_NOTIFICATION, it.sbnKey, it.thumbnailPath)
+        }
+        dataset.revisions.forEach {
+            stage(RECOVERY_MEDIA_REVISION, it.revisionKey, it.thumbnailPath)
+        }
+        dataset.rescueRecovery.forEach {
+            require(it.localPath.isNotBlank()) {
+                "Recovery Point Rescue media path is missing: " + it.rescueKey
+            }
+            stage(RECOVERY_MEDIA_RESCUE, it.rescueKey, it.localPath)
+        }
+        return entries
+    }
+
+    private suspend fun finalizeCommittedRecoveryPoint(operationId: String): Boolean {
+        require(RECOVERY_OPERATION_ID.matches(operationId)) {
+            "Invalid Recovery Point operation"
+        }
+        val journal = backupDao.restoreJournal()
+            ?: error("Restore journal is missing")
+        require(journal.operationId == operationId) {
+            "Restore journal operation mismatch"
+        }
+
+        val pendingMetadata = recoveryPointPendingFile(operationId)
+        val pendingMedia = recoveryPointPendingMediaDirectory(operationId)
+        val finalMedia = recoveryPointMediaDirectory(operationId)
+
+        if (pendingMedia.exists()) {
+            if (finalMedia.exists()) {
+                require(finalMedia.deleteRecursively()) {
+                    "Unable to replace partial Recovery Point media"
+                }
+            }
+            require(pendingMedia.renameTo(finalMedia)) {
+                "Unable to promote Recovery Point media"
+            }
+        }
+        require(finalMedia.isDirectory) {
+            "Recovery Point media directory is missing"
+        }
+
+        if (pendingMetadata.isFile) {
+            promoteStagedRecoveryPointMetadata(pendingMetadata)
+        } else {
+            // The metadata staging file is removed only after AtomicFile.finishWrite().
+            // Therefore an absent staging file with a durable journal means promotion
+            // already completed and only journal cleanup was interrupted.
+            require(recoveryPointInfo().available) {
+                "Recovery Point metadata is missing"
+            }
+        }
+
+        cleanupRecoveryPointSidecars(keep = finalMedia)
+        cleanupAbandonedRecoveryStaging()
+
+        val referencedMedia =
+            notificationDao.allThumbnailPaths().toSet() +
+                mediaRecoveryDao.allRescuePaths().toSet()
+        mediaStore.cleanupOrphans(referencedMedia)
+        // Clear last: until this point startup reconciliation remains retryable.
+        backupDao.clearRestoreJournal()
+        return true
+    }
+
+    private fun promoteStagedRecoveryPointMetadata(staged: File): Boolean {
+        require(staged.isFile) { "Staged Recovery Point metadata not found" }
+        val atomicFile = recoveryPointAtomicFile()
+        val output = atomicFile.startWrite()
+        try {
+            staged.inputStream().use { input ->
+                input.copyTo(output)
+            }
+            output.fd.sync()
+            atomicFile.finishWrite(output)
+        } catch (error: Throwable) {
+            atomicFile.failWrite(output)
+            throw error
+        }
+        // Deletion happens after the AtomicFile commit. If process death occurs
+        // here, startup reconciliation safely replays the same metadata.
+        runCatching { staged.delete() }
+        return true
+    }
+
+    private fun cleanupAbandonedRecoveryStaging() {
+        val root = recoveryPointRootDirectory()
+        root.listFiles()?.forEach { file ->
+            if (file.name.endsWith(".pending")) {
+                runCatching {
+                    if (file.isDirectory) file.deleteRecursively() else file.delete()
+                }
+            }
+        }
+    }
+
+    private fun cleanupRecoveryPointSidecars(keep: File?) {
+        val root = recoveryPointRootDirectory()
+        val keepCanonical = keep?.let { runCatching { it.canonicalPath }.getOrNull() }
+        root.listFiles()?.forEach { file ->
+            if (!file.isDirectory || !file.name.startsWith("media-")) return@forEach
+            val canonical = runCatching { file.canonicalPath }.getOrNull()
+            if (canonical != keepCanonical) {
+                runCatching { file.deleteRecursively() }
+            }
+        }
+    }
+
+    private fun cleanupStagedRecoveryPoint(staged: StagedRecoveryPoint) {
+        runCatching { staged.metadataFile.delete() }
+        runCatching { staged.pendingMediaDirectory.deleteRecursively() }
+        runCatching { staged.finalMediaDirectory.deleteRecursively() }
+    }
+
+    private suspend fun buildBackupRoot(
+        includeTransientRecovery: Boolean,
+        includeMediaPayloads: Boolean = true
+    ): BackupRoot {
+        val dataset = database.withTransaction {
+            BackupDataset(
+                notifications = backupDao.allNotifications(),
+                messages = backupDao.allMessages(),
+                revisions = backupDao.allRevisions(),
+                rules = backupDao.allRules(),
+                actions = backupDao.allRuleActions(),
+                critical = backupDao.allCriticalPatterns(),
+                criticalAlerts = backupDao.allCriticalAlerts(),
+                followUps = backupDao.allFollowUps(),
+                pickupCodes = backupDao.allPickupCodes(),
+                luminousProfiles = database.luminousProfileDao().allProfiles(),
+                pendingRecovery = if (includeTransientRecovery) {
+                    mediaRecoveryDao.allPendingForRecoveryPoint()
+                } else {
+                    emptyList()
+                },
+                rescueRecovery = if (includeTransientRecovery) {
+                    mediaRecoveryDao.allRescueForRecoveryPoint()
+                } else {
+                    emptyList()
+                }
+            )
+        }
+        val notifications = dataset.notifications
+        val messages = dataset.messages
+        val revisions = dataset.revisions
+        val rules = dataset.rules
+        val actions = dataset.actions
+        val critical = dataset.critical
+        val criticalAlerts = dataset.criticalAlerts
+        val followUps = dataset.followUps
+        val pickupCodes = dataset.pickupCodes
+        val luminousProfiles = dataset.luminousProfiles
+        val pendingRecovery = dataset.pendingRecovery
+        val rescueRecovery = dataset.rescueRecovery
         val revisionMediaPaths = revisions.mapNotNull { it.thumbnailPath }.toSet()
 
         val root = JSONObject()
@@ -89,9 +438,18 @@ class BackupRepository(context: Context) {
                 luminousProfiles.forEach { put(luminousProfileJson(it)) }
             })
             .put("media", JSONArray().apply {
+                if (!includeMediaPayloads) return@apply
                 notifications.forEach { notification ->
-                    if (notification.thumbnailPath in revisionMediaPaths) return@forEach
-                    val bytes = mediaStore.read(notification.thumbnailPath) ?: return@forEach
+                    val path = notification.thumbnailPath ?: return@forEach
+                    if (path in revisionMediaPaths) return@forEach
+                    val bytes = mediaStore.read(path)
+                    if (bytes == null) {
+                        require(!includeTransientRecovery) {
+                            "Unable to snapshot notification media: " +
+                                notification.sbnKey
+                        }
+                        return@forEach
+                    }
                     put(
                         JSONObject()
                             .put("notificationKey", notification.sbnKey)
@@ -100,8 +458,17 @@ class BackupRepository(context: Context) {
                 }
             })
             .put("revisionMedia", JSONArray().apply {
+                if (!includeMediaPayloads) return@apply
                 revisions.forEach { revision ->
-                    val bytes = mediaStore.read(revision.thumbnailPath) ?: return@forEach
+                    val path = revision.thumbnailPath ?: return@forEach
+                    val bytes = mediaStore.read(path)
+                    if (bytes == null) {
+                        require(!includeTransientRecovery) {
+                            "Unable to snapshot revision media: " +
+                                revision.revisionKey
+                        }
+                        return@forEach
+                    }
                     put(
                         JSONObject()
                             .put("revisionKey", revision.revisionKey)
@@ -111,35 +478,185 @@ class BackupRepository(context: Context) {
             })
             .put("settings", settingsJson())
 
+        if (includeTransientRecovery) {
+            root
+                .put("recoveryPending", JSONArray().apply {
+                    pendingRecovery.forEach { put(recoveryPendingJson(it)) }
+                })
+                .put("recoveryRescue", JSONArray().apply {
+                    rescueRecovery.forEach { put(recoveryRescueJson(it)) }
+                })
+                .put("recoveryRescueMedia", JSONArray().apply {
+                    if (!includeMediaPayloads) return@apply
+                    rescueRecovery.forEach { rescue ->
+                        val bytes = requireNotNull(mediaStore.read(rescue.localPath)) {
+                            "Unable to snapshot Rescue media: " + rescue.rescueKey
+                        }
+                        put(
+                            JSONObject()
+                                .put("rescueKey", rescue.rescueKey)
+                                .put("data", Base64.encodeToString(bytes, Base64.NO_WRAP))
+                        )
+                    }
+                })
+        }
+
+        return BackupRoot(
+            root = root,
+            summary = BackupSummary(
+                notifications = notifications.size,
+                rules = rules.size,
+                followUps = followUps.size
+            ),
+            dataset = dataset
+        )
+    }
+
+    private fun encryptRoot(root: JSONObject, passphrase: CharArray): ByteArray {
         val plain = root.toString().toByteArray(Charsets.UTF_8)
         val encrypted = EncryptedBackupCodec.encrypt(plain, passphrase)
         check(encrypted.size <= EncryptedBackupCodec.maxEncryptedBytes) {
             "Backup exceeds supported size"
         }
-
-        appContext.contentResolver.openOutputStream(uri, "w").use { output ->
-            checkNotNull(output) { "Unable to open destination" }
-            output.write(encrypted)
-            output.flush()
-        }
-
-        BackupSummary(
-            notifications = notifications.size,
-            rules = rules.size,
-            followUps = followUps.size
-        )
+        return encrypted
     }
 
-    suspend fun restoreFrom(uri: Uri, passphrase: CharArray): Result<BackupSummary> = runCatching {
-        val encrypted = readLimited(uri)
+    private fun recoveryPointRootDirectory(): File =
+        File(appContext.filesDir, "restore_recovery").apply { mkdirs() }
+
+    private fun recoveryPointFile(): File =
+        File(recoveryPointRootDirectory(), "last_restore.ncb")
+
+    private fun recoveryPointPendingFile(operationId: String): File =
+        File(recoveryPointRootDirectory(), "last_restore.$operationId.pending")
+
+    private fun recoveryPointPendingMediaDirectory(operationId: String): File =
+        File(recoveryPointRootDirectory(), "media-$operationId.pending")
+
+    private fun recoveryPointMediaDirectory(operationId: String): File =
+        File(recoveryPointRootDirectory(), "media-$operationId")
+
+    private fun recoveryPointAtomicFile(): AtomicFile =
+        AtomicFile(recoveryPointFile())
+
+    private fun readRecoveryPointLimited(): ByteArray =
+        recoveryPointAtomicFile().openRead().use { input ->
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(8 * 1024)
+            var total = 0
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                total += read
+                require(total <= EncryptedBackupCodec.maxEncryptedBytes) {
+                    "Recovery Point metadata too large"
+                }
+                output.write(buffer, 0, read)
+            }
+            output.toByteArray()
+        }
+
+    private fun recoveryMediaSources(root: JSONObject): RecoveryMediaSources? {
+        if (!root.optBoolean("recoveryPoint", false)) return null
+        val directoryName = root.optString("recoveryMediaDir").takeIf { it.isNotBlank() }
+            ?: return null // Legacy Recovery Point: media are embedded in the encrypted payload.
+        val operationId = root.optString("recoveryPointOperationId")
+        require(RECOVERY_OPERATION_ID.matches(operationId)) {
+            "Invalid Recovery Point operation"
+        }
+        require(
+            RECOVERY_MEDIA_DIRECTORY.matches(directoryName) &&
+                directoryName == "media-$operationId"
+        ) {
+            "Invalid Recovery Point media directory"
+        }
+        val rootDirectory = recoveryPointRootDirectory().canonicalFile
+        val directory = File(rootDirectory, directoryName).canonicalFile
+        require(directory.parentFile == rootDirectory && directory.isDirectory) {
+            "Recovery Point media directory is unavailable"
+        }
+
+        val notifications = linkedMapOf<String, File>()
+        val revisions = linkedMapOf<String, File>()
+        val rescue = linkedMapOf<String, File>()
+        val entries = root.optJSONArray("recoveryMedia")
+            ?: error("Recovery Point media manifest is missing")
+
+        for (index in 0 until entries.length()) {
+            val entry = entries.getJSONObject(index)
+            val kind = entry.getString("kind")
+            val key = entry.getString("key")
+            val fileName = entry.getString("file")
+            require(key.isNotBlank() && RECOVERY_MEDIA_FILE.matches(fileName)) {
+                "Invalid Recovery Point media entry"
+            }
+            val file = File(directory, fileName).canonicalFile
+            require(
+                file.parentFile == directory &&
+                    file.isFile &&
+                    file.length() in 1..MAX_MEDIA_BYTES.toLong()
+            ) {
+                "Recovery Point media file is missing or invalid"
+            }
+            val target = when (kind) {
+                RECOVERY_MEDIA_NOTIFICATION -> notifications
+                RECOVERY_MEDIA_REVISION -> revisions
+                RECOVERY_MEDIA_RESCUE -> rescue
+                else -> error("Unsupported Recovery Point media kind")
+            }
+            require(target.put(key, file) == null) {
+                "Duplicate Recovery Point media entry"
+            }
+        }
+        return RecoveryMediaSources(notifications, revisions, rescue)
+    }
+
+    private fun readRecoveryMediaFile(file: File): ByteArray {
+        require(file.isFile && file.length() in 1..MAX_MEDIA_BYTES.toLong()) {
+            "Recovery Point media file is invalid"
+        }
+        return file.readBytes()
+    }
+
+    suspend fun restoreFrom(
+        uri: Uri,
+        passphrase: CharArray
+    ): Result<BackupSummary> = runCatching {
+        recoveryMutex.withLock {
+            reconcileInterruptedRecoveryPointLocked()
+            restoreEncrypted(
+                encrypted = readLimited(uri),
+                passphrase = passphrase,
+                createRecoveryPoint = settings.isPremium
+            )
+        }
+    }
+
+    private suspend fun restoreEncrypted(
+        encrypted: ByteArray,
+        passphrase: CharArray,
+        createRecoveryPoint: Boolean
+    ): BackupSummary {
         val plain = EncryptedBackupCodec.decrypt(encrypted, passphrase)
         val root = JSONObject(plain.toString(Charsets.UTF_8))
         require(root.getInt("format") == FORMAT_VERSION) { "Unsupported backup version" }
 
-        val mediaPayloads = parseMedia(root.getJSONArray("media"))
-        val revisionMediaPayloads = parseRevisionMedia(
-            root.optJSONArray("revisionMedia") ?: JSONArray()
-        )
+        val recoveryMediaSources = recoveryMediaSources(root)
+        val mediaPayloads = if (recoveryMediaSources == null) {
+            parseMedia(root.getJSONArray("media"))
+        } else {
+            emptyMap()
+        }
+        val revisionMediaPayloads = if (recoveryMediaSources == null) {
+            parseRevisionMedia(root.optJSONArray("revisionMedia") ?: JSONArray())
+        } else {
+            emptyMap()
+        }
+        val rescueMediaPayloads = if (recoveryMediaSources == null) {
+            parseRescueMedia(root.optJSONArray("recoveryRescueMedia") ?: JSONArray())
+        } else {
+            emptyMap()
+        }
         val notifications = parseNotifications(root.getJSONArray("notifications"))
         val messages = parseMessages(root.getJSONArray("messages"))
         val revisions = parseRevisions(root.getJSONArray("revisions"))
@@ -154,45 +671,129 @@ class BackupRepository(context: Context) {
         val luminousProfiles = parseLuminousProfiles(
             root.optJSONArray("luminousProfiles") ?: JSONArray()
         )
+        val recoveryPending = parseRecoveryPending(
+            root.optJSONArray("recoveryPending") ?: JSONArray()
+        )
+        val recoveryRescue = parseRecoveryRescue(
+            root.optJSONArray("recoveryRescue") ?: JSONArray()
+        )
         val settingsObject = root.optJSONObject("settings")
 
-        validateReferences(notifications, messages, revisions, rules, actions)
+        validateReferences(
+            notifications = notifications,
+            messages = messages,
+            revisions = revisions,
+            rules = rules,
+            actions = actions,
+            recoveryPending = recoveryPending
+        )
+
+        restoreTestHook?.invoke("BEFORE_RECOVERY_POINT")
+        val stagedRecoveryPoint =
+            if (createRecoveryPoint && settings.isPremium) {
+                stagePremiumRecoveryPoint(passphrase)
+            } else {
+                null
+            }
+        try {
+            restoreTestHook?.invoke("AFTER_RECOVERY_POINT")
+        } catch (error: Throwable) {
+            stagedRecoveryPoint?.let(::cleanupStagedRecoveryPoint)
+            throw error
+        }
 
         val previousVaultMedia = notificationDao.allThumbnailPaths().toSet()
         val previousRescueMedia = mediaRecoveryDao.allRescuePaths().toSet()
         val previousMedia = previousVaultMedia + previousRescueMedia
-        val revisionsWithMedia = revisions.map { revision ->
+        val restorePrefix = "restore:" + System.currentTimeMillis() + ":"
+        val stagedRestoredMedia = mutableSetOf<String>()
+
+        fun restoreRequiredPicture(key: String, bytes: ByteArray): String {
+            val restored = requireNotNull(mediaStore.restorePicture(key, bytes)) {
+                "Unable to stage backup media: " + key
+            }
+            stagedRestoredMedia += restored
+            return restored
+        }
+
+        val revisionsWithMedia: List<NotificationRevisionEntity>
+        val notificationsWithMedia: List<NotificationEntity>
+        val rescueWithMedia: List<MediaRescueEntity>
+        try {
+            revisionsWithMedia = revisions.map { revision ->
             revision.copy(
-                thumbnailPath = revisionMediaPayloads[revision.revisionKey]
-                    ?.let {
-                        mediaStore.restorePicture(
-                            "revision:" + revision.revisionKey,
-                            it
-                        )
-                    }
+                thumbnailPath = (
+                    recoveryMediaSources?.revisions?.get(revision.revisionKey)
+                        ?.let(::readRecoveryMediaFile)
+                        ?: revisionMediaPayloads[revision.revisionKey]
+                    )?.let {
+                    restoreRequiredPicture(
+                        restorePrefix + "revision:" + revision.revisionKey,
+                        it
+                    )
+                }
             )
         }
-        val latestRevisionMediaByNotification = revisionsWithMedia
+            val latestRevisionMediaByNotification = revisionsWithMedia
             .asSequence()
             .filter { it.thumbnailPath != null }
             .groupBy { it.notificationKey }
             .mapValues { (_, values) -> values.maxByOrNull { it.capturedAt } }
 
-        val notificationsWithMedia = notifications.map { notification ->
-            val legacyPath = mediaPayloads[notification.sbnKey]
-                ?.let { mediaStore.restorePicture(notification.sbnKey, it) }
+            notificationsWithMedia = notifications.map { notification ->
+            val legacyPath = (
+                recoveryMediaSources?.notifications?.get(notification.sbnKey)
+                    ?.let(::readRecoveryMediaFile)
+                    ?: mediaPayloads[notification.sbnKey]
+                )?.let {
+                restoreRequiredPicture(
+                    restorePrefix + "notification:" + notification.sbnKey,
+                    it
+                )
+            }
             notification.copy(
                 thumbnailPath = legacyPath
                     ?: latestRevisionMediaByNotification[notification.sbnKey]?.thumbnailPath
             )
         }
+
+            rescueWithMedia = recoveryRescue.map { rescue ->
+            val restoredPath = (
+                recoveryMediaSources?.rescue?.get(rescue.rescueKey)
+                    ?.let(::readRecoveryMediaFile)
+                    ?: rescueMediaPayloads[rescue.rescueKey]
+                )?.let {
+                restoreRequiredPicture(
+                    restorePrefix + "rescue:" + rescue.rescueKey,
+                    it
+                )
+            }
+            if (root.optBoolean("recoveryPoint", false) && rescue.localPath.isNotBlank()) {
+                requireNotNull(restoredPath) {
+                    "Recovery Point Rescue media is incomplete: " + rescue.rescueKey
+                }
+            }
+            rescue.copy(localPath = restoredPath ?: rescue.localPath)
+            }
+        } catch (error: Throwable) {
+            stagedRecoveryPoint?.let(::cleanupStagedRecoveryPoint)
+            stagedRestoredMedia.forEach(mediaStore::delete)
+            throw error
+        }
+
         val restoredMedia = buildSet {
             notificationsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
             revisionsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
+            rescueWithMedia.mapNotNullTo(this) { it.localPath }
         }
 
+        val warningCategories = mutableListOf<String>()
+        var recoveryPointCreated = false
+
         try {
+            restoreTestHook?.invoke("BEFORE_TRANSACTION")
             database.withTransaction {
+                restoreTestHook?.invoke("TRANSACTION_BEFORE_DELETE")
                 mediaRecoveryDao.deleteAllPending()
                 mediaRecoveryDao.deleteAllRescue()
                 database.luminousProfileDao().deleteAll()
@@ -227,6 +828,12 @@ class BackupRepository(context: Context) {
                 if (revisionsWithMedia.isNotEmpty()) {
                     backupDao.insertRevisions(revisionsWithMedia)
                 }
+                if (recoveryPending.isNotEmpty()) {
+                    mediaRecoveryDao.restorePending(recoveryPending)
+                }
+                if (rescueWithMedia.isNotEmpty()) {
+                    mediaRecoveryDao.restoreRescue(rescueWithMedia)
+                }
                 if (rules.isNotEmpty()) backupDao.insertRules(rules)
                 if (actions.isNotEmpty()) backupDao.insertRuleActions(actions)
                 if (critical.isNotEmpty()) backupDao.insertCriticalPatterns(critical)
@@ -252,19 +859,39 @@ class BackupRepository(context: Context) {
                         )
                     )
                 }
+                if (stagedRecoveryPoint != null) {
+                    backupDao.upsertRestoreJournal(
+                        RestoreJournalEntity(
+                            operationId = stagedRecoveryPoint.operationId,
+                            createdAt = System.currentTimeMillis()
+                        )
+                    )
+                }
+                restoreTestHook?.invoke("TRANSACTION_AFTER_INSERT")
             }
         } catch (error: Throwable) {
+            stagedRecoveryPoint?.let(::cleanupStagedRecoveryPoint)
             restoredMedia.filterNot { it in previousMedia }.forEach(mediaStore::delete)
             throw error
         }
 
-        previousMedia.filterNot { it in restoredMedia }.forEach(mediaStore::delete)
-        mediaStore.cleanupOrphans(restoredMedia)
+        recoveryPointCreated = stagedRecoveryPoint?.let { staged ->
+            runCatching { finalizeCommittedRecoveryPoint(staged.operationId) }
+                .onFailure { warningCategories += "RECOVERY_POINT_COMMIT" }
+                .getOrDefault(false)
+        } ?: false
 
-        var postCommitWarnings = 0
+        if (stagedRecoveryPoint == null || recoveryPointCreated) {
+            previousMedia.filterNot { it in restoredMedia }.forEach(mediaStore::delete)
+            mediaStore.cleanupOrphans(restoredMedia)
+        }
+
+        runCatching { restoreTestHook?.invoke("AFTER_TRANSACTION") }
+            .onFailure { warningCategories += "TEST_AFTER_TRANSACTION" }
+
         if (settingsObject != null) {
             runCatching { restoreSettings(settingsObject) }
-                .onFailure { postCommitWarnings++ }
+                .onFailure { warningCategories += "SETTINGS_RESTORE" }
         }
 
         runCatching {
@@ -273,7 +900,7 @@ class BackupRepository(context: Context) {
                 FollowUpScheduler.schedule(appContext, it.id, it.dueAt)
             }
         }.onFailure {
-            postCommitWarnings++
+            warningCategories += "FOLLOW_UP_SCHEDULER"
         }
 
         runCatching {
@@ -282,14 +909,15 @@ class BackupRepository(context: Context) {
                 CriticalAlertScheduler.schedule(appContext, it.id, it.nextAt)
             }
         }.onFailure {
-            postCommitWarnings++
+            warningCategories += "CRITICAL_ALERT_SCHEDULER"
         }
 
-        BackupSummary(
+        return BackupSummary(
             notifications = notificationsWithMedia.size,
             rules = rules.size,
             followUps = followUps.size,
-            warnings = postCommitWarnings
+            warningCategories = warningCategories.distinct(),
+            recoveryPointCreated = recoveryPointCreated
         )
     }
 
@@ -519,12 +1147,72 @@ class BackupRepository(context: Context) {
         }
     }
 
+    private fun parseRescueMedia(array: JSONArray): Map<String, ByteArray> = buildMap {
+        for (i in 0 until array.length()) {
+            val o = array.getJSONObject(i)
+            val bytes = Base64.decode(o.getString("data"), Base64.DEFAULT)
+            require(bytes.size <= MAX_MEDIA_BYTES) { "Recovery rescue media too large" }
+            put(o.getString("rescueKey"), bytes)
+        }
+    }
+
+    private fun parseRecoveryPending(
+        array: JSONArray
+    ): List<MediaRecoveryPendingEntity> = buildList {
+        for (i in 0 until array.length()) {
+            val o = array.getJSONObject(i)
+            add(
+                MediaRecoveryPendingEntity(
+                    revisionKey = o.getString("revisionKey"),
+                    notificationKey = o.getString("notificationKey"),
+                    packageName = o.getString("packageName"),
+                    postedAt = o.getLong("postedAt"),
+                    capturedAt = o.getLong("capturedAt"),
+                    createdAt = o.getLong("createdAt"),
+                    expiresAt = o.getLong("expiresAt"),
+                    baselineGeneration = o.longOrNull("baselineGeneration"),
+                    mediaStoreVersion = o.stringOrNull("mediaStoreVersion"),
+                    referencePerceptualHash = o.stringOrNull("referencePerceptualHash"),
+                    attempts = o.optInt("attempts", 0),
+                    lastAttemptAt = o.longOrNull("lastAttemptAt")
+                )
+            )
+        }
+    }
+
+    private fun parseRecoveryRescue(
+        array: JSONArray
+    ): List<MediaRescueEntity> = buildList {
+        for (i in 0 until array.length()) {
+            val o = array.getJSONObject(i)
+            add(
+                MediaRescueEntity(
+                    rescueKey = o.getString("rescueKey"),
+                    sourceKey = o.getString("sourceKey"),
+                    packageName = o.getString("packageName"),
+                    sourceKind = o.getString("sourceKind"),
+                    localPath = o.optString("localPath"),
+                    sourceUri = o.stringOrNull("sourceUri"),
+                    mediaTimestamp = o.getLong("mediaTimestamp"),
+                    observedAt = o.getLong("observedAt"),
+                    mimeType = o.stringOrNull("mimeType"),
+                    width = o.getInt("width"),
+                    height = o.getInt("height"),
+                    sizeBytes = o.getLong("sizeBytes"),
+                    perceptualHash = o.stringOrNull("perceptualHash"),
+                    confidence = o.getInt("confidence")
+                )
+            )
+        }
+    }
+
     private fun validateReferences(
         notifications: List<NotificationEntity>,
         messages: List<MessageEntity>,
         revisions: List<NotificationRevisionEntity>,
         rules: List<RuleEntity>,
-        actions: List<RuleActionEntity>
+        actions: List<RuleActionEntity>,
+        recoveryPending: List<MediaRecoveryPendingEntity>
     ) {
         val notificationKeys = notifications.mapTo(hashSetOf()) { it.sbnKey }
         require(messages.all { it.notificationKey in notificationKeys }) {
@@ -532,6 +1220,14 @@ class BackupRepository(context: Context) {
         }
         require(revisions.all { it.notificationKey in notificationKeys }) {
             "Backup contains orphan revisions"
+        }
+        val revisionKeys = revisions.mapTo(hashSetOf()) { it.revisionKey }
+        require(
+            recoveryPending.all {
+                it.notificationKey in notificationKeys && it.revisionKey in revisionKeys
+            }
+        ) {
+            "Recovery Point contains orphan pending media"
         }
         val ruleIds = rules.mapTo(hashSetOf()) { it.id }
         require(actions.all { it.ruleId in ruleIds }) {
@@ -600,6 +1296,38 @@ class BackupRepository(context: Context) {
         "subText" to r.subText,
         "conversationTitle" to r.conversationTitle,
         "contentHash" to r.contentHash
+    ))
+
+    private fun recoveryPendingJson(p: MediaRecoveryPendingEntity) = JSONObject(mapOf(
+        "revisionKey" to p.revisionKey,
+        "notificationKey" to p.notificationKey,
+        "packageName" to p.packageName,
+        "postedAt" to p.postedAt,
+        "capturedAt" to p.capturedAt,
+        "createdAt" to p.createdAt,
+        "expiresAt" to p.expiresAt,
+        "baselineGeneration" to p.baselineGeneration,
+        "mediaStoreVersion" to p.mediaStoreVersion,
+        "referencePerceptualHash" to p.referencePerceptualHash,
+        "attempts" to p.attempts,
+        "lastAttemptAt" to p.lastAttemptAt
+    ))
+
+    private fun recoveryRescueJson(r: MediaRescueEntity) = JSONObject(mapOf(
+        "rescueKey" to r.rescueKey,
+        "sourceKey" to r.sourceKey,
+        "packageName" to r.packageName,
+        "sourceKind" to r.sourceKind,
+        "localPath" to r.localPath,
+        "sourceUri" to r.sourceUri,
+        "mediaTimestamp" to r.mediaTimestamp,
+        "observedAt" to r.observedAt,
+        "mimeType" to r.mimeType,
+        "width" to r.width,
+        "height" to r.height,
+        "sizeBytes" to r.sizeBytes,
+        "perceptualHash" to r.perceptualHash,
+        "confidence" to r.confidence
     ))
 
     private fun ruleJson(r: RuleEntity) = JSONObject(mapOf(
@@ -743,6 +1471,9 @@ class BackupRepository(context: Context) {
         .put("sensitiveProtectionEnabled", settings.sensitiveProtectionEnabled)
         .put("pausePingEnabled", settings.pausePingEnabled)
         .put("pausePingCooldownSeconds", settings.pausePingCooldownSeconds)
+        .put("pausePingBudgetEnabled", settings.pausePingBudgetEnabled)
+        .put("pausePingBudgetMaxAlerts", settings.pausePingBudgetMaxAlerts)
+        .put("pausePingBudgetWindowMinutes", settings.pausePingBudgetWindowMinutes)
         .put(
             "pausePingPerAppCooldowns",
             JSONObject().apply {
@@ -857,6 +1588,15 @@ class BackupRepository(context: Context) {
         settings.pausePingCooldownSeconds =
             o.optInt("pausePingCooldownSeconds", settings.pausePingCooldownSeconds)
         if (settings.isPremium) {
+            settings.pausePingBudgetEnabled =
+                o.optBoolean("pausePingBudgetEnabled", settings.pausePingBudgetEnabled)
+            settings.pausePingBudgetMaxAlerts =
+                o.optInt("pausePingBudgetMaxAlerts", settings.pausePingBudgetMaxAlerts)
+            settings.pausePingBudgetWindowMinutes =
+                o.optInt(
+                    "pausePingBudgetWindowMinutes",
+                    settings.pausePingBudgetWindowMinutes
+                )
             val perApp = o.optJSONObject("pausePingPerAppCooldowns")
             if (perApp != null) {
                 val restored = buildMap<String, Int> {
@@ -883,7 +1623,21 @@ class BackupRepository(context: Context) {
         if (isNull(key)) null else getInt(key)
 
     companion object {
+        @Volatile
+        internal var restoreTestHook: ((String) -> Unit)? = null
+
+        private val recoveryMutex = Mutex()
+
         private const val FORMAT_VERSION = 1
         private const val MAX_MEDIA_BYTES = 6 * 1024 * 1024
+        private const val RECOVERY_MEDIA_NOTIFICATION = "notification"
+        private const val RECOVERY_MEDIA_REVISION = "revision"
+        private const val RECOVERY_MEDIA_RESCUE = "rescue"
+        private val RECOVERY_OPERATION_ID =
+            Regex("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+        private val RECOVERY_MEDIA_DIRECTORY =
+            Regex("^media-[0-9a-fA-F-]{36}$")
+        private val RECOVERY_MEDIA_FILE =
+            Regex("^[0-9]{5}\\.bin$")
     }
 }

@@ -8,9 +8,18 @@ class PausePingConsumer(
 ) : NotificationEventConsumer {
     override suspend fun consume(event: CapturedNotification, context: ProcessingContext) {
         if (context.mode != ProcessingMode.POSTED) return
-        context.suppressLuminous = controller.shouldSuppress(
+        val decision = controller.evaluateAndReserve(
             packageName = event.packageName,
             critical = context.critical
         )
+        context.suppressLuminous = decision.suppress
+        decision.reservation?.let { reservation ->
+            context.onVisualAlertEmitted = {
+                controller.confirmVisualAlert(reservation)
+            }
+            context.onVisualAlertNotEmitted = {
+                controller.cancelVisualAlert(reservation)
+            }
+        }
     }
 }

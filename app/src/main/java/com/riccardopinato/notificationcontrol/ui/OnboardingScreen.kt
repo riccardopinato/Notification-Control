@@ -1,6 +1,7 @@
 package com.riccardopinato.notificationcontrol.ui
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,11 +31,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.app.NotificationManagerCompat
+import com.riccardopinato.notificationcontrol.BuildConfig
 import com.riccardopinato.notificationcontrol.R
+import com.riccardopinato.notificationcontrol.domain.OnboardingCompletionPolicy
 import com.riccardopinato.notificationcontrol.domain.ProductLimits
 
 @Composable
@@ -222,8 +228,25 @@ private fun CoreSetupPage(
 
         LazyColumn(Modifier.weight(1f)) {
             items(filteredApps, key = { it.packageName }) { app ->
+                val checked = app.packageName in selected
+                val monitorLabel = stringResource(
+                    R.string.monitor_app_accessibility,
+                    app.label
+                )
                 Row(
-                    Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                    Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = checked,
+                            role = Role.Switch,
+                            onValueChange = {
+                                limitError = !onToggle(app.packageName)
+                            }
+                        )
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = monitorLabel
+                        }
+                        .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -233,10 +256,8 @@ private fun CoreSetupPage(
                         overflow = TextOverflow.Ellipsis
                     )
                     Switch(
-                        checked = app.packageName in selected,
-                        onCheckedChange = {
-                            limitError = !onToggle(app.packageName)
-                        }
+                        checked = checked,
+                        onCheckedChange = null
                     )
                 }
                 HorizontalDivider()
@@ -251,7 +272,11 @@ private fun CoreSetupPage(
 
         Button(
             onClick = onDone,
-            enabled = access && selected.isNotEmpty(),
+            enabled = OnboardingCompletionPolicy.canFinish(
+                notificationAccessGranted = access,
+                selectedAppCount = selected.size,
+                qaValidationBuild = BuildConfig.QA_PREMIUM_UNLOCKED
+            ),
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(stringResource(R.string.finish_setup))

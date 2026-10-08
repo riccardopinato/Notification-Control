@@ -22,4 +22,12 @@
     <string name="backup_restore_success">Backup ripristinato: %1$d notifiche, %2$d regole, %3$d Follow Up.</string>
     <string name="backup_operation_failed">Operazione di backup non riuscita. Controlla file e password.</string>
     <string name="backup_restore_success_with_warnings">Backup ripristinato: %1$d notifiche, %2$d regole, %3$d Follow Up. I dati sono stati salvati correttamente, ma %4$d operazioni di manutenzione successive richiedono attenzione.</string>
+    <string name="recovery_point_title">Recovery Point Premium</string>
+    <string name="recovery_point_available">È disponibile un Recovery Point protetto con lo stato precedente all’ultimo ripristino.</string>
+    <string name="recovery_point_empty">Nessun Recovery Point disponibile. Con Premium viene creato automaticamente prima di ogni ripristino.</string>
+    <string name="recovery_point_rollback">Annulla ultimo ripristino</string>
+    <string name="recovery_point_rollback_body">Ripristina Vault locale, automazioni, impostazioni e stato media transitorio salvati subito prima dell’ultimo ripristino. Usa la stessa password del backup.</string>
+    <string name="recovery_point_rollback_success">Ultimo ripristino annullato correttamente.</string>
+    <string name="recovery_point_rollback_warnings">Recovery Point ripristinato, ma %1$d operazioni di manutenzione successive richiedono attenzione.</string>
+    <string name="recovery_point_premium">Premium crea automaticamente un Recovery Point protetto prima del ripristino: i metadati sono cifrati e i media restano nello storage privato dell’app. Puoi annullare l’ultimo ripristino.</string>
 </resources>

@@ -1,0 +1,52 @@
+{
+  "checkpoints": [
+    {
+      "name": "home",
+      "flow": ".maestro/journey/home.yaml"
+    },
+    {
+      "name": "app-picker",
+      "flow": ".maestro/journey/app-picker.yaml"
+    },
+    {
+      "name": "vault",
+      "flow": ".maestro/journey/vault.yaml"
+    },
+    {
+      "name": "follow-up",
+      "flow": ".maestro/journey/follow-up.yaml"
+    },
+    {
+      "name": "rules",
+      "flow": ".maestro/journey/rules.yaml"
+    },
+    {
+      "name": "rule-dialog",
+      "flow": ".maestro/journey/rule-dialog.yaml"
+    },
+    {
+      "name": "notification-budget",
+      "flow": ".maestro/journey/notification-budget.yaml"
+    },
+    {
+      "name": "luminous",
+      "flow": ".maestro/journey/luminous.yaml"
+    },
+    {
+      "name": "profile",
+      "flow": ".maestro/journey/profile.yaml"
+    },
+    {
+      "name": "backup-recovery",
+      "flow": ".maestro/journey/backup-recovery.yaml"
+    },
+    {
+      "name": "permission-health",
+      "flow": ".maestro/journey/permission-health.yaml"
+    },
+    {
+      "name": "physical-qa",
+      "flow": ".maestro/journey/physical-qa.yaml"
+    }
+  ]
+}

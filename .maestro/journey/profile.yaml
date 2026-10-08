@@ -1,0 +1,5 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- tapOn: "Profile"
+- assertVisible: "Profile & control center"
+- assertVisible: "Notification Control Premium"

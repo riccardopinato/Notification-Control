@@ -96,6 +96,46 @@ jobs:
           done
           cp "$manifest" certified-evidence/AndroidManifest.xml
 
+      - name: Release media policy and Premium plan gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          merged_manifest="$(find app/build/intermediates -type f -name AndroidManifest.xml \
+            | grep -E '/(merged_manifest|merged_manifests)/.*release' \
+            | head -n 1 || true)"
+          test -n "$merged_manifest"
+          test -f "$merged_manifest"
+
+          forbidden_release_media_permissions=(
+            "android.permission.READ_MEDIA_IMAGES"
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+            "android.permission.READ_EXTERNAL_STORAGE"
+          )
+          for permission in "${forbidden_release_media_permissions[@]}"; do
+            if grep -q "$permission" "$merged_manifest"; then
+              echo "Public release must remain least-privilege until Play broad-media eligibility is approved: $permission" >&2
+              exit 1
+            fi
+          done
+
+          grep -q 'PREMIUM_SUBSCRIPTION = "notification_control_premium"' \
+            app/src/main/java/com/riccardopinato/notificationcontrol/billing/BillingProducts.kt
+          grep -q 'PREMIUM_MONTHLY_BASE_PLAN = "monthly"' \
+            app/src/main/java/com/riccardopinato/notificationcontrol/billing/BillingProducts.kt
+          grep -q 'PREMIUM_ANNUAL_BASE_PLAN = "annual"' \
+            app/src/main/java/com/riccardopinato/notificationcontrol/billing/BillingProducts.kt
+
+          {
+            echo "release_media_policy=NOTIFICATION_PLUS_SAF_LEAST_PRIVILEGE"
+            echo "broad_mediastore_release=DISABLED_PENDING_PLAY_REVIEW"
+            echo "premium_subscription_product=notification_control_premium"
+            echo "premium_monthly_base_plan=monthly"
+            echo "premium_annual_base_plan=annual"
+            echo "oauth_android_signing_match=EXTERNAL_REQUIRED"
+            echo "play_product_activation=EXTERNAL_REQUIRED"
+          } > certified-evidence/PLAY_READINESS.txt
+          cp "$merged_manifest" certified-evidence/AndroidManifest-release-merged.xml
+
       - name: Localization gates
         shell: bash
         run: |

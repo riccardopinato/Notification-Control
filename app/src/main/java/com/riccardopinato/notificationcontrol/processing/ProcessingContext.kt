@@ -8,4 +8,6 @@ class ProcessingContext(
     var forceFlash: Boolean = false
     var forceOverlay: Boolean = false
     var followUpDelayMinutes: Int? = null
+    var onVisualAlertEmitted: (() -> Unit)? = null
+    var onVisualAlertNotEmitted: (() -> Unit)? = null
 }

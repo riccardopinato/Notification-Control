@@ -7,4 +7,5 @@
     <string name="onboarding_open_app_info">Apri informazioni app</string>
     <string name="onboarding_ready_body">Accesso alle notifiche attivo. Scegli almeno una app da monitorare.</string>
     <string name="onboarding_optional_later">Luminous, flash, protezione biometrica e opzioni avanzate restano disponibili dopo la configurazione, quando ti servono davvero.</string>
+    <string name="monitor_app_accessibility">Monitora %1$s</string>
 </resources>

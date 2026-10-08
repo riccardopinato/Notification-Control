@@ -1,0 +1,5 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- tapOn: "Home"
+- assertVisible: "Notification Control"
+- assertVisible: "Notification listener"

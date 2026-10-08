@@ -46,6 +46,7 @@ android {
             googleWebClientId.asBuildConfigString()
         )
         buildConfigField("boolean", "QA_PREMIUM_UNLOCKED", "false")
+        buildConfigField("boolean", "MEDIASTORE_RECOVERY_ENABLED", "true")
     }
 
     signingConfigs {
@@ -64,6 +65,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = true
+            buildConfigField("boolean", "MEDIASTORE_RECOVERY_ENABLED", "false")
             isShrinkResources = true
             if (releaseSigningReady) {
                 signingConfig = signingConfigs.getByName("release")
@@ -86,6 +88,7 @@ android {
             isDebuggable = false
             versionNameSuffix = "-qa-premium"
             buildConfigField("boolean", "QA_PREMIUM_UNLOCKED", "true")
+            buildConfigField("boolean", "MEDIASTORE_RECOVERY_ENABLED", "true")
         }
     }
 
