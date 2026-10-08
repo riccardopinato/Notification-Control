@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   applab-full:
-    uses: riccardopinato/AppLab/.github/workflows/external-native-android-runner.yml@b69986b78cdadd3e6d9e67a2fed9a7f57753bbec
+    uses: riccardopinato/AppLab/.github/workflows/external-native-android-runner.yml@c4333be0bacb2caecade95ae0901f84524a752c6
     with:
       repository: riccardopinato/Notification-Control
       ref: ${{ github.event.pull_request.head.sha || github.sha }}
