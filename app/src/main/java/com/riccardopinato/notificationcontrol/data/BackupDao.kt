@@ -96,4 +96,13 @@ interface BackupDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPickupCodes(items: List<PickupCodeEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertRestoreJournal(item: RestoreJournalEntity)
+
+    @Query("SELECT * FROM restore_journal WHERE id = 1 LIMIT 1")
+    suspend fun restoreJournal(): RestoreJournalEntity?
+
+    @Query("DELETE FROM restore_journal")
+    suspend fun clearRestoreJournal()
 }
