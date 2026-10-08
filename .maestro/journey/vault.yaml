@@ -1,0 +1,6 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- pressKey: BACK
+- tapOn: "Vault"
+- assertVisible: "Local Vault"
+- assertVisible: "Search Vault"

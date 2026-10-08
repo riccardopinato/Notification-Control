@@ -1,0 +1,4 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- tapOn: "Follow Up"
+- assertVisible: "To handle"

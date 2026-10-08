@@ -1,0 +1,4 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- tapOn: "Configure apps"
+- assertVisible: "Search apps"

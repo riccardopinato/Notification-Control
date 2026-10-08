@@ -1,0 +1,5 @@
+appId: com.riccardopinato.notificationcontrol
+---
+- tapOn: "Rules"
+- assertVisible: "Rules & alerts"
+- assertVisible: "Add rule"
