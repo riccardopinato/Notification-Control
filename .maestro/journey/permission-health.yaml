@@ -2,7 +2,8 @@ appId: com.riccardopinato.notificationcontrol
 ---
 - scrollUntilVisible:
     element:
-      text: "Permission health"
+      text: "Notification access"
     direction: DOWN
     timeout: 15000
 - assertVisible: "Permission health"
+- assertVisible: "Notification access"
