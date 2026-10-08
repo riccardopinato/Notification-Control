@@ -33,6 +33,8 @@ jobs:
       api_level: "35"
       emulator_profile: "pixel_7_pro"
       run_maestro: true
+      maestro_flow: ".maestro/applab-full.yaml"
+      android_prepare_command: "adb shell pm grant com.riccardopinato.notificationcontrol android.permission.POST_NOTIFICATIONS || true"
       history_key: "notification-control"
       cache_verification: false
       analysis_mode: "full"
