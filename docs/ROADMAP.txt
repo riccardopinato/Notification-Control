@@ -335,7 +335,7 @@ IMPLEMENTED / VALIDATION
 - Certified QA records CI provenance and rejects QUERY_ALL_PACKAGES / READ_CALL_LOG / RECEIVE_SMS / MANAGE_EXTERNAL_STORAGE
 - restore no longer reports false rollback after an already committed Room transaction; post-commit maintenance problems become explicit warnings
 - Product Bible security wording aligned to actual implementation: Android sandbox + optional biometric/device lock + AES-GCM backup; no false database-encryption claim
-- README/docs aligned to Room v11 and current evidence boundaries
+- README/docs aligned to current Room schema and evidence boundaries
 
 STEP 20.1 — PREMIUM WHATSAPP MEDIA PACKAGING
 IMPLEMENTED / VALIDATION
@@ -359,16 +359,16 @@ IMPLEMENTED / VALIDATION
 
 STEP 22 — PREMIUM BATCH DATA SAFETY & RECOVERY POINT
 IMPLEMENTED / AUTOMATED VALIDATION
-- Premium crea automaticamente un Recovery Point cifrato prima di un restore manuale
+- Premium crea automaticamente un Recovery Point protetto prima di un restore manuale: metadata AES-GCM + media sidecar nello storage privato app
 - un solo Recovery Point rotante nello storage privato: niente accumulo illimitato di copie
 - backup/export manuale resta disponibile per ownership dei dati anche senza Premium
 - restore completamente decifrato, parsato e validato prima di qualsiasi mutazione persistente
 - Recovery Point include Vault, revisions, Rules, Follow Ups, Critical alerts, Pickup, Luminous, settings e stato media transitorio compatibile
 - restore incoming media usa chiavi/path separati per evitare collisioni con i media correnti prima del commit
-- transazione Room atomica per sostituzione del dataset
+- transazione Room atomica per sostituzione del dataset; Room v12 aggiunge un restore journal committato nella stessa transazione
 - fault hooks prima/durante/dopo commit per QA e regressioni
 - diagnostica post-commit per categorie: settings, Follow Up scheduler, Critical scheduler
-- rollback "Annulla ultimo ripristino" esposto nel Profilo Premium
+- promozione Recovery Point journaled e riconciliata al riavvio dopo crash/process death; rollback "Annulla ultimo ripristino" esposto nel Profilo Premium
 - downgrade non nasconde né cancella media/dati già posseduti dall'utente
 - EN/IT/ES/FR/PT aggiornati
 
