@@ -332,6 +332,20 @@ class BackupRepository(context: Context) {
             recoveryPending = recoveryPending
         )
 
+        restoreTestHook?.invoke("BEFORE_RECOVERY_POINT")
+        val stagedRecoveryPoint =
+            if (createRecoveryPoint && settings.isPremium) {
+                stagePremiumRecoveryPoint(passphrase)
+            } else {
+                null
+            }
+        try {
+            restoreTestHook?.invoke("AFTER_RECOVERY_POINT")
+        } catch (error: Throwable) {
+            runCatching { stagedRecoveryPoint?.delete() }
+            throw error
+        }
+
         val previousVaultMedia = notificationDao.allThumbnailPaths().toSet()
         val previousRescueMedia = mediaRecoveryDao.allRescuePaths().toSet()
         val previousMedia = previousVaultMedia + previousRescueMedia
@@ -383,21 +397,6 @@ class BackupRepository(context: Context) {
             notificationsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
             revisionsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
             rescueWithMedia.mapNotNullTo(this) { it.localPath }
-        }
-
-        restoreTestHook?.invoke("BEFORE_RECOVERY_POINT")
-        val stagedRecoveryPoint =
-            if (createRecoveryPoint && settings.isPremium) {
-                stagePremiumRecoveryPoint(passphrase)
-            } else {
-                null
-            }
-        try {
-            restoreTestHook?.invoke("AFTER_RECOVERY_POINT")
-        } catch (error: Throwable) {
-            runCatching { stagedRecoveryPoint?.delete() }
-            restoredMedia.filterNot { it in previousMedia }.forEach(mediaStore::delete)
-            throw error
         }
 
         val warningCategories = mutableListOf<String>()
