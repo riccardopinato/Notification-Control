@@ -558,12 +558,12 @@ class BackupRepository(context: Context) {
 
     private fun recoveryMediaSources(root: JSONObject): RecoveryMediaSources? {
         if (!root.optBoolean("recoveryPoint", false)) return null
+        val directoryName = root.optString("recoveryMediaDir").takeIf { it.isNotBlank() }
+            ?: return null // Legacy Recovery Point: media are embedded in the encrypted payload.
         val operationId = root.optString("recoveryPointOperationId")
         require(RECOVERY_OPERATION_ID.matches(operationId)) {
             "Invalid Recovery Point operation"
         }
-        val directoryName = root.optString("recoveryMediaDir").takeIf { it.isNotBlank() }
-            ?: return null
         require(
             RECOVERY_MEDIA_DIRECTORY.matches(directoryName) &&
                 directoryName == "media-$operationId"
