@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.riccardopinato.notificationcontrol.capture.MediaRecoveryCoordinator
+import com.riccardopinato.notificationcontrol.diagnostics.RuntimePerformanceTelemetry
 import java.util.concurrent.TimeUnit
 
 class MediaRecoveryWorker(
@@ -16,9 +17,20 @@ class MediaRecoveryWorker(
 ) : CoroutineWorker(appContext, workerParams) {
     override suspend fun doWork(): Result {
         val coordinator = MediaRecoveryCoordinator(applicationContext)
-        val remaining = coordinator.resolvePending()
-        coordinator.cleanupRescue()
-        return if (remaining > 0) Result.retry() else Result.success()
+        val startedNs = System.nanoTime()
+        var remaining = -1
+        try {
+            remaining = coordinator.resolvePending()
+            if (remaining == 0) {
+                coordinator.cleanupRescue()
+            }
+            return if (remaining > 0) Result.retry() else Result.success()
+        } finally {
+            RuntimePerformanceTelemetry.mediaRecoveryCompleted(
+                durationNs = System.nanoTime() - startedNs,
+                remaining = remaining
+            )
+        }
     }
 }
 
@@ -36,7 +48,7 @@ object MediaRecoveryScheduler {
 
         WorkManager.getInstance(context.applicationContext).enqueueUniqueWork(
             UNIQUE_NAME,
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP,
             request
         )
     }
