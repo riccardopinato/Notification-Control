@@ -33,6 +33,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.riccardopinato.notificationcontrol.R
@@ -318,13 +320,14 @@ fun RulesScreen(
                     )
 
                     if (state.isPremium) {
+                        val budgetTitle = stringResource(R.string.pause_ping_budget_title)
                         Row(
                             Modifier.fillMaxWidth().padding(top = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    stringResource(R.string.pause_ping_budget_title),
+                                    budgetTitle,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
@@ -334,15 +337,19 @@ fun RulesScreen(
                             }
                             Switch(
                                 checked = state.pausePingBudgetEnabled,
-                                onCheckedChange = onPausePingBudgetEnabled
+                                onCheckedChange = onPausePingBudgetEnabled,
+                                modifier = Modifier.semantics {
+                                    contentDescription = budgetTitle
+                                }
                             )
                         }
                         if (state.pausePingBudgetEnabled) {
+                            val budgetMaxLabel = stringResource(
+                                R.string.pause_ping_budget_max,
+                                pausePingBudgetMax.toInt()
+                            )
                             Text(
-                                stringResource(
-                                    R.string.pause_ping_budget_max,
-                                    pausePingBudgetMax.toInt()
-                                ),
+                                budgetMaxLabel,
                                 modifier = Modifier.padding(top = 6.dp)
                             )
                             Slider(
@@ -352,14 +359,16 @@ fun RulesScreen(
                                     onPausePingBudgetMaxAlerts(pausePingBudgetMax.toInt())
                                 },
                                 valueRange = 1f..10f,
-                                steps = 8
+                                steps = 8,
+                                modifier = Modifier.semantics {
+                                    contentDescription = budgetMaxLabel
+                                }
                             )
-                            Text(
-                                stringResource(
-                                    R.string.pause_ping_budget_window,
-                                    pausePingBudgetWindow.toInt()
-                                )
+                            val budgetWindowLabel = stringResource(
+                                R.string.pause_ping_budget_window,
+                                pausePingBudgetWindow.toInt()
                             )
+                            Text(budgetWindowLabel)
                             Slider(
                                 value = pausePingBudgetWindow,
                                 onValueChange = { pausePingBudgetWindow = it },
@@ -368,7 +377,10 @@ fun RulesScreen(
                                         pausePingBudgetWindow.toInt()
                                     )
                                 },
-                                valueRange = 5f..120f
+                                valueRange = 5f..120f,
+                                modifier = Modifier.semantics {
+                                    contentDescription = budgetWindowLabel
+                                }
                             )
                         }
                     } else {

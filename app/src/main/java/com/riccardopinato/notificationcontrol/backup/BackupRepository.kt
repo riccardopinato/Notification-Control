@@ -2,6 +2,7 @@ package com.riccardopinato.notificationcontrol.backup
 
 import android.content.Context
 import android.net.Uri
+import android.util.AtomicFile
 import android.util.Base64
 import androidx.room.withTransaction
 import com.riccardopinato.notificationcontrol.automation.CriticalAlertScheduler
@@ -103,27 +104,41 @@ class BackupRepository(context: Context) {
         summary
     }
 
-    private suspend fun createPremiumRecoveryPoint(passphrase: CharArray): Boolean {
-        if (!settings.isPremium) return false
+    private suspend fun stagePremiumRecoveryPoint(passphrase: CharArray): File? {
+        if (!settings.isPremium) return null
         val backup = buildBackupRoot(includeTransientRecovery = true)
         val encrypted = encryptRoot(
             backup.root.put("recoveryPoint", true),
             passphrase
         )
         val destination = recoveryPointFile()
-        val temp = File(destination.parentFile, destination.name + ".tmp")
+        val staged = File(destination.parentFile, destination.name + ".pending")
         destination.parentFile?.mkdirs()
-        FileOutputStream(temp).use { output ->
+        runCatching { staged.delete() }
+        FileOutputStream(staged).use { output ->
             output.write(encrypted)
             output.fd.sync()
         }
-        if (destination.exists() && !destination.delete()) {
-            temp.delete()
-            error("Unable to rotate Recovery Point")
-        }
-        if (!temp.renameTo(destination)) {
-            temp.delete()
-            error("Unable to commit Recovery Point")
+        return staged
+    }
+
+    private fun promoteStagedRecoveryPoint(staged: File): Boolean {
+        require(staged.isFile) { "Staged Recovery Point not found" }
+        val destination = recoveryPointFile()
+        destination.parentFile?.mkdirs()
+        val atomicFile = AtomicFile(destination)
+        val output = atomicFile.startWrite()
+        try {
+            staged.inputStream().use { input ->
+                input.copyTo(output)
+            }
+            output.fd.sync()
+            atomicFile.finishWrite(output)
+        } catch (error: Throwable) {
+            atomicFile.failWrite(output)
+            throw error
+        } finally {
+            runCatching { staged.delete() }
         }
         return true
     }
@@ -317,15 +332,6 @@ class BackupRepository(context: Context) {
             recoveryPending = recoveryPending
         )
 
-        restoreTestHook?.invoke("BEFORE_RECOVERY_POINT")
-        val recoveryPointCreated =
-            if (createRecoveryPoint && settings.isPremium) {
-                createPremiumRecoveryPoint(passphrase)
-            } else {
-                false
-            }
-        restoreTestHook?.invoke("AFTER_RECOVERY_POINT")
-
         val previousVaultMedia = notificationDao.allThumbnailPaths().toSet()
         val previousRescueMedia = mediaRecoveryDao.allRescuePaths().toSet()
         val previousMedia = previousVaultMedia + previousRescueMedia
@@ -378,6 +384,24 @@ class BackupRepository(context: Context) {
             revisionsWithMedia.mapNotNullTo(this) { it.thumbnailPath }
             rescueWithMedia.mapNotNullTo(this) { it.localPath }
         }
+
+        restoreTestHook?.invoke("BEFORE_RECOVERY_POINT")
+        val stagedRecoveryPoint =
+            if (createRecoveryPoint && settings.isPremium) {
+                stagePremiumRecoveryPoint(passphrase)
+            } else {
+                null
+            }
+        try {
+            restoreTestHook?.invoke("AFTER_RECOVERY_POINT")
+        } catch (error: Throwable) {
+            runCatching { stagedRecoveryPoint?.delete() }
+            restoredMedia.filterNot { it in previousMedia }.forEach(mediaStore::delete)
+            throw error
+        }
+
+        val warningCategories = mutableListOf<String>()
+        var recoveryPointCreated = false
 
         try {
             restoreTestHook?.invoke("BEFORE_TRANSACTION")
@@ -451,14 +475,20 @@ class BackupRepository(context: Context) {
                 restoreTestHook?.invoke("TRANSACTION_AFTER_INSERT")
             }
         } catch (error: Throwable) {
+            runCatching { stagedRecoveryPoint?.delete() }
             restoredMedia.filterNot { it in previousMedia }.forEach(mediaStore::delete)
             throw error
         }
 
+        recoveryPointCreated = stagedRecoveryPoint?.let { staged ->
+            runCatching { promoteStagedRecoveryPoint(staged) }
+                .onFailure { warningCategories += "RECOVERY_POINT_COMMIT" }
+                .getOrDefault(false)
+        } ?: false
+
         previousMedia.filterNot { it in restoredMedia }.forEach(mediaStore::delete)
         mediaStore.cleanupOrphans(restoredMedia)
 
-        val warningCategories = mutableListOf<String>()
         runCatching { restoreTestHook?.invoke("AFTER_TRANSACTION") }
             .onFailure { warningCategories += "TEST_AFTER_TRANSACTION" }
 

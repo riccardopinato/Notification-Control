@@ -28,7 +28,8 @@ class FlashCoordinator private constructor(context: Context) {
     fun startStrobe(
         cycles: Int = 5,
         onMs: Long = 150L,
-        offMs: Long = 150L
+        offMs: Long = 150L,
+        onFirstEmission: (() -> Unit)? = null
     ) {
         val id = cameraId ?: return
         if (SystemClock.elapsedRealtime() < unavailableUntilElapsed.get()) return
@@ -42,10 +43,15 @@ class FlashCoordinator private constructor(context: Context) {
 
         try {
             currentTask = executor.submit {
+                var emissionSignaled = false
                 try {
                     repeat(safeCycles) {
                         if (!isCurrent(myGeneration)) return@submit
                         if (!setTorch(id, true)) return@submit
+                        if (!emissionSignaled) {
+                            emissionSignaled = true
+                            runCatching { onFirstEmission?.invoke() }
+                        }
                         if (!sleep(safeOn, myGeneration)) return@submit
                         setTorch(id, false)
                         if (!sleep(safeOff, myGeneration)) return@submit

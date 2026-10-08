@@ -7,6 +7,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -17,13 +19,20 @@ import com.riccardopinato.notificationcontrol.BuildConfig
 import com.riccardopinato.notificationcontrol.R
 import com.riccardopinato.notificationcontrol.diagnostics.PhotoAccessScope
 import com.riccardopinato.notificationcontrol.diagnostics.PhysicalQaProbe
+import kotlinx.coroutines.delay
 
 @Composable
 fun PhysicalQaCard() {
     if (!BuildConfig.DEBUG && !BuildConfig.QA_PREMIUM_UNLOCKED) return
 
     val context = LocalContext.current
-    val snapshot = remember { PhysicalQaProbe(context).snapshot() }
+    val probe = remember(context) { PhysicalQaProbe(context) }
+    val snapshot by produceState(initialValue = probe.snapshot(), probe) {
+        while (true) {
+            value = probe.snapshot()
+            delay(1_000L)
+        }
+    }
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {

@@ -7,6 +7,7 @@ import com.riccardopinato.notificationcontrol.hardware.FlashCoordinator
 import com.riccardopinato.notificationcontrol.luminous.LuminousAlertStyle
 import com.riccardopinato.notificationcontrol.luminous.LuminousProfileResolver
 import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
+import java.util.concurrent.atomic.AtomicBoolean
 
 class LuminousConsumer(
     private val settings: AppSettings,
@@ -41,44 +42,48 @@ class LuminousConsumer(
         val cycles = if (context.critical) maxOf(8, baseCycles) else baseCycles
         val speed = if (context.critical) minOf(100L, baseSpeed) else baseSpeed
 
-        var emitted = false
-        try {
-            if (flashEnabled) {
-                flash.startStrobe(cycles, speed, speed)
-                emitted = true
+        val accountingCallback = context.onVisualAlertEmitted
+        context.onVisualAlertEmitted = null
+        val accounted = AtomicBoolean(false)
+        val onActualEmission = {
+            if (accountingCallback != null && accounted.compareAndSet(false, true)) {
+                runCatching(accountingCallback)
             }
+            Unit
+        }
 
-            if (overlayEnabled) {
-                val color = if (context.critical) {
-                    CRITICAL_COLOR
-                } else {
-                    profile?.colorHex ?: settings.circleColorHex
-                }
-                val thickness = profile?.circleThickness ?: settings.circleThickness
-                val glow = profile?.circleGlow ?: settings.circleGlow
-                val pulse = profile?.pulseSpeedMs ?: settings.pulseSpeedMs
-                val duration = profile?.displayDurationMs ?: DEFAULT_DISPLAY_DURATION_MS
+        if (flashEnabled) {
+            flash.startStrobe(
+                cycles = cycles,
+                onMs = speed,
+                offMs = speed,
+                onFirstEmission = onActualEmission
+            )
+        }
 
-                overlay.show(
-                    label = event.appLabel,
-                    style = LuminousAlertStyle(
-                        colorHex = color,
-                        thickness = thickness,
-                        glow = if (context.critical) maxOf(glow, 42f) else glow,
-                        pulseSpeedMs = if (context.critical) minOf(pulse, 650L) else pulse,
-                        displayDurationMs =
-                            if (context.critical) maxOf(duration, 12_000L) else duration
-                    )
-                )
-                emitted = true
+        if (overlayEnabled) {
+            val color = if (context.critical) {
+                CRITICAL_COLOR
+            } else {
+                profile?.colorHex ?: settings.circleColorHex
             }
-        } finally {
-            if (emitted) {
-                context.onVisualAlertEmitted?.let { callback ->
-                    runCatching(callback)
-                }
-                context.onVisualAlertEmitted = null
-            }
+            val thickness = profile?.circleThickness ?: settings.circleThickness
+            val glow = profile?.circleGlow ?: settings.circleGlow
+            val pulse = profile?.pulseSpeedMs ?: settings.pulseSpeedMs
+            val duration = profile?.displayDurationMs ?: DEFAULT_DISPLAY_DURATION_MS
+
+            overlay.show(
+                label = event.appLabel,
+                style = LuminousAlertStyle(
+                    colorHex = color,
+                    thickness = thickness,
+                    glow = if (context.critical) maxOf(glow, 42f) else glow,
+                    pulseSpeedMs = if (context.critical) minOf(pulse, 650L) else pulse,
+                    displayDurationMs =
+                        if (context.critical) maxOf(duration, 12_000L) else duration
+                ),
+                onShown = onActualEmission
+            )
         }
     }
 
