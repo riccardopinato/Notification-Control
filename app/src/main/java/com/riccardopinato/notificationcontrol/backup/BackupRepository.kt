@@ -119,7 +119,7 @@ class BackupRepository(context: Context) {
             createRecoveryPoint = false
         )
         if (summary.warningCategories.isEmpty()) {
-            runCatching { file.delete() }
+            runCatching { recoveryPointAtomicFile().delete() }
         }
         summary
     }
