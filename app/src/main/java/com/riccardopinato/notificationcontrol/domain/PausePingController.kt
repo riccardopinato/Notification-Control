@@ -67,10 +67,14 @@ class PausePingController(
             return false
         }
 
-        val previous = lastAlertAt.put(packageName, now)
+        val previous = lastAlertAt[packageName]
         val cooldownMs = configuredSeconds.coerceIn(1, MAX_COOLDOWN_SECONDS) * 1_000L
-        if (previous != null && now >= previous && now - previous < cooldownMs) {
-            return true
+        if (previous != null) {
+            if (now < previous) {
+                lastAlertAt.remove(packageName, previous)
+            } else if (now - previous < cooldownMs) {
+                return true
+            }
         }
 
         if (!premium || !budgetEnabledProvider()) return false
@@ -94,13 +98,20 @@ class PausePingController(
         critical: Boolean,
         now: Long = System.currentTimeMillis()
     ) {
-        if (critical || !enabledProvider() || !premiumProvider() || !budgetEnabledProvider()) {
-            return
-        }
+        if (critical || !enabledProvider()) return
 
+        val premium = premiumProvider()
         val configuredSeconds =
-            perAppCooldownProvider()[packageName] ?: cooldownSecondsProvider()
+            if (premium) {
+                perAppCooldownProvider()[packageName] ?: cooldownSecondsProvider()
+            } else {
+                cooldownSecondsProvider()
+            }
         if (configuredSeconds <= 0) return
+
+        lastAlertAt[packageName] = now
+
+        if (!premium || !budgetEnabledProvider()) return
 
         val history = allowedAlertTimes.computeIfAbsent(packageName) { ArrayDeque() }
         val windowMs = budgetWindowMs()

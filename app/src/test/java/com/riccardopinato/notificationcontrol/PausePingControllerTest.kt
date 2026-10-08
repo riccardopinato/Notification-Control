@@ -7,15 +7,35 @@ import org.junit.Test
 
 class PausePingControllerTest {
     @Test
-    fun repeatedAlertWithinCooldownIsSuppressedButCriticalBypasses() {
+    fun repeatedEmittedAlertWithinCooldownIsSuppressedButCriticalBypasses() {
         val controller = PausePingController(
             enabledProvider = { true },
             cooldownSecondsProvider = { 20 }
         )
 
         assertFalse(controller.shouldSuppress("com.example", critical = false, now = 1_000L))
+        controller.recordVisualAlert("com.example", critical = false, now = 1_000L)
+
         assertTrue(controller.shouldSuppress("com.example", critical = false, now = 2_000L))
         assertFalse(controller.shouldSuppress("com.example", critical = true, now = 3_000L))
+        assertFalse(controller.shouldSuppress("com.example", critical = false, now = 21_000L))
+    }
+
+    @Test
+    fun suppressedOrFailedAttemptsDoNotExtendCooldown() {
+        val controller = PausePingController(
+            enabledProvider = { true },
+            cooldownSecondsProvider = { 20 }
+        )
+
+        assertFalse(controller.shouldSuppress("com.example", critical = false, now = 1_000L))
+        // No successful visual emission was recorded: a second attempt must still be eligible.
+        assertFalse(controller.shouldSuppress("com.example", critical = false, now = 2_000L))
+
+        controller.recordVisualAlert("com.example", critical = false, now = 2_000L)
+        assertTrue(controller.shouldSuppress("com.example", critical = false, now = 10_000L))
+        // The suppressed attempt at 10s must not slide the cooldown window.
+        assertFalse(controller.shouldSuppress("com.example", critical = false, now = 22_000L))
     }
 
     @Test
