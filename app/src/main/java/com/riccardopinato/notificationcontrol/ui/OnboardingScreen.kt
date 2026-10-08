@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -227,6 +228,10 @@ private fun CoreSetupPage(
         LazyColumn(Modifier.weight(1f)) {
             items(filteredApps, key = { it.packageName }) { app ->
                 val checked = app.packageName in selected
+                val monitorLabel = stringResource(
+                    R.string.monitor_app_accessibility,
+                    app.label
+                )
                 Row(
                     Modifier
                         .fillMaxWidth()
@@ -237,6 +242,9 @@ private fun CoreSetupPage(
                                 limitError = !onToggle(app.packageName)
                             }
                         )
+                        .semantics(mergeDescendants = true) {
+                            contentDescription = monitorLabel
+                        }
                         .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
