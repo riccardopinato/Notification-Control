@@ -290,7 +290,7 @@ class NotificationCaptureService : NotificationListenerService() {
             notificationKey = eventKey,
             revisionKey = revisionKey
         )
-        resolvePendingWithTelemetry()
+        scheduleMediaRecovery(MEDIA_REGISTER_DEBOUNCE_MS)
     }
 
     private fun ensureMediaObserver() {
@@ -299,12 +299,7 @@ class NotificationCaptureService : NotificationListenerService() {
 
         fun triggerRecovery() {
             RuntimePerformanceTelemetry.mediaObserverSignal()
-            mediaObserverRecoveryJob?.cancel()
-            mediaObserverRecoveryJob = serviceScope.launch {
-                delay(MEDIA_OBSERVER_DEBOUNCE_MS)
-                runCatching { resolvePendingWithTelemetry() }
-                    .onFailure { Log.w(TAG, "MediaStore recovery trigger failed", it) }
-            }
+            scheduleMediaRecovery(MEDIA_OBSERVER_DEBOUNCE_MS)
         }
 
         val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -330,6 +325,15 @@ class NotificationCaptureService : NotificationListenerService() {
             mediaObserver = observer
         }.onFailure {
             Log.w(TAG, "Unable to observe MediaStore images", it)
+        }
+    }
+
+    private fun scheduleMediaRecovery(delayMs: Long) {
+        mediaObserverRecoveryJob?.cancel()
+        mediaObserverRecoveryJob = serviceScope.launch {
+            delay(delayMs)
+            runCatching { resolvePendingWithTelemetry() }
+                .onFailure { Log.w(TAG, "Media recovery trigger failed", it) }
         }
     }
 
@@ -385,6 +389,7 @@ class NotificationCaptureService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "NotificationCapture"
+        private const val MEDIA_REGISTER_DEBOUNCE_MS = 250L
         private const val MEDIA_OBSERVER_DEBOUNCE_MS = 750L
     }
 
