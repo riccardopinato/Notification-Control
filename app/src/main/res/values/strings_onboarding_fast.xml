@@ -7,4 +7,5 @@
     <string name="onboarding_open_app_info">Open app info</string>
     <string name="onboarding_ready_body">Notification access is active. Choose at least one app to monitor.</string>
     <string name="onboarding_optional_later">Luminous, flash, biometric protection and advanced options stay available after setup, when you actually need them.</string>
+    <string name="monitor_app_accessibility">Monitor %1$s</string>
 </resources>
