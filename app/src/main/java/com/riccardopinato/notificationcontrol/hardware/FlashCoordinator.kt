@@ -29,10 +29,17 @@ class FlashCoordinator private constructor(context: Context) {
         cycles: Int = 5,
         onMs: Long = 150L,
         offMs: Long = 150L,
-        onFirstEmission: (() -> Unit)? = null
+        onFirstEmission: (() -> Unit)? = null,
+        onNoEmission: (() -> Unit)? = null
     ) {
-        val id = cameraId ?: return
-        if (SystemClock.elapsedRealtime() < unavailableUntilElapsed.get()) return
+        val id = cameraId ?: run {
+            runCatching { onNoEmission?.invoke() }
+            return
+        }
+        if (SystemClock.elapsedRealtime() < unavailableUntilElapsed.get()) {
+            runCatching { onNoEmission?.invoke() }
+            return
+        }
 
         stopLocked()
         val safeCycles = cycles.coerceIn(1, 30)
@@ -60,11 +67,15 @@ class FlashCoordinator private constructor(context: Context) {
                     Thread.currentThread().interrupt()
                 } finally {
                     setTorch(id, false, recordFailure = false)
+                    if (!emissionSignaled) {
+                        runCatching { onNoEmission?.invoke() }
+                    }
                     if (generation.get() == myGeneration) running.set(false)
                 }
             }
         } catch (_: RejectedExecutionException) {
             running.set(false)
+            runCatching { onNoEmission?.invoke() }
         }
     }
 

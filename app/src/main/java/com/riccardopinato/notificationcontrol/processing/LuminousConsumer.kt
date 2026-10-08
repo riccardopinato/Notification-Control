@@ -8,6 +8,7 @@ import com.riccardopinato.notificationcontrol.luminous.LuminousAlertStyle
 import com.riccardopinato.notificationcontrol.luminous.LuminousProfileResolver
 import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 class LuminousConsumer(
     private val settings: AppSettings,
@@ -28,26 +29,57 @@ class LuminousConsumer(
         val overlayEnabled =
             context.forceOverlay || (profile?.overlayEnabled ?: settings.overlayEnabled)
 
-        if (!flashEnabled && !overlayEnabled) return
-        if (context.suppressLuminous && !context.critical) return
+        fun cancelReservation() {
+            val callback = context.onVisualAlertNotEmitted
+            context.onVisualAlertEmitted = null
+            context.onVisualAlertNotEmitted = null
+            runCatching { callback?.invoke() }
+        }
+
+        if (!flashEnabled && !overlayEnabled) {
+            cancelReservation()
+            return
+        }
+        if (context.suppressLuminous && !context.critical) {
+            cancelReservation()
+            return
+        }
         if (
             suppressionPolicy.evaluate(
                 critical = context.critical,
                 packageName = event.packageName
             ).suppressed
-        ) return
+        ) {
+            cancelReservation()
+            return
+        }
 
         val baseCycles = profile?.strobeCycles ?: settings.strobeCycles
         val baseSpeed = profile?.strobeSpeedMs ?: settings.strobeSpeedMs
         val cycles = if (context.critical) maxOf(8, baseCycles) else baseCycles
         val speed = if (context.critical) minOf(100L, baseSpeed) else baseSpeed
 
-        val accountingCallback = context.onVisualAlertEmitted
+        val successCallback = context.onVisualAlertEmitted
+        val failureCallback = context.onVisualAlertNotEmitted
         context.onVisualAlertEmitted = null
-        val accounted = AtomicBoolean(false)
+        context.onVisualAlertNotEmitted = null
+
+        val terminal = AtomicBoolean(false)
+        val pendingOutputs = AtomicInteger(
+            (if (flashEnabled) 1 else 0) + (if (overlayEnabled) 1 else 0)
+        )
         val onActualEmission = {
-            if (accountingCallback != null && accounted.compareAndSet(false, true)) {
-                runCatching(accountingCallback)
+            if (terminal.compareAndSet(false, true)) {
+                runCatching { successCallback?.invoke() }
+            }
+            Unit
+        }
+        val onNoEmission = {
+            if (
+                pendingOutputs.decrementAndGet() <= 0 &&
+                terminal.compareAndSet(false, true)
+            ) {
+                runCatching { failureCallback?.invoke() }
             }
             Unit
         }
@@ -57,7 +89,8 @@ class LuminousConsumer(
                 cycles = cycles,
                 onMs = speed,
                 offMs = speed,
-                onFirstEmission = onActualEmission
+                onFirstEmission = onActualEmission,
+                onNoEmission = onNoEmission
             )
         }
 
@@ -82,7 +115,8 @@ class LuminousConsumer(
                     displayDurationMs =
                         if (context.critical) maxOf(duration, 12_000L) else duration
                 ),
-                onShown = onActualEmission
+                onShown = onActualEmission,
+                onNotShown = onNoEmission
             )
         }
     }

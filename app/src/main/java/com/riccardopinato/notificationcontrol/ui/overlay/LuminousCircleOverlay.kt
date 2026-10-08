@@ -45,14 +45,21 @@ class LuminousCircleOverlay(context: Context) {
     fun show(
         label: String,
         style: LuminousAlertStyle = defaultStyle(),
-        onShown: (() -> Unit)? = null
+        onShown: (() -> Unit)? = null,
+        onNotShown: (() -> Unit)? = null
     ) {
         if (Looper.myLooper() != Looper.getMainLooper()) {
-            handler.post { show(label, style, onShown) }
+            handler.post { show(label, style, onShown, onNotShown) }
             return
         }
-        if (!Settings.canDrawOverlays(appContext)) return
-        val manager = windowManager ?: return
+        if (!Settings.canDrawOverlays(appContext)) {
+            runCatching { onNotShown?.invoke() }
+            return
+        }
+        val manager = windowManager ?: run {
+            runCatching { onNotShown?.invoke() }
+            return
+        }
 
         hide()
 
@@ -144,6 +151,8 @@ class LuminousCircleOverlay(context: Context) {
                 style.displayDurationMs.coerceIn(3_000L, 120_000L)
             )
             handler.post(pixelShift)
+        }.onFailure {
+            runCatching { onNotShown?.invoke() }
         }
     }
 

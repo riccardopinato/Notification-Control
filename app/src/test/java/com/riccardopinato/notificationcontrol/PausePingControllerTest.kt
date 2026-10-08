@@ -2,78 +2,97 @@ package com.riccardopinato.notificationcontrol
 
 import com.riccardopinato.notificationcontrol.domain.PausePingController
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PausePingControllerTest {
     @Test
-    fun repeatedEmittedAlertWithinCooldownIsSuppressedButCriticalBypasses() {
+    fun burstReservationSuppressesSecondAlertBeforeAsyncEmission() {
         val controller = PausePingController(
             enabledProvider = { true },
             cooldownSecondsProvider = { 20 }
         )
+        val first = controller.evaluateAndReserve("com.example", false, 1_000L)
+        assertFalse(first.suppress)
+        assertNotNull(first.reservation)
 
-        assertFalse(controller.shouldSuppress("com.example", critical = false, now = 1_000L))
-        controller.recordVisualAlert("com.example", critical = false, now = 1_000L)
+        val burst = controller.evaluateAndReserve("com.example", false, 1_001L)
+        assertTrue(burst.suppress)
+        assertNull(burst.reservation)
 
-        assertTrue(controller.shouldSuppress("com.example", critical = false, now = 2_000L))
-        assertFalse(controller.shouldSuppress("com.example", critical = true, now = 3_000L))
-        assertFalse(controller.shouldSuppress("com.example", critical = false, now = 21_000L))
+        controller.cancelVisualAlert(first.reservation!!)
+        assertFalse(
+            controller.evaluateAndReserve("com.example", false, 1_002L).suppress
+        )
     }
 
     @Test
-    fun suppressedOrFailedAttemptsDoNotExtendCooldown() {
+    fun confirmedEmissionAnchorsCooldownButFailedEmissionDoesNot() {
         val controller = PausePingController(
             enabledProvider = { true },
             cooldownSecondsProvider = { 20 }
         )
+        val failed = controller.evaluateAndReserve("com.example", false, 1_000L)
+        controller.cancelVisualAlert(failed.reservation!!)
+        assertFalse(
+            controller.evaluateAndReserve("com.example", false, 2_000L).suppress
+        )
 
-        assertFalse(controller.shouldSuppress("com.example", critical = false, now = 1_000L))
-        // No successful visual emission was recorded: a second attempt must still be eligible.
-        assertFalse(controller.shouldSuppress("com.example", critical = false, now = 2_000L))
-
-        controller.recordVisualAlert("com.example", critical = false, now = 2_000L)
-        assertTrue(controller.shouldSuppress("com.example", critical = false, now = 10_000L))
-        // The suppressed attempt at 10s must not slide the cooldown window.
-        assertFalse(controller.shouldSuppress("com.example", critical = false, now = 22_000L))
+        val emitted = controller.evaluateAndReserve("com.other", false, 3_000L)
+        controller.confirmVisualAlert(emitted.reservation!!)
+        assertTrue(
+            controller.evaluateAndReserve("com.other", false, 4_000L).suppress
+        )
+        assertFalse(
+            controller.evaluateAndReserve("com.other", true, 5_000L).suppress
+        )
     }
 
     @Test
-    fun freeTierIgnoresPremiumBudget() {
+    fun freeTierUsesCooldownButIgnoresPremiumBudget() {
         val controller = PausePingController(
             enabledProvider = { true },
             cooldownSecondsProvider = { 1 },
             premiumProvider = { false },
             budgetEnabledProvider = { true },
-            budgetMaxAlertsProvider = { 1 },
-            budgetWindowMinutesProvider = { 30 }
+            budgetMaxAlertsProvider = { 1 }
         )
-
-        assertFalse(controller.shouldSuppress("com.example", false, 1_000L))
-        assertFalse(controller.shouldSuppress("com.example", false, 3_000L))
+        val first = controller.evaluateAndReserve("com.example", false, 1_000L)
+        controller.confirmVisualAlert(first.reservation!!)
+        assertFalse(
+            controller.evaluateAndReserve("com.example", false, 3_000L).suppress
+        )
     }
 
     @Test
-    fun premiumBudgetCountsOnlyEmittedVisualAlerts() {
+    fun premiumBudgetCountsConfirmedAndPendingReservations() {
         val controller = PausePingController(
             enabledProvider = { true },
             cooldownSecondsProvider = { 1 },
             premiumProvider = { true },
             budgetEnabledProvider = { true },
-            budgetMaxAlertsProvider = { 3 },
+            budgetMaxAlertsProvider = { 2 },
             budgetWindowMinutesProvider = { 30 }
         )
+        val first = controller.evaluateAndReserve("com.example", false, 1_000L)
+        controller.confirmVisualAlert(first.reservation!!)
 
-        assertFalse(controller.shouldSuppress("com.example", false, 1_000L))
-        assertFalse(controller.shouldSuppress("com.example", false, 3_000L))
-        assertFalse(controller.shouldSuppress("com.example", false, 5_000L))
-        assertFalse(controller.shouldSuppress("com.example", false, 7_000L))
+        val second = controller.evaluateAndReserve("com.example", false, 3_000L)
+        assertFalse(second.suppress)
+        assertTrue(
+            controller.evaluateAndReserve("com.example", false, 5_000L).suppress
+        )
 
-        controller.recordVisualAlert("com.example", false, 8_000L)
-        controller.recordVisualAlert("com.example", false, 10_000L)
-        controller.recordVisualAlert("com.example", false, 12_000L)
-
-        assertTrue(controller.shouldSuppress("com.example", false, 14_000L))
+        controller.cancelVisualAlert(second.reservation!!)
+        val replacement =
+            controller.evaluateAndReserve("com.example", false, 5_001L)
+        assertFalse(replacement.suppress)
+        controller.confirmVisualAlert(replacement.reservation!!)
+        assertTrue(
+            controller.evaluateAndReserve("com.example", false, 7_000L).suppress
+        )
     }
 
     @Test
@@ -86,29 +105,35 @@ class PausePingControllerTest {
             budgetMaxAlertsProvider = { 1 },
             budgetWindowMinutesProvider = { 1 }
         )
-
-        assertFalse(controller.shouldSuppress("com.example", false, 1_000L))
-        controller.recordVisualAlert("com.example", false, 1_000L)
-        assertTrue(controller.shouldSuppress("com.example", false, 3_000L))
-        assertFalse(controller.shouldSuppress("com.example", false, 62_000L))
+        val first = controller.evaluateAndReserve("com.example", false, 1_000L)
+        controller.confirmVisualAlert(first.reservation!!)
+        assertTrue(
+            controller.evaluateAndReserve("com.example", false, 3_000L).suppress
+        )
+        assertFalse(
+            controller.evaluateAndReserve("com.example", false, 62_000L).suppress
+        )
     }
 
     @Test
-    fun criticalAlertBypassesAndDoesNotConsumeBudget() {
+    fun criticalBypassesWithoutConsumingCooldownOrBudget() {
         val controller = PausePingController(
             enabledProvider = { true },
-            cooldownSecondsProvider = { 1 },
+            cooldownSecondsProvider = { 20 },
             premiumProvider = { true },
             budgetEnabledProvider = { true },
-            budgetMaxAlertsProvider = { 1 },
-            budgetWindowMinutesProvider = { 30 }
+            budgetMaxAlertsProvider = { 1 }
         )
+        val critical = controller.evaluateAndReserve("com.example", true, 1_000L)
+        assertFalse(critical.suppress)
+        assertNull(critical.reservation)
 
-        assertFalse(controller.shouldSuppress("com.example", true, 1_000L))
-        controller.recordVisualAlert("com.example", true, 1_000L)
-        assertFalse(controller.shouldSuppress("com.example", false, 3_000L))
-        controller.recordVisualAlert("com.example", false, 3_000L)
-        assertTrue(controller.shouldSuppress("com.example", false, 5_000L))
+        val normal = controller.evaluateAndReserve("com.example", false, 2_000L)
+        assertFalse(normal.suppress)
+        controller.confirmVisualAlert(normal.reservation!!)
+        assertTrue(
+            controller.evaluateAndReserve("com.example", false, 3_000L).suppress
+        )
     }
 
     @Test
@@ -119,18 +144,21 @@ class PausePingControllerTest {
             premiumProvider = { true },
             perAppCooldownProvider = { mapOf("com.example" to 0) },
             budgetEnabledProvider = { true },
-            budgetMaxAlertsProvider = { 1 },
-            budgetWindowMinutesProvider = { 30 }
+            budgetMaxAlertsProvider = { 1 }
         )
-
-        assertFalse(controller.shouldSuppress("com.example", false, 1_000L))
-        controller.recordVisualAlert("com.example", false, 1_000L)
-        assertFalse(controller.shouldSuppress("com.example", false, 2_000L))
-        assertFalse(controller.shouldSuppress("com.example", false, 3_000L))
+        repeat(3) { index ->
+            val decision = controller.evaluateAndReserve(
+                "com.example",
+                false,
+                1_000L + index
+            )
+            assertFalse(decision.suppress)
+            assertNull(decision.reservation)
+        }
     }
 
     @Test
-    fun premiumBudgetHistorySurvivesControllerRecreation() {
+    fun confirmedPremiumHistorySurvivesControllerRecreation() {
         var persistedHistory: Map<String, List<Long>> = emptyMap()
         val createController = {
             PausePingController(
@@ -144,12 +172,15 @@ class PausePingControllerTest {
                 budgetHistoryConsumer = { persistedHistory = it }
             )
         }
-
         val first = createController()
-        first.recordVisualAlert("com.example", false, 1_000L)
-        first.recordVisualAlert("com.example", false, 3_000L)
+        val one = first.evaluateAndReserve("com.example", false, 1_000L)
+        first.confirmVisualAlert(one.reservation!!)
+        val two = first.evaluateAndReserve("com.example", false, 3_000L)
+        first.confirmVisualAlert(two.reservation!!)
 
         val recreated = createController()
-        assertTrue(recreated.shouldSuppress("com.example", false, 5_000L))
+        assertTrue(
+            recreated.evaluateAndReserve("com.example", false, 5_000L).suppress
+        )
     }
 }
