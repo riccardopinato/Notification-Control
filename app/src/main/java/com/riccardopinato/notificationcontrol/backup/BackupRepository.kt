@@ -291,7 +291,6 @@ class BackupRepository(context: Context) {
             }
         }
 
-        backupDao.clearRestoreJournal()
         cleanupRecoveryPointSidecars(keep = finalMedia)
         cleanupAbandonedRecoveryStaging()
 
@@ -299,6 +298,8 @@ class BackupRepository(context: Context) {
             notificationDao.allThumbnailPaths().toSet() +
                 mediaRecoveryDao.allRescuePaths().toSet()
         mediaStore.cleanupOrphans(referencedMedia)
+        // Clear last: until this point startup reconciliation remains retryable.
+        backupDao.clearRestoreJournal()
         return true
     }
 
