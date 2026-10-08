@@ -239,8 +239,16 @@ class BackupRepository(context: Context) {
             })
             .put("media", JSONArray().apply {
                 notifications.forEach { notification ->
-                    if (notification.thumbnailPath in revisionMediaPaths) return@forEach
-                    val bytes = mediaStore.read(notification.thumbnailPath) ?: return@forEach
+                    val path = notification.thumbnailPath ?: return@forEach
+                    if (path in revisionMediaPaths) return@forEach
+                    val bytes = mediaStore.read(path)
+                    if (bytes == null) {
+                        require(!includeTransientRecovery) {
+                            "Unable to snapshot notification media: " +
+                                notification.sbnKey
+                        }
+                        return@forEach
+                    }
                     put(
                         JSONObject()
                             .put("notificationKey", notification.sbnKey)
@@ -250,7 +258,15 @@ class BackupRepository(context: Context) {
             })
             .put("revisionMedia", JSONArray().apply {
                 revisions.forEach { revision ->
-                    val bytes = mediaStore.read(revision.thumbnailPath) ?: return@forEach
+                    val path = revision.thumbnailPath ?: return@forEach
+                    val bytes = mediaStore.read(path)
+                    if (bytes == null) {
+                        require(!includeTransientRecovery) {
+                            "Unable to snapshot revision media: " +
+                                revision.revisionKey
+                        }
+                        return@forEach
+                    }
                     put(
                         JSONObject()
                             .put("revisionKey", revision.revisionKey)
