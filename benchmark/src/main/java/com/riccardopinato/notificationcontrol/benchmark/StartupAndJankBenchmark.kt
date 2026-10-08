@@ -37,6 +37,22 @@ class StartupAndJankBenchmark {
     }
 
     @Test
+    fun warmStartup() = benchmarkRule.measureRepeated(
+        packageName = PACKAGE_NAME,
+        metrics = listOf(StartupTimingMetric()),
+        compilationMode = CompilationMode.Partial(),
+        iterations = 8,
+        startupMode = StartupMode.WARM,
+        setupBlock = {
+            pressHome()
+            startActivityAndWait()
+            pressHome()
+        }
+    ) {
+        startActivityAndWait()
+    }
+
+    @Test
     fun tabSwitchAndVaultScrollFrames() = benchmarkRule.measureRepeated(
         packageName = PACKAGE_NAME,
         metrics = listOf(FrameTimingMetric()),
@@ -68,6 +84,41 @@ class StartupAndJankBenchmark {
         device.waitForIdle()
         device.click((width * 0.90f).toInt(), navigationY)
         device.waitForIdle()
+    }
+
+    @Test
+    fun sustainedNavigationAndVaultScrollFrames() = benchmarkRule.measureRepeated(
+        packageName = PACKAGE_NAME,
+        metrics = listOf(FrameTimingMetric()),
+        compilationMode = CompilationMode.Partial(),
+        iterations = 3,
+        startupMode = StartupMode.WARM,
+        setupBlock = {
+            pressHome()
+            startActivityAndWait()
+        }
+    ) {
+        val width = device.displayWidth
+        val height = device.displayHeight
+        val navigationY = (height * 0.93f).toInt()
+
+        repeat(12) {
+            device.click((width * 0.30f).toInt(), navigationY)
+            device.waitForIdle()
+            device.swipe(
+                width / 2,
+                (height * 0.78f).toInt(),
+                width / 2,
+                (height * 0.30f).toInt(),
+                16
+            )
+            device.click((width * 0.70f).toInt(), navigationY)
+            device.waitForIdle()
+            device.click((width * 0.90f).toInt(), navigationY)
+            device.waitForIdle()
+            device.click((width * 0.10f).toInt(), navigationY)
+            device.waitForIdle()
+        }
     }
 
     companion object {
