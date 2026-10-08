@@ -94,6 +94,29 @@ fun PhysicalQaCard() {
                 style = MaterialTheme.typography.labelSmall
             )
             Text(
+                stringResource(
+                    R.string.physical_qa_pipeline_perf,
+                    snapshot.runtimePerformance.queueDepth,
+                    snapshot.runtimePerformance.queueHighWater,
+                    snapshot.runtimePerformance.processedCommands,
+                    snapshot.runtimePerformance.averageCommandMs,
+                    snapshot.runtimePerformance.maxCommandMs,
+                    snapshot.runtimePerformance.slowCommands
+                ),
+                style = MaterialTheme.typography.labelSmall
+            )
+            Text(
+                stringResource(
+                    R.string.physical_qa_media_perf,
+                    snapshot.runtimePerformance.mediaObserverSignals,
+                    snapshot.runtimePerformance.mediaRecoveryRuns,
+                    snapshot.runtimePerformance.averageMediaRecoveryMs,
+                    snapshot.runtimePerformance.maxMediaRecoveryMs,
+                    snapshot.runtimePerformance.lastMediaRecoveryRemaining
+                ),
+                style = MaterialTheme.typography.labelSmall
+            )
+            Text(
                 stringResource(R.string.physical_qa_manual_note),
                 style = MaterialTheme.typography.labelSmall,
                 modifier = Modifier.padding(top = 6.dp)
