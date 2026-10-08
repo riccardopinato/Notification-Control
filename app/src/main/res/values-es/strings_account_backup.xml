@@ -29,5 +29,5 @@
     <string name="recovery_point_rollback_body">Restaura el Vault local, automatizaciones, ajustes y estado multimedia transitorio guardados justo antes de la última restauración. Usa la misma contraseña de la copia.</string>
     <string name="recovery_point_rollback_success">Última restauración deshecha correctamente.</string>
     <string name="recovery_point_rollback_warnings">Punto de recuperación restaurado, pero %1$d operación(es) posteriores requieren atención.</string>
-    <string name="recovery_point_premium">Premium crea automáticamente un punto de recuperación cifrado antes de restaurar y permite deshacer la última restauración.</string>
+    <string name="recovery_point_premium">Premium crea automáticamente un punto de recuperación protegido antes de restaurar: los metadatos están cifrados y los archivos multimedia permanecen en el almacenamiento privado de la app. Permite deshacer la última restauración.</string>
 </resources>
