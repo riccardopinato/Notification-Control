@@ -30,6 +30,8 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -126,6 +128,12 @@ class BackupRepository(context: Context) {
     }
 
     suspend fun reconcileInterruptedRecoveryPoint() {
+        recoveryMutex.withLock {
+            reconcileInterruptedRecoveryPointLocked()
+        }
+    }
+
+    private suspend fun reconcileInterruptedRecoveryPointLocked() {
         val journal = backupDao.restoreJournal()
         if (journal == null) {
             cleanupAbandonedRecoveryStaging()
@@ -137,18 +145,20 @@ class BackupRepository(context: Context) {
     suspend fun rollbackLastRestore(
         passphrase: CharArray
     ): Result<BackupSummary> = runCatching {
-        require(settings.isPremium) { "Premium required for Recovery Point rollback" }
-        reconcileInterruptedRecoveryPoint()
-        val encrypted = readRecoveryPointLimited()
-        val summary = restoreEncrypted(
-            encrypted = encrypted,
-            passphrase = passphrase,
-            createRecoveryPoint = false
-        )
-        if (summary.warningCategories.isEmpty()) {
-            discardRecoveryPoint()
+        recoveryMutex.withLock {
+            require(settings.isPremium) { "Premium required for Recovery Point rollback" }
+            reconcileInterruptedRecoveryPointLocked()
+            val encrypted = readRecoveryPointLimited()
+            val summary = restoreEncrypted(
+                encrypted = encrypted,
+                passphrase = passphrase,
+                createRecoveryPoint = false
+            )
+            if (summary.warningCategories.isEmpty()) {
+                discardRecoveryPoint()
+            }
+            summary
         }
-        summary
     }
 
     private suspend fun stagePremiumRecoveryPoint(
@@ -612,12 +622,14 @@ class BackupRepository(context: Context) {
         uri: Uri,
         passphrase: CharArray
     ): Result<BackupSummary> = runCatching {
-        reconcileInterruptedRecoveryPoint()
-        restoreEncrypted(
-            encrypted = readLimited(uri),
-            passphrase = passphrase,
-            createRecoveryPoint = settings.isPremium
-        )
+        recoveryMutex.withLock {
+            reconcileInterruptedRecoveryPointLocked()
+            restoreEncrypted(
+                encrypted = readLimited(uri),
+                passphrase = passphrase,
+                createRecoveryPoint = settings.isPremium
+            )
+        }
     }
 
     private suspend fun restoreEncrypted(
@@ -1613,6 +1625,8 @@ class BackupRepository(context: Context) {
     companion object {
         @Volatile
         internal var restoreTestHook: ((String) -> Unit)? = null
+
+        private val recoveryMutex = Mutex()
 
         private const val FORMAT_VERSION = 1
         private const val MAX_MEDIA_BYTES = 6 * 1024 * 1024
