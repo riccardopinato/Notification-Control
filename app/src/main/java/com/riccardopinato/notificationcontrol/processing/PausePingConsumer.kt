@@ -12,5 +12,11 @@ class PausePingConsumer(
             packageName = event.packageName,
             critical = context.critical
         )
+        context.onVisualAlertEmitted = {
+            controller.recordVisualAlert(
+                packageName = event.packageName,
+                critical = context.critical
+            )
+        }
     }
 }

@@ -34,7 +34,7 @@ class PausePingControllerTest {
     }
 
     @Test
-    fun premiumBudgetSuppressesAlertsBeyondRollingLimit() {
+    fun premiumBudgetCountsOnlyEmittedVisualAlerts() {
         val controller = PausePingController(
             enabledProvider = { true },
             cooldownSecondsProvider = { 1 },
@@ -47,7 +47,13 @@ class PausePingControllerTest {
         assertFalse(controller.shouldSuppress("com.example", false, 1_000L))
         assertFalse(controller.shouldSuppress("com.example", false, 3_000L))
         assertFalse(controller.shouldSuppress("com.example", false, 5_000L))
-        assertTrue(controller.shouldSuppress("com.example", false, 7_000L))
+        assertFalse(controller.shouldSuppress("com.example", false, 7_000L))
+
+        controller.recordVisualAlert("com.example", false, 8_000L)
+        controller.recordVisualAlert("com.example", false, 10_000L)
+        controller.recordVisualAlert("com.example", false, 12_000L)
+
+        assertTrue(controller.shouldSuppress("com.example", false, 14_000L))
     }
 
     @Test
@@ -62,6 +68,7 @@ class PausePingControllerTest {
         )
 
         assertFalse(controller.shouldSuppress("com.example", false, 1_000L))
+        controller.recordVisualAlert("com.example", false, 1_000L)
         assertTrue(controller.shouldSuppress("com.example", false, 3_000L))
         assertFalse(controller.shouldSuppress("com.example", false, 62_000L))
     }
@@ -78,7 +85,9 @@ class PausePingControllerTest {
         )
 
         assertFalse(controller.shouldSuppress("com.example", true, 1_000L))
+        controller.recordVisualAlert("com.example", true, 1_000L)
         assertFalse(controller.shouldSuppress("com.example", false, 3_000L))
+        controller.recordVisualAlert("com.example", false, 3_000L)
         assertTrue(controller.shouldSuppress("com.example", false, 5_000L))
     }
 
@@ -95,7 +104,32 @@ class PausePingControllerTest {
         )
 
         assertFalse(controller.shouldSuppress("com.example", false, 1_000L))
+        controller.recordVisualAlert("com.example", false, 1_000L)
         assertFalse(controller.shouldSuppress("com.example", false, 2_000L))
         assertFalse(controller.shouldSuppress("com.example", false, 3_000L))
+    }
+
+    @Test
+    fun premiumBudgetHistorySurvivesControllerRecreation() {
+        var persistedHistory: Map<String, List<Long>> = emptyMap()
+        val createController = {
+            PausePingController(
+                enabledProvider = { true },
+                cooldownSecondsProvider = { 1 },
+                premiumProvider = { true },
+                budgetEnabledProvider = { true },
+                budgetMaxAlertsProvider = { 2 },
+                budgetWindowMinutesProvider = { 30 },
+                budgetHistoryProvider = { persistedHistory },
+                budgetHistoryConsumer = { persistedHistory = it }
+            )
+        }
+
+        val first = createController()
+        first.recordVisualAlert("com.example", false, 1_000L)
+        first.recordVisualAlert("com.example", false, 3_000L)
+
+        val recreated = createController()
+        assertTrue(recreated.shouldSuppress("com.example", false, 5_000L))
     }
 }
