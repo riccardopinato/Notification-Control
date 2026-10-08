@@ -29,5 +29,5 @@
     <string name="recovery_point_rollback_body">Restaura o Vault local, automações, definições e estado temporário de media guardados imediatamente antes da última restauração. Use a mesma palavra-passe da cópia.</string>
     <string name="recovery_point_rollback_success">Última restauração anulada com sucesso.</string>
     <string name="recovery_point_rollback_warnings">Ponto de recuperação restaurado, mas %1$d operação(ões) posteriores precisam de atenção.</string>
-    <string name="recovery_point_premium">O Premium cria automaticamente um ponto de recuperação cifrado antes da restauração e permite anular a última restauração.</string>
+    <string name="recovery_point_premium">O Premium cria automaticamente um ponto de recuperação protegido antes da restauração: os metadados são cifrados e os media permanecem no armazenamento privado da app. Permite anular a última restauração.</string>
 </resources>
