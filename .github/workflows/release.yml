@@ -44,7 +44,7 @@ jobs:
           }
 
       - name: Checkout release control plane
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           path: control
           ref: ${{ github.sha }}
@@ -73,8 +73,19 @@ jobs:
           echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           echo "CERTIFIED_SOURCE_SHA=$CERTIFIED_SOURCE_SHA" >> "$GITHUB_ENV"
 
+      - name: Verify App Factory release control plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-output
+          python3 control/scripts/verify_factory_alignment.py \
+            --root control \
+            --output release-output/FACTORY_ALIGNMENT.txt
+          cp control/release/FACTORY_BASELINE.env release-output/FACTORY_BASELINE.env
+
+
       - name: Checkout exact certified application source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ steps.cert.outputs.source_sha }}
           path: source
@@ -123,18 +134,20 @@ jobs:
             real_distribution=true
           fi
 
-          if [[ "$real_distribution" == "true" && "$SIGNING_READY" != "true" ]]; then
-            echo "Real distribution requires persistent Android signing credentials." >&2
-            exit 1
+          if [[ "$real_distribution" == "true" ]]; then
+            [[ "$SIGNING_READY" == "true" ]] || {
+              echo "Real distribution requires persistent Android signing credentials." >&2
+              exit 1
+            }
+            [[ -n "${EXPECTED_UPLOAD_CERT_SHA256:-}" ]] || {
+              echo "Real distribution requires EXPECTED_UPLOAD_CERT_SHA256." >&2
+              exit 1
+            }
           fi
 
           if [[ "${{ inputs.publish_play_internal }}" == "true" ]]; then
             [[ -n "${PLAY_SERVICE_ACCOUNT_JSON:-}" ]] || {
               echo "PLAY_SERVICE_ACCOUNT_JSON is required for Play Internal Testing." >&2
-              exit 1
-            }
-            [[ -n "${EXPECTED_UPLOAD_CERT_SHA256:-}" ]] || {
-              echo "EXPECTED_UPLOAD_CERT_SHA256 is required before Play upload." >&2
               exit 1
             }
           fi
@@ -174,6 +187,8 @@ jobs:
           fi
 
           signing_status="UNSIGNED_VALIDATION"
+          signing_lane="NONE"
+          signing_identity_match="EXTERNAL_REQUIRED"
           release_publishable=false
           cert_sha256="NOT_AVAILABLE"
 
@@ -189,15 +204,26 @@ jobs:
               exit 1
             }
             "$apksigner" verify "release-output/${RC_ID}.apk"
-            jarsigner -verify -strict "release-output/${RC_ID}.aab" >/dev/null
+            aab_verify_output="$(jarsigner -verify -verbose -certs "release-output/${RC_ID}.aab" 2>&1)" || {
+              printf '%s\n' "$aab_verify_output" >&2
+              echo "AAB signature verification failed." >&2
+              exit 1
+            }
+            if grep -Fqi "jar is unsigned" <<<"$aab_verify_output" || \
+               ! grep -Fqi "jar verified" <<<"$aab_verify_output"; then
+              printf '%s\n' "$aab_verify_output" >&2
+              echo "AAB is not verifiably signed." >&2
+              exit 1
+            fi
             cert_sha256="$("$apksigner" verify --print-certs "release-output/${RC_ID}.apk" 2>/dev/null \
               | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)"
             [[ -n "$cert_sha256" ]] || {
               echo "Unable to resolve release certificate SHA-256." >&2
               exit 1
             }
+
             signing_status="SIGNED"
-            release_publishable=true
+            signing_lane="PRODUCTION"
 
             if [[ -n "${EXPECTED_UPLOAD_CERT_SHA256:-}" ]]; then
               actual_norm="$(printf '%s' "$cert_sha256" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
@@ -208,6 +234,8 @@ jobs:
                 echo "Actual upload cert SHA-256: $cert_sha256" >&2
                 exit 1
               }
+              signing_identity_match="VERIFIED"
+              release_publishable=true
             fi
           fi
 
@@ -220,7 +248,14 @@ jobs:
             echo "RESOLVED_SOURCE_SHA=$(git -C source rev-parse HEAD)"
             echo "PACKAGE_ID=com.riccardopinato.notificationcontrol"
             echo "VARIANT=release"
+            source control/release/FACTORY_BASELINE.env
+            echo "FACTORY_SOURCE_SHA=$FACTORY_SOURCE_SHA"
+            echo "FACTORY_MASTER_VERSION=$MASTER_VERSION"
+            echo "FACTORY_GOLDEN_INDEX_VERSION=$GOLDEN_INDEX_VERSION"
+            echo "FACTORY_CI_RELEASE_GOLDEN_VERSION=$CI_RELEASE_GOLDEN_VERSION"
             echo "RELEASE_BINARY_STATUS=$signing_status"
+            echo "SIGNING_LANE=$signing_lane"
+            echo "SIGNING_IDENTITY_MATCH=$signing_identity_match"
             echo "RELEASE_PUBLISHABLE=$release_publishable"
             echo "UPLOAD_CERT_SHA256=$cert_sha256"
             echo "APK_SHA256=$(sha256sum "release-output/${RC_ID}.apk" | awk '{print $1}')"
@@ -229,6 +264,8 @@ jobs:
           } > release-output/RELEASE_PROVENANCE.txt
 
           echo "RELEASE_BINARY_STATUS=$signing_status" >> "$GITHUB_ENV"
+          echo "SIGNING_LANE=$signing_lane" >> "$GITHUB_ENV"
+          echo "SIGNING_IDENTITY_MATCH=$signing_identity_match" >> "$GITHUB_ENV"
           echo "RELEASE_PUBLISHABLE=$release_publishable" >> "$GITHUB_ENV"
           echo "UPLOAD_CERT_SHA256=$cert_sha256" >> "$GITHUB_ENV"
 
@@ -302,8 +339,11 @@ jobs:
             echo "step27b_physical_oem=MANUAL_REQUIRED"
             echo "step27c_static_readiness=PASS"
             echo "production_signing=$RELEASE_BINARY_STATUS"
+            echo "signing_lane=$SIGNING_LANE"
+            echo "signing_identity_match=$SIGNING_IDENTITY_MATCH"
             echo "release_publishable=$RELEASE_PUBLISHABLE"
             echo "upload_cert_sha256=$UPLOAD_CERT_SHA256"
+            echo "factory_alignment=PASS"
             echo "github_prerelease=$github_prerelease"
             echo "play_internal_upload=$play_upload"
             echo "play_internal_install_update=MANUAL_REQUIRED"
@@ -322,7 +362,7 @@ jobs:
           ls -lh release-output
 
       - name: Upload release-reality evidence and exact artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: ${{ steps.cert.outputs.rc_id }}-release-reality
           path: release-output/

@@ -1,6 +1,6 @@
-NOTIFICATION CONTROL — ROADMAP v1.12.0
+NOTIFICATION CONTROL — ROADMAP v1.13.0
 Date: 2026-10-09
-Status: V1.0 RC1 AUTOMATED CERTIFIED / RELEASE REALITY PREPARATION
+Status: V1.0 RC1 AUTOMATED CERTIFIED / FACTORY v25.1 RELEASE HARDENING
 
 PHASE 0 — DONOR AUDIT & BASELINE
 COMPLETED / MERGED
@@ -466,24 +466,49 @@ DEFERRED BY OWNER / MANUAL_REQUIRED
 - deferred != waived and does not block repository/release-preparation work
 
 STEP 27C — PLAY INTERNAL TESTING & RELEASE REALITY
-IMPLEMENTED / AUTOMATED STATIC VALIDATION IN PROGRESS
+COMPLETED / MERGED FOR AUTOMATED + CONTROL-PLANE SCOPE
+Merge baseline: c9d53aee661d8bcbdd91dd2772055c2db56fd6bc
+- PR #29 final head: 7a1e64c11ebf16f822d0c5883a44d8507c8b91d6
+- Android CI run 37928048088: PASS
+- Certified QA run 37928048296: PASS
+- AppLab FULL run 37928049265: PASS
+- post-merge Android CI run 37930146869: PASS
 - control-plane certification record binds RC1 identity to certified source SHA 3ff070fc...
 - release workflow builds the exact certified source from a separate checkout instead of silently publishing current main
 - build-once / hash / distribute-same-bytes rule applied to release APK/AAB
 - real distribution requires persistent Android signing credentials
-- Google Play Internal upload additionally requires service account credentials and EXPECTED_UPLOAD_CERT_SHA256
+- Google Play Internal upload requires service account credentials and EXPECTED_UPLOAD_CERT_SHA256
 - release provenance records control-plane SHA, certified source SHA, package/variant, artifact hashes and signing certificate SHA-256
-- GitHub RC prerelease, when requested, targets the certified source SHA
+- GitHub RC prerelease targets the certified source SHA and rejects mismatched existing tags/releases
 - Play upload uses the exact AAB already hashed into release-output
-- static verifier checks RC identity, package ID, least-privilege release media policy and canonical Billing product/base-plan IDs
+- static verifier checks RC identity, complete STEP 27A evidence record, package ID, least-privilege release media policy and canonical Billing product/base-plan IDs
 - release public path remains notification-direct media + explicit SAF; broad MediaStore permissions removed from release
-- successful Play API upload is DISTRIBUTION_SUBMITTED, not DISTRIBUTION_VERIFIED
+- successful Play API upload remains DISTRIBUTION_SUBMITTED, not DISTRIBUTION_VERIFIED
 - Internal Testing installation/update, live Billing and live Google profile remain MANUAL_REQUIRED
 - Play App Signing certificate/OAuth match and product activation remain EXTERNAL_REQUIRED
 - protocol: docs/STEP_27C_PLAY_RELEASE_REALITY.md
 
+STEP 27D — APP FACTORY v25.1 RELEASE HARDENING
+IMPLEMENTED / AUTOMATED VALIDATION IN PROGRESS
+Factory baseline: App-Factory-Core a4a97ca79e85d2faebcdcc9a3ae4a9644f5caf03
+- Master Prompt 25.1 / Golden Index 10 / Golden Registry 2 pinned as app-local provenance snapshot
+- CI + Android Release Golden v2 CURRENT supply-chain pins adopted where compatible with native Kotlin/Compose
+- actions/checkout pinned to Golden-verified immutable SHA 3d3c42e5...
+- actions/upload-artifact pinned to Golden-verified immutable SHA cf430e03...
+- local verifier rejects non-immutable GitHub Action refs and drift from Factory Golden pins
+- Certified evidence now includes Factory alignment/provenance
+- signing lane separated from binary signing status
+- SIGNED no longer implies release_publishable: expected production/upload certificate SHA-256 must be configured and match
+- APK and AAB signatures both verified when signing exists
+- temporary CI keystore cleanup is fail-safe via always()
+- real GitHub/Play distribution requires persistent signing plus EXPECTED_UPLOAD_CERT_SHA256
+- Capability Health, Native Reliability and Entitlement Goldens audited as delta only; existing Notification Control systems retained instead of duplicated
+- provider-sensitive Goldens marked NEEDS_REVIEW are used only as architecture/process guidance, not provider certification
+- protocol: docs/STEP_27D_FACTORY_V25_1_ALIGNMENT.md
+
 FINAL STEP 27 VERDICT RULE:
 CERTIFIED only when 27A + 27B + 27C all have real evidence.
+27D strengthens release governance but does not replace any physical/store gate.
 No automated/AppLab/Play-upload result may substitute for device/store/runtime evidence.
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
@@ -502,16 +527,18 @@ AUTOMATED CORE: PASS
 STEP 26 AUTOMATION: PASS
 STEP 27A AUTOMATED RC1: PASS
 STEP 27B PHYSICAL DEVICE: DEFERRED / MANUAL_REQUIRED
-STEP 27C STATIC RELEASE READINESS: VALIDATION_IN_PROGRESS
+STEP 27C AUTOMATED/CONTROL-PLANE: PASS
 STEP 27C PLAY/OAUTH/BILLING EXTERNAL: REQUIRED
+STEP 27D FACTORY v25.1 HARDENING: VALIDATION_IN_PROGRESS
 FINAL INTENDED-RELEASE VERDICT: BLOCKED by physical + external/store evidence, not by known application code failure
 
 IMMEDIATE NEXT ACTION:
-1. Validate and merge STEP 27C release-reality preparation only if Android CI + Certified QA + AppLab remain green.
-2. Configure persistent signing/upload certificate evidence when available.
-3. Configure Play service account, App Signing/OAuth and Premium products.
-4. Run the hardened release workflow to produce the signed exact RC1 AAB and optionally submit it to Internal Testing.
-5. Return to STEP 27B physical/OEM validation when a phone is available.
-6. Verify Internal Testing install/update + live purchase/restore/Google profile before final V1.0 CERTIFIED.
+1. Require Android CI + Certified QA + AppLab FULL to pass on the final STEP 27D head SHA.
+2. Merge STEP 27D only with immutable-action / Factory alignment gates green.
+3. Configure persistent signing/upload certificate evidence when available.
+4. Configure Play service account, App Signing/OAuth and Premium products.
+5. Run the hardened release workflow to produce the signed exact RC1 AAB and optionally submit it to Internal Testing.
+6. Return to STEP 27B physical/OEM validation when a phone is available.
+7. Verify Internal Testing install/update + live purchase/restore/Google profile before final V1.0 CERTIFIED.
 
-END ROADMAP v1.12.0
+END ROADMAP v1.13.0
