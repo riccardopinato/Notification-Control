@@ -1,7 +1,23 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.devtools.ksp)
+}
+
+val rcPropertiesFile = rootProject.file("release/RC.properties")
+val rcProperties = Properties().apply {
+    require(rcPropertiesFile.isFile) { "Missing canonical RC identity: $rcPropertiesFile" }
+    rcPropertiesFile.inputStream().use { load(it) }
+}
+val rcVersionName = requireNotNull(rcProperties.getProperty("VERSION_NAME")) {
+    "VERSION_NAME missing from release/RC.properties"
+}
+val rcVersionCode = requireNotNull(rcProperties.getProperty("VERSION_CODE")).toIntOrNull()
+    ?: error("VERSION_CODE must be an integer in release/RC.properties")
+val rcId = requireNotNull(rcProperties.getProperty("RC_ID")) {
+    "RC_ID missing from release/RC.properties"
 }
 
 val releaseStoreFile = System.getenv("SIGNING_STORE_FILE")
@@ -37,8 +53,8 @@ android {
         applicationId = "com.riccardopinato.notificationcontrol"
         minSdk = 24
         targetSdk = 36
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
-        versionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "0.1.0"
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: rcVersionCode
+        versionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: rcVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField(
             "String",
@@ -48,6 +64,7 @@ android {
         buildConfigField("boolean", "QA_PREMIUM_UNLOCKED", "false")
         buildConfigField("boolean", "MEDIASTORE_RECOVERY_ENABLED", "true")
         buildConfigField("boolean", "PERFORMANCE_DIAGNOSTICS_ENABLED", "false")
+        buildConfigField("String", "RELEASE_CANDIDATE_ID", rcId.asBuildConfigString())
     }
 
     signingConfigs {
