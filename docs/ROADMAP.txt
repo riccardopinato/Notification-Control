@@ -1,4 +1,4 @@
-NOTIFICATION CONTROL — ROADMAP v1.13.0
+NOTIFICATION CONTROL — ROADMAP v1.13.1
 Date: 2026-10-09
 Status: V1.0 RC1 AUTOMATED CERTIFIED / FACTORY v25.1 RELEASE HARDENING
 
@@ -489,8 +489,14 @@ Merge baseline: c9d53aee661d8bcbdd91dd2772055c2db56fd6bc
 - protocol: docs/STEP_27C_PLAY_RELEASE_REALITY.md
 
 STEP 27D — APP FACTORY v25.1 RELEASE HARDENING
-IMPLEMENTED / AUTOMATED VALIDATION IN PROGRESS
+COMPLETED / MERGED + AUTOMATED VALIDATION
 Factory baseline: App-Factory-Core a4a97ca79e85d2faebcdcc9a3ae4a9644f5caf03
+Merge baseline: 0566a760fab511f5456edf39f6af96607a4f6f12
+- final PR head: 1ccc36bbd62cc4c01a510ddbd93312fbd0b0e3d0
+- Android CI run 37959768503: PASS
+- Certified QA run 37959768437: PASS
+- AppLab FULL run 37959770181: PASS
+- post-merge Android CI run 37962657448: PASS
 - Master Prompt 25.1 / Golden Index 10 / Golden Registry 2 pinned as app-local provenance snapshot
 - CI + Android Release Golden v2 CURRENT supply-chain pins adopted where compatible with native Kotlin/Compose
 - actions/checkout pinned to Golden-verified immutable SHA 3d3c42e5...
@@ -529,16 +535,14 @@ STEP 27A AUTOMATED RC1: PASS
 STEP 27B PHYSICAL DEVICE: DEFERRED / MANUAL_REQUIRED
 STEP 27C AUTOMATED/CONTROL-PLANE: PASS
 STEP 27C PLAY/OAUTH/BILLING EXTERNAL: REQUIRED
-STEP 27D FACTORY v25.1 HARDENING: VALIDATION_IN_PROGRESS
+STEP 27D FACTORY v25.1 HARDENING: PASS
 FINAL INTENDED-RELEASE VERDICT: BLOCKED by physical + external/store evidence, not by known application code failure
 
 IMMEDIATE NEXT ACTION:
-1. Require Android CI + Certified QA + AppLab FULL to pass on the final STEP 27D head SHA.
-2. Merge STEP 27D only with immutable-action / Factory alignment gates green.
-3. Configure persistent signing/upload certificate evidence when available.
-4. Configure Play service account, App Signing/OAuth and Premium products.
-5. Run the hardened release workflow to produce the signed exact RC1 AAB and optionally submit it to Internal Testing.
-6. Return to STEP 27B physical/OEM validation when a phone is available.
-7. Verify Internal Testing install/update + live purchase/restore/Google profile before final V1.0 CERTIFIED.
+1. Configure persistent signing/upload certificate evidence when available.
+2. Configure Play service account, App Signing/OAuth and Premium products.
+3. Run the hardened release workflow to produce the signed exact RC1 AAB and optionally submit it to Internal Testing.
+4. Return to STEP 27B physical/OEM validation when a phone is available.
+5. Verify Internal Testing install/update + live purchase/restore/Google profile before final V1.0 CERTIFIED.
 
-END ROADMAP v1.13.0
+END ROADMAP v1.13.1
