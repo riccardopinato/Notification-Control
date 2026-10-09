@@ -1,6 +1,6 @@
-NOTIFICATION CONTROL — ROADMAP v1.10.0
-Date: 2026-10-08
-Status: CORE V1 + DEEP HARDENING MERGED / RELEASE VALIDATION
+NOTIFICATION CONTROL — ROADMAP v1.11.0
+Date: 2026-10-09
+Status: CORE V1 + DEEP HARDENING MERGED / V1.0 RC1 AUTOMATED CERTIFICATION
 
 PHASE 0 — DONOR AUDIT & BASELINE
 COMPLETED / MERGED
@@ -421,7 +421,12 @@ Merge baseline: 2b0d189416a1ca416b12f27ee701838ce0079cd4
 - AppLab FULL resta gate runtime/visuale; TalkBack reale e font-scale estremo restano da includere nella regressione fisica finale
 
 STEP 26 — PERFORMANCE, BATTERY & LONG-RUN STABILITY
-IMPLEMENTED / VALIDATION
+COMPLETED / MERGED + AUTOMATED VALIDATION
+Merge baseline: abfa5700bc52a1ff64f7b7d6ea366cf658dd43a2
+- final PR Android CI run 37808162675: PASS
+- final PR Certified QA run 37808162987: PASS
+- final PR AppLab FULL run 37808164875: PASS
+- post-merge Android CI run 37903301569 on main baseline: PASS
 - runtime telemetry QA/perf: queue depth/high-water, command latency, slow-command count and media-recovery timing
 - release build keeps performance diagnostics disabled; no analytics/network telemetry added
 - MediaStore recovery coalesced: 250 ms after notification registration, 750 ms after observer changes
@@ -431,18 +436,45 @@ IMPLEMENTED / VALIDATION
 - Macrobenchmark harness covers cold start, warm start, regular jank and sustained navigation/Vault scrolling
 - Certified QA enforces binary size budget: release APK <= 8 MiB, AAB <= 12 MiB
 - dedicated protocol: docs/STEP_26_PERFORMANCE_STABILITY.md
-- AppLab resource/background/process-death/performance evidence remains part of FULL
 - physical Xiaomi/Samsung macrobenchmark, battery/Doze/reboot soak and extended memory/leak observation remain MANUAL_REQUIRED
 
 STEP 27 — V1.0 RELEASE CANDIDATE CERTIFICATION
-PLANNED
-- all P0/P1 closed or explicitly waived with rationale
-- Android CI + Certified QA + AppLab CERTIFICATION green on immutable release commit
-- signed release APK/AAB provenance and checksums
+IN PROGRESS
+
+STEP 27A — RC1 FREEZE & AUTOMATED CERTIFICATION
+IMPLEMENTED / AUTOMATED VALIDATION IN PROGRESS
+- canonical RC identity: notification-control-v1.0.0-rc1
+- Android versionName: 1.0.0-rc1
+- Android versionCode: 1000001
+- release/RC.properties is the single source of truth for RC identity
+- Gradle reads RC identity fail-closed; CI environment overrides remain available only when explicitly supplied
+- Android CI verifies RC identity and records source/artifact hashes
+- Certified QA verifies release APK metadata, release APK/AAB checksums, signing state, source SHA and provenance
+- AppLab FULL is gated by the same canonical RC identity and exact source SHA
+- acceptance invariant: Android CI + Certified QA + AppLab FULL must all be green on one unchanged RC source SHA
+- AppLab exercises qaPremium because unsigned public release output is not falsely treated as installable
+- unsigned release validation may pass 27A source certification but remains release_publishable=false
+- protocol: docs/STEP_27A_RC1_AUTOMATED_CERTIFICATION.md
+
+STEP 27B — PHYSICAL/OEM CERTIFICATION
+PLANNED / MANUAL_REQUIRED
+- Xiaomi/HyperOS + Samsung/One UI + Android 14+ physical matrix
+- real Notification Listener, WhatsApp/media, reboot/process death/Doze/burst and long-run battery/memory evidence
+- final Free + Premium native regression including TalkBack/font-scale where applicable
+
+STEP 27C — PLAY INTERNAL TESTING & RELEASE REALITY
+PLANNED / EXTERNAL_REQUIRED
+- intended production signing / Play App Signing identity
+- signed AAB provenance and checksums
+- Google OAuth Android client matched to release/Play SHA-1
+- notification_control_premium monthly/annual products active
+- live purchase/restore and Google profile verified
 - Play Internal Testing installation/update verified
-- privacy/data-safety/store disclosures matched to actual permissions and features
-- final physical regression on core Free and Premium paths
-- verdict CERTIFIED only when device/store/external gates are actually satisfied
+- privacy/data-safety/store disclosures matched to actual release permissions/features
+
+FINAL STEP 27 VERDICT RULE:
+CERTIFIED only when 27A + 27B + 27C all have real evidence.
+No automated/AppLab result may substitute for device/store/external evidence.
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
 - Android OAuth client/package signing configuration must match the intended signed build
@@ -454,21 +486,22 @@ EXTERNAL CONFIGURATION STILL REQUIRED:
 - repository branch protection/ruleset: configure required checks on main if not already enforced
 
 CURRENT RELEASE VERDICT:
-AUTOMATED CORE (merged baseline 2b0d189): PASS
-CERTIFIED AUTOMATION (merged baseline 2b0d189): PASS
-APPLAB FULL (source SHA 9e3cb8c): PASS
-STEP 26 AUTOMATION: VALIDATION_IN_PROGRESS
-PHYSICAL DEVICE: MANUAL_REQUIRED
-LIVE GOOGLE/PLAY CONFIG: REQUIRED
+AUTOMATED CORE (main baseline abfa5700): PASS
+STEP 26 AUTOMATION (main baseline abfa5700): PASS
+STEP 27A RC1 IMPLEMENTATION: READY_FOR_AUTOMATED_GATES
+STEP 27A ANDROID CI: PENDING
+STEP 27A CERTIFIED QA: PENDING
+STEP 27A APPLAB FULL: PENDING
+PHYSICAL DEVICE / STEP 27B: MANUAL_REQUIRED
+LIVE GOOGLE/PLAY / STEP 27C: REQUIRED
 BRANCH GOVERNANCE: MANUAL_REQUIRED
-FINAL INTENDED-RELEASE VERDICT: BLOCKED until Step 26 validation + device/store/governance gates are completed
+FINAL INTENDED-RELEASE VERDICT: BLOCKED until 27A + device/store/governance gates are completed
 
 IMMEDIATE NEXT ACTION:
-1. Run Android CI + Certified QA + AppLab FULL on Step 26 and merge only if green.
-2. Execute STEP 23 + STEP 26 physical evidence on Xiaomi/Samsung/Android 14+.
-3. Complete external OAuth + Play product/signing/Internal Testing configuration from STEP 24.
-4. Review Step 26 telemetry/size/macrobenchmark evidence; fix real regressions before RC.
-5. Promote STEP 27 only from a signed immutable release candidate with mandatory automated + physical + store gates satisfied.
+1. Open the STEP 27A PR from the frozen RC1 branch.
+2. Require Android CI + Certified QA + AppLab FULL to pass on the exact same PR head SHA.
+3. Fix any deterministic build/test/evidence failure and invalidate/re-run all affected gates on the new SHA.
+4. Freeze the successful RC1 source SHA and preserve its Certified Evidence Bundle.
+5. Proceed to STEP 27B physical/OEM certification; do not label V1.0 CERTIFIED before 27C also passes.
 
-END ROADMAP v1.9.0
-
+END ROADMAP v1.11.0

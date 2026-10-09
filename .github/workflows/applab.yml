@@ -14,7 +14,18 @@ permissions:
   actions: read
 
 jobs:
+  rc-identity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify canonical RC identity
+        run: python3 scripts/verify_rc_identity.py
+
   applab-full:
+    needs: rc-identity
     uses: riccardopinato/AppLab/.github/workflows/external-native-android-runner.yml@c4333be0bacb2caecade95ae0901f84524a752c6
     with:
       repository: riccardopinato/Notification-Control
@@ -25,7 +36,7 @@ jobs:
       gradle_version: "9.3.1"
       compile_sdk: "36"
       build_tools: "36.0.0"
-      test_command: "gradle :app:testDebugUnitTest --stacktrace --no-daemon --max-workers=1"
+      test_command: "python3 scripts/verify_rc_identity.py && gradle :app:testDebugUnitTest --stacktrace --no-daemon --max-workers=1"
       lint_command: "gradle :app:lintQaPremium --stacktrace --no-daemon --max-workers=1"
       build_command: "gradle :app:assembleQaPremium --stacktrace --no-daemon --max-workers=1"
       apk_path: "app/build/outputs/apk/qaPremium/app-qaPremium.apk"
