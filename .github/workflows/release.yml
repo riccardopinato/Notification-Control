@@ -204,7 +204,17 @@ jobs:
               exit 1
             }
             "$apksigner" verify "release-output/${RC_ID}.apk"
-            jarsigner -verify -strict "release-output/${RC_ID}.aab" >/dev/null
+            aab_verify_output="$(jarsigner -verify -verbose -certs "release-output/${RC_ID}.aab" 2>&1)" || {
+              printf '%s\n' "$aab_verify_output" >&2
+              echo "AAB signature verification failed." >&2
+              exit 1
+            }
+            if grep -Fqi "jar is unsigned" <<<"$aab_verify_output" || \
+               ! grep -Fqi "jar verified" <<<"$aab_verify_output"; then
+              printf '%s\n' "$aab_verify_output" >&2
+              echo "AAB is not verifiably signed." >&2
+              exit 1
+            fi
             cert_sha256="$("$apksigner" verify --print-certs "release-output/${RC_ID}.apk" 2>/dev/null \
               | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)"
             [[ -n "$cert_sha256" ]] || {
