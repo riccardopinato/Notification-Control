@@ -67,6 +67,11 @@ jobs:
             echo "CERTIFIED_SIGNING_CONFIGURED=false" >> "$GITHUB_ENV"
           fi
 
+      - name: Step 27C static Play/release readiness
+        run: |
+          python3 scripts/verify_play_release_readiness.py \
+            --output certified-evidence/PLAY_STATIC_READINESS.txt
+
       - name: Unit tests
         run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
 
@@ -318,6 +323,8 @@ jobs:
             echo "step27a_rc_id=${{ steps.rc.outputs.id }}"
             echo "step27a_rc_source_sha=$RC_SOURCE_SHA"
             echo "step27a_certified_source_gate=PASS"
+            echo "step27c_static_readiness=PASS"
+            echo "step27c_distribution=EXTERNAL_REQUIRED"
             echo "release_binary_status=$RELEASE_BINARY_STATUS"
             echo "release_publishable=$RELEASE_PUBLISHABLE"
             echo "release_cert_sha256=$RELEASE_CERT_SHA256"
