@@ -34,6 +34,9 @@ jobs:
       - name: Prepare evidence directory
         run: mkdir -p certified-evidence
 
+      - name: Verify canonical RC identity
+        run: python3 scripts/verify_rc_identity.py --output certified-evidence/RC_IDENTITY.txt
+
       - name: Unit tests
         run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
 
@@ -42,6 +45,56 @@ jobs:
 
       - name: Build release APK and AAB
         run: gradle :app:assembleRelease :app:bundleRelease --stacktrace --no-daemon
+
+      - name: Verify built release identity and provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata="app/build/outputs/apk/release/output-metadata.json"
+          apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          aab="$(find app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)"
+          test -n "$apk" && test -f "$apk"
+          test -n "$aab" && test -f "$aab"
+          python3 scripts/verify_rc_identity.py \
+            --metadata "$metadata" \
+            --output certified-evidence/RC_RELEASE_IDENTITY.txt
+          cp release/RC.properties certified-evidence/RC.properties
+          cp "$metadata" certified-evidence/release-output-metadata.json
+
+          signing_status="UNSIGNED_VALIDATION"
+          publishable="false"
+          cert_sha256="NOT_AVAILABLE"
+          sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          apksigner=""
+          if [[ -n "$sdk_root" && -d "$sdk_root/build-tools" ]]; then
+            apksigner="$(find "$sdk_root/build-tools" -type f -name apksigner | sort -V | tail -n 1 || true)"
+          fi
+          if [[ -n "$apksigner" ]] && "$apksigner" verify "$apk" >/dev/null 2>&1; then
+            signing_status="SIGNED"
+            publishable="true"
+            cert_sha256="$("$apksigner" verify --print-certs "$apk" 2>/dev/null \
+              | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)"
+            [[ -n "$cert_sha256" ]] || cert_sha256="SIGNED_DIGEST_UNAVAILABLE"
+          fi
+
+          {
+            echo "RELEASE_BINARY_STATUS=$signing_status"
+            echo "RELEASE_PUBLISHABLE=$publishable"
+            echo "RELEASE_CERT_SHA256=$cert_sha256"
+          } > certified-evidence/RELEASE_SIGNING.env
+
+          {
+            cat release/RC.properties
+            echo "SOURCE_SHA=$GITHUB_SHA"
+            echo "WORKFLOW_RUN_ID=$GITHUB_RUN_ID"
+            echo "WORKFLOW_REF=$GITHUB_REF"
+            echo "WORKFLOW_EVENT=$GITHUB_EVENT_NAME"
+            echo "RELEASE_BINARY_STATUS=$signing_status"
+            echo "RELEASE_PUBLISHABLE=$publishable"
+            echo "RELEASE_CERT_SHA256=$cert_sha256"
+            echo "APK_SHA256=$(sha256sum "$apk" | awk '{print $1}')"
+            echo "AAB_SHA256=$(sha256sum "$aab" | awk '{print $1}')"
+          } > certified-evidence/RC_PROVENANCE.txt
 
       - name: Step 26 binary size budget
         shell: bash
@@ -226,13 +279,18 @@ jobs:
           if [[ -f app/build/outputs/mapping/release/mapping.txt ]]; then
             cp app/build/outputs/mapping/release/mapping.txt certified-evidence/mapping.txt
           fi
+          source certified-evidence/RELEASE_SIGNING.env
           {
             echo "commit=$GITHUB_SHA"
             echo "run_id=$GITHUB_RUN_ID"
             echo "generated_utc=$(date -u +%FT%TZ)"
             echo "automated_gate=PASS"
-            echo "release_binary_status=UNSIGNED_VALIDATION"
-            echo "release_publishable=false"
+            echo "step27a_rc_id=notification-control-v1.0.0-rc1"
+            echo "step27a_rc_source_sha=$GITHUB_SHA"
+            echo "step27a_certified_source_gate=PASS"
+            echo "release_binary_status=$RELEASE_BINARY_STATUS"
+            echo "release_publishable=$RELEASE_PUBLISHABLE"
+            echo "release_cert_sha256=$RELEASE_CERT_SHA256"
             echo "device_validation=MANUAL_REQUIRED"
             echo "applab_runtime=SEPARATE_REQUIRED_GATE"
             echo "macrobenchmark_runtime=MANUAL_REQUIRED"
@@ -246,12 +304,14 @@ jobs:
               echo "google_oauth_configuration=CLIENT_ID_REQUIRED"
             fi
           } > certified-evidence/VERDICT.txt
-          find certified-evidence -type f -maxdepth 2 -print0 | sort -z | xargs -0 sha256sum > certified-evidence/SHA256SUMS.txt
+          find certified-evidence -maxdepth 2 -type f \
+            ! -name 'SHA256SUMS.txt' ! -name 'SIZES.txt' \
+            -print0 | sort -z | xargs -0 sha256sum > certified-evidence/SHA256SUMS.txt
           du -ah certified-evidence | sort -h > certified-evidence/SIZES.txt
 
       - name: Upload Certified Evidence Bundle
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: notification-control-certified-evidence
+          name: notification-control-v1.0.0-rc1-certified-evidence
           path: certified-evidence/
           if-no-files-found: error
