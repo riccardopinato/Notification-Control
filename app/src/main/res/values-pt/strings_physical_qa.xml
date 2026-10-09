@@ -12,4 +12,6 @@
     <string name="photo_scope_full">biblioteca completa</string>
     <string name="photo_scope_selected_only">apenas fotos selecionadas</string>
     <string name="photo_scope_none">nenhum</string>
+    <string name="physical_qa_pipeline_perf">Pipeline: fila %1$d (pico %2$d) · processados %3$d · média %4$d ms · máx. %5$d ms · lentos %6$d</string>
+    <string name="physical_qa_media_perf">Recuperação de media: sinais %1$d · execuções %2$d · média %3$d ms · máx. %4$d ms · pendentes %5$d</string>
 </resources>

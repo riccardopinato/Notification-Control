@@ -18,6 +18,8 @@ import com.riccardopinato.notificationcontrol.domain.PausePingController
 import com.riccardopinato.notificationcontrol.domain.RuleEngine
 import com.riccardopinato.notificationcontrol.domain.RuleRuntimeStateProvider
 import com.riccardopinato.notificationcontrol.domain.SuppressionPolicy
+import com.riccardopinato.notificationcontrol.diagnostics.PipelineCommandType
+import com.riccardopinato.notificationcontrol.diagnostics.RuntimePerformanceTelemetry
 import com.riccardopinato.notificationcontrol.hardware.DevicePostureMonitor
 import com.riccardopinato.notificationcontrol.hardware.FlashCoordinator
 import com.riccardopinato.notificationcontrol.luminous.LuminousProfileResolver
@@ -35,9 +37,11 @@ import com.riccardopinato.notificationcontrol.ui.overlay.LuminousCircleOverlay
 import android.app.Notification
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 class NotificationCaptureService : NotificationListenerService() {
@@ -56,6 +60,7 @@ class NotificationCaptureService : NotificationListenerService() {
     private lateinit var overlay: LuminousCircleOverlay
     private lateinit var recoveryCoordinator: MediaRecoveryCoordinator
     private var mediaObserver: ContentObserver? = null
+    private var mediaObserverRecoveryJob: Job? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -128,6 +133,7 @@ class NotificationCaptureService : NotificationListenerService() {
 
         serviceScope.launch {
             for (command in eventQueue) {
+                val startedNs = System.nanoTime()
                 runCatching { processCommand(command) }
                     .onFailure {
                         Log.e(
@@ -136,6 +142,9 @@ class NotificationCaptureService : NotificationListenerService() {
                             it
                         )
                     }
+                RuntimePerformanceTelemetry.commandProcessed(
+                    System.nanoTime() - startedNs
+                )
             }
         }
     }
@@ -145,8 +154,8 @@ class NotificationCaptureService : NotificationListenerService() {
         health.connected = true
         health.lastConnectedAt = System.currentTimeMillis()
         ensureMediaObserver()
-        serviceScope.launch { recoveryCoordinator.resolvePending() }
-        eventQueue.trySend(ListenerCommand.Reconcile)
+        serviceScope.launch { resolvePendingWithTelemetry() }
+        enqueueCommand(ListenerCommand.Reconcile)
     }
 
     override fun onListenerDisconnected() {
@@ -162,6 +171,8 @@ class NotificationCaptureService : NotificationListenerService() {
         overlay.hide()
         mediaObserver?.let { runCatching { contentResolver.unregisterContentObserver(it) } }
         mediaObserver = null
+        mediaObserverRecoveryJob?.cancel()
+        mediaObserverRecoveryJob = null
         eventQueue.close()
         serviceScope.cancel()
         super.onDestroy()
@@ -171,12 +182,12 @@ class NotificationCaptureService : NotificationListenerService() {
         val notification = sbn ?: return
         if (!shouldConsider(notification)) return
         health.lastEventAt = System.currentTimeMillis()
-        eventQueue.trySend(ListenerCommand.Posted(notification))
+        enqueueCommand(ListenerCommand.Posted(notification))
     }
 
     override fun onNotificationRemoved(sbn: StatusBarNotification?) {
         val notification = sbn ?: return
-        eventQueue.trySend(
+        enqueueCommand(
             ListenerCommand.Removed(
                 platformKey = notification.key,
                 reason = null
@@ -190,7 +201,7 @@ class NotificationCaptureService : NotificationListenerService() {
         reason: Int
     ) {
         val notification = sbn ?: return
-        eventQueue.trySend(
+        enqueueCommand(
             ListenerCommand.Removed(
                 platformKey = notification.key,
                 reason = reason
@@ -279,7 +290,7 @@ class NotificationCaptureService : NotificationListenerService() {
             notificationKey = eventKey,
             revisionKey = revisionKey
         )
-        recoveryCoordinator.resolvePending()
+        scheduleMediaRecovery(MEDIA_REGISTER_DEBOUNCE_MS)
     }
 
     private fun ensureMediaObserver() {
@@ -287,10 +298,8 @@ class NotificationCaptureService : NotificationListenerService() {
         if (!settings.isPremium || !mediaStore.canRecoverWhatsAppImages()) return
 
         fun triggerRecovery() {
-            serviceScope.launch {
-                runCatching { recoveryCoordinator.resolvePending() }
-                    .onFailure { Log.w(TAG, "MediaStore recovery trigger failed", it) }
-            }
+            RuntimePerformanceTelemetry.mediaObserverSignal()
+            scheduleMediaRecovery(MEDIA_OBSERVER_DEBOUNCE_MS)
         }
 
         val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -316,6 +325,41 @@ class NotificationCaptureService : NotificationListenerService() {
             mediaObserver = observer
         }.onFailure {
             Log.w(TAG, "Unable to observe MediaStore images", it)
+        }
+    }
+
+    private fun scheduleMediaRecovery(delayMs: Long) {
+        mediaObserverRecoveryJob?.cancel()
+        mediaObserverRecoveryJob = serviceScope.launch {
+            delay(delayMs)
+            runCatching { resolvePendingWithTelemetry() }
+                .onFailure { Log.w(TAG, "Media recovery trigger failed", it) }
+        }
+    }
+
+    private fun enqueueCommand(command: ListenerCommand) {
+        val accepted = eventQueue.trySend(command).isSuccess
+        if (!accepted) return
+        RuntimePerformanceTelemetry.commandQueued(
+            when (command) {
+                is ListenerCommand.Posted -> PipelineCommandType.POSTED
+                is ListenerCommand.Removed -> PipelineCommandType.REMOVED
+                ListenerCommand.Reconcile -> PipelineCommandType.RECONCILE
+            }
+        )
+    }
+
+    private suspend fun resolvePendingWithTelemetry(): Int {
+        val startedNs = System.nanoTime()
+        var remaining = -1
+        try {
+            remaining = recoveryCoordinator.resolvePending()
+            return remaining
+        } finally {
+            RuntimePerformanceTelemetry.mediaRecoveryCompleted(
+                durationNs = System.nanoTime() - startedNs,
+                remaining = remaining
+            )
         }
     }
 
@@ -345,6 +389,8 @@ class NotificationCaptureService : NotificationListenerService() {
 
     companion object {
         private const val TAG = "NotificationCapture"
+        private const val MEDIA_REGISTER_DEBOUNCE_MS = 250L
+        private const val MEDIA_OBSERVER_DEBOUNCE_MS = 750L
     }
 
     private sealed interface ListenerCommand {

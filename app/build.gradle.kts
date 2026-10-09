@@ -47,6 +47,7 @@ android {
         )
         buildConfigField("boolean", "QA_PREMIUM_UNLOCKED", "false")
         buildConfigField("boolean", "MEDIASTORE_RECOVERY_ENABLED", "true")
+        buildConfigField("boolean", "PERFORMANCE_DIAGNOSTICS_ENABLED", "false")
     }
 
     signingConfigs {
@@ -63,6 +64,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("boolean", "PERFORMANCE_DIAGNOSTICS_ENABLED", "true")
+        }
         release {
             isMinifyEnabled = true
             buildConfigField("boolean", "MEDIASTORE_RECOVERY_ENABLED", "false")
@@ -80,6 +84,7 @@ android {
             signingConfig = signingConfigs.getByName("debug")
             matchingFallbacks += listOf("release")
             isDebuggable = false
+            buildConfigField("boolean", "PERFORMANCE_DIAGNOSTICS_ENABLED", "true")
         }
         create("qaPremium") {
             initWith(getByName("release"))
@@ -89,6 +94,7 @@ android {
             versionNameSuffix = "-qa-premium"
             buildConfigField("boolean", "QA_PREMIUM_UNLOCKED", "true")
             buildConfigField("boolean", "MEDIASTORE_RECOVERY_ENABLED", "true")
+            buildConfigField("boolean", "PERFORMANCE_DIAGNOSTICS_ENABLED", "true")
         }
     }
 

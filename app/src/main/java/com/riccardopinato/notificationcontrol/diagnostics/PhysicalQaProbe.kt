@@ -40,7 +40,8 @@ data class PhysicalQaSnapshot(
     val whatsAppSafLinked: Boolean,
     val mediaStoreVersion: String?,
     val mediaStoreGeneration: Long?,
-    val premium: Boolean
+    val premium: Boolean,
+    val runtimePerformance: RuntimePerformanceSnapshot
 )
 
 class PhysicalQaProbe(context: Context) {
@@ -98,7 +99,8 @@ class PhysicalQaProbe(context: Context) {
             whatsAppSafLinked = safLinked,
             mediaStoreVersion = mediaSnapshot?.version,
             mediaStoreGeneration = mediaSnapshot?.generation,
-            premium = settings.isPremium
+            premium = settings.isPremium,
+            runtimePerformance = RuntimePerformanceTelemetry.snapshot()
         )
     }
 }

@@ -43,6 +43,17 @@ jobs:
       - name: Build release APK and AAB
         run: gradle :app:assembleRelease :app:bundleRelease --stacktrace --no-daemon
 
+      - name: Step 26 binary size budget
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          aab="$(find app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)"
+          python3 scripts/verify_size_budget.py \
+            --apk "$apk" \
+            --aab "$aab" \
+            --output certified-evidence/SIZE_BUDGET.txt
+
       - name: Compile performance harness
         run: gradle :app:assemblePerfTest :benchmark:assemblePerfTest --stacktrace --no-daemon
 
@@ -225,6 +236,9 @@ jobs:
             echo "device_validation=MANUAL_REQUIRED"
             echo "applab_runtime=SEPARATE_REQUIRED_GATE"
             echo "macrobenchmark_runtime=MANUAL_REQUIRED"
+            echo "step26_size_budget=PASS"
+            echo "step26_hot_path_profile=UNIT_TESTED"
+            echo "step26_long_run_device=MANUAL_REQUIRED"
             echo "play_configuration=EXTERNAL_REQUIRED"
             if [[ -n "${GOOGLE_WEB_CLIENT_ID:-}" ]]; then
               echo "google_oauth_configuration=CLIENT_ID_INJECTED"
