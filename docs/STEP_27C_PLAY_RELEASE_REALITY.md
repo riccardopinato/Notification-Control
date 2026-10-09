@@ -58,6 +58,20 @@ Do not confuse the upload-key certificate with the Google Play App Signing
 certificate. OAuth for the Play-installed app must use the Play App Signing
 SHA fingerprint.
 
+## GitHub RC prerelease tag safety
+
+The frozen STEP 27A source still contains the older tag-triggered release workflow.
+Creating a normal `v1.0.0-rc1` tag on that commit would therefore start that
+legacy workflow as a second release coordinator.
+
+For RC artifact publication the hardened control-plane workflow uses:
+
+`rc-v1.0.0-rc1`
+
+This tag still targets the certified source SHA, but it does not match the legacy
+`v*` trigger. The final production `v1.0.0` tag must be created only after the
+current hardened release workflow is the canonical workflow on the tagged source.
+
 ## Billing contract
 
 Repository contract:
