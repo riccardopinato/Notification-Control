@@ -26,6 +26,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a
         with:
           gradle-version: '9.3.1'
+      - name: Verify canonical RC identity
+        run: python3 scripts/verify_rc_identity.py --output rc-ci-evidence/RC_IDENTITY.txt
+
       - name: Unit tests
         run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
       - name: Lint
@@ -46,6 +49,25 @@ jobs:
         run: gradle :app:assemblePerfTest :benchmark:assemblePerfTest --stacktrace --no-daemon
       - name: Build QA Premium APK
         run: gradle :app:assembleQaPremium --stacktrace --no-daemon
+      - name: Record RC source and validation artifact evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          metadata="app/build/outputs/apk/qaPremium/output-metadata.json"
+          python3 scripts/verify_rc_identity.py \
+            --metadata "$metadata" \
+            --version-suffix=-qa-premium \
+            --output rc-ci-evidence/RC_QA_IDENTITY.txt
+          cp "$metadata" rc-ci-evidence/qaPremium-output-metadata.json
+          {
+            echo "source_sha=$GITHUB_SHA"
+            echo "workflow_run_id=$GITHUB_RUN_ID"
+            echo "workflow_ref=$GITHUB_REF"
+            sha256sum app/build/outputs/apk/debug/app-debug.apk
+            sha256sum app/build/outputs/apk/perfTest/app-perfTest.apk
+            sha256sum app/build/outputs/apk/qaPremium/app-qaPremium.apk
+          } > rc-ci-evidence/RC_SOURCE_AND_ARTIFACTS.txt
+
       - name: Upload debug APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -63,4 +85,11 @@ jobs:
         with:
           name: notification-control-qa-premium
           path: app/build/outputs/apk/qaPremium/app-qaPremium.apk
+          if-no-files-found: error
+
+      - name: Upload RC CI evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: notification-control-v1.0.0-rc1-ci-evidence
+          path: rc-ci-evidence/
           if-no-files-found: error
