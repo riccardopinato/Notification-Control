@@ -20,6 +20,16 @@ val rcId = requireNotNull(rcProperties.getProperty("RC_ID")) {
     "RC_ID missing from release/RC.properties"
 }
 
+val versionNameOverride = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() }
+require(versionNameOverride == null || versionNameOverride == rcVersionName) {
+    "VERSION_NAME override must match canonical RC version $rcVersionName"
+}
+val versionCodeOverrideRaw = System.getenv("VERSION_CODE")?.takeIf { it.isNotBlank() }
+val versionCodeOverride = versionCodeOverrideRaw?.toIntOrNull()
+require(versionCodeOverrideRaw == null || versionCodeOverride == rcVersionCode) {
+    "VERSION_CODE override must match canonical RC versionCode $rcVersionCode"
+}
+
 val releaseStoreFile = System.getenv("SIGNING_STORE_FILE")
 val releaseStorePassword = System.getenv("SIGNING_STORE_PASSWORD")
 val releaseKeyAlias = System.getenv("SIGNING_KEY_ALIAS")
@@ -53,8 +63,8 @@ android {
         applicationId = "com.riccardopinato.notificationcontrol"
         minSdk = 24
         targetSdk = 36
-        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: rcVersionCode
-        versionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: rcVersionName
+        versionCode = rcVersionCode
+        versionName = rcVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField(
             "String",
