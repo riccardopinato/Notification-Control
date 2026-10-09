@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
@@ -105,10 +106,18 @@ def main() -> None:
     )
 
     release_manifest = source / "app/src/release/AndroidManifest.xml"
-    manifest_text = release_manifest.read_text(encoding="utf-8")
+    if not release_manifest.is_file():
+        raise SystemExit(f"Missing release manifest: {release_manifest}")
+    manifest_root = ET.parse(release_manifest).getroot()
+    android_ns = "{http://schemas.android.com/apk/res/android}"
+    tools_ns = "{http://schemas.android.com/tools}"
+    permission_nodes = {
+        node.attrib.get(android_ns + "name"): node
+        for node in manifest_root.findall("uses-permission")
+    }
     for permission in FORBIDDEN_RELEASE_MEDIA_PERMISSIONS:
-        marker = f'android:name="{permission}"'
-        if marker not in manifest_text or 'tools:node="remove"' not in manifest_text:
+        node = permission_nodes.get(permission)
+        if node is None or node.attrib.get(tools_ns + "node") != "remove":
             raise SystemExit(
                 f"Release manifest does not explicitly remove {permission}"
             )
