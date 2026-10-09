@@ -67,7 +67,11 @@ def main() -> None:
     if values["CI_RELEASE_GOLDEN_FRESHNESS"] != "CURRENT":
         raise SystemExit("CI release Golden must be CURRENT for supply-chain pin adoption")
 
-    workflows = sorted((root / ".github/workflows").glob("*.yml"))
+    workflow_dir = root / ".github/workflows"
+    workflows = sorted({
+        *workflow_dir.glob("*.yml"),
+        *workflow_dir.glob("*.yaml"),
+    })
     if not workflows:
         raise SystemExit("No GitHub Actions workflows found")
 
