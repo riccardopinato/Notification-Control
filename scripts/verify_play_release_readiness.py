@@ -73,6 +73,21 @@ def main() -> None:
     if not SHA40.fullmatch(certified_sha):
         raise SystemExit(f"Invalid CERTIFIED_SOURCE_SHA: {certified_sha!r}")
 
+    required_certification = {
+        "ANDROID_CI_RUN": cert.get("ANDROID_CI_RUN", ""),
+        "CERTIFIED_QA_RUN": cert.get("CERTIFIED_QA_RUN", ""),
+        "APPLAB_FULL_RUN": cert.get("APPLAB_FULL_RUN", ""),
+    }
+    for key, value in required_certification.items():
+        if not value.isdigit() or int(value) <= 0:
+            raise SystemExit(f"Missing or invalid certification evidence {key}: {value!r}")
+
+    if cert.get("CERTIFICATION_LEVEL") != "STEP_27A_AUTOMATED":
+        raise SystemExit(
+            "CERTIFICATION_LEVEL must be STEP_27A_AUTOMATED, got "
+            f"{cert.get('CERTIFICATION_LEVEL')!r}"
+        )
+
     gradle = source / "app/build.gradle.kts"
     require_text(
         gradle,
@@ -127,9 +142,10 @@ def main() -> None:
         f"version_name={rc['VERSION_NAME']}",
         f"version_code={rc['VERSION_CODE']}",
         f"certified_source_sha={certified_sha}",
-        f"android_ci_run={cert.get('ANDROID_CI_RUN', 'UNKNOWN')}",
-        f"certified_qa_run={cert.get('CERTIFIED_QA_RUN', 'UNKNOWN')}",
-        f"applab_full_run={cert.get('APPLAB_FULL_RUN', 'UNKNOWN')}",
+        f"android_ci_run={cert['ANDROID_CI_RUN']}",
+        f"certified_qa_run={cert['CERTIFIED_QA_RUN']}",
+        f"applab_full_run={cert['APPLAB_FULL_RUN']}",
+        f"certification_level={cert['CERTIFICATION_LEVEL']}",
         f"package_id={EXPECTED_PACKAGE}",
         "static_identity=PASS",
         "release_media_policy=PASS",
