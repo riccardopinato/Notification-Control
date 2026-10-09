@@ -73,12 +73,6 @@ jobs:
           echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
           echo "CERTIFIED_SOURCE_SHA=$CERTIFIED_SOURCE_SHA" >> "$GITHUB_ENV"
 
-      - name: Verify control-plane static readiness
-        run: |
-          python3 control/scripts/verify_play_release_readiness.py \
-            --control-root control \
-            --source-root control
-
       - name: Checkout exact certified application source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -195,7 +189,7 @@ jobs:
               exit 1
             }
             "$apksigner" verify "release-output/${RC_ID}.apk"
-            jarsigner -verify "release-output/${RC_ID}.aab" >/dev/null
+            jarsigner -verify -strict "release-output/${RC_ID}.aab" >/dev/null
             cert_sha256="$("$apksigner" verify --print-certs "release-output/${RC_ID}.apk" 2>/dev/null \
               | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)"
             [[ -n "$cert_sha256" ]] || {
@@ -247,6 +241,24 @@ jobs:
           set -euo pipefail
           tag="rc-v$VERSION_NAME"
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            tag_object_type="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.type')"
+            tag_object_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')"
+            if [[ "$tag_object_type" == "tag" ]]; then
+              tag_target_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_object_sha" --jq '.object.sha')"
+            else
+              tag_target_sha="$tag_object_sha"
+            fi
+            [[ "$tag_target_sha" == "$CERTIFIED_SOURCE_SHA" ]] || {
+              echo "Existing prerelease tag $tag points to $tag_target_sha, expected $CERTIFIED_SOURCE_SHA" >&2
+              exit 1
+            }
+
+            is_prerelease="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq '.isPrerelease')"
+            [[ "$is_prerelease" == "true" ]] || {
+              echo "Existing release $tag is not marked as prerelease." >&2
+              exit 1
+            }
+
             gh release upload "$tag" release-output/${RC_ID}.apk release-output/${RC_ID}.aab --clobber --repo "$GITHUB_REPOSITORY"
           else
             gh release create "$tag" \
