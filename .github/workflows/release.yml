@@ -46,18 +46,40 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Resolve release version
+      - name: Verify canonical RC identity
+        run: python3 scripts/verify_rc_identity.py
+
+      - name: Resolve release version from canonical RC
         shell: bash
         run: |
           set -euo pipefail
+          source release/RC.properties
+          canonical_name="$VERSION_NAME"
+          canonical_code="$VERSION_CODE"
+          canonical_id="$RC_ID"
+
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            echo "VERSION_NAME=${{ inputs.version_name }}" >> "$GITHUB_ENV"
-            echo "VERSION_CODE=${{ inputs.version_code }}" >> "$GITHUB_ENV"
+            requested_name="${{ inputs.version_name }}"
+            requested_code="${{ inputs.version_code }}"
+            [[ "$requested_name" == "$canonical_name" ]] || {
+              echo "Requested version_name $requested_name does not match canonical RC $canonical_name" >&2
+              exit 1
+            }
+            [[ "$requested_code" == "$canonical_code" ]] || {
+              echo "Requested version_code $requested_code does not match canonical RC $canonical_code" >&2
+              exit 1
+            }
           else
-            version="${GITHUB_REF_NAME#v}"
-            echo "VERSION_NAME=$version" >> "$GITHUB_ENV"
-            echo "VERSION_CODE=$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+            tag_version="${GITHUB_REF_NAME#v}"
+            [[ "$tag_version" == "$canonical_name" ]] || {
+              echo "Tag $GITHUB_REF_NAME does not match canonical RC version $canonical_name" >&2
+              exit 1
+            }
           fi
+
+          echo "VERSION_NAME=$canonical_name" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$canonical_code" >> "$GITHUB_ENV"
+          echo "RC_ID=$canonical_id" >> "$GITHUB_ENV"
 
       - name: Prepare Android signing
         id: signing
