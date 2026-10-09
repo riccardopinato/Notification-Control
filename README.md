@@ -32,7 +32,7 @@ Android notification-control utility built around **Single Capture / Single Vaul
 
 ## Release and QA
 - `.github/workflows/android.yml`: standard PR/main CI plus debug/perfTest APKs and benchmark compile gate
-- `.github/workflows/release.yml`: APK/AAB release build, optional signing, GitHub Release and optional Play Internal Testing upload
+- `.github/workflows/release.yml`: release-reality pipeline that checks out the exact certified RC source, builds once, records signing/artifact provenance, can create an RC prerelease and can submit the same hashed AAB to Play Internal Testing
 - `.github/workflows/certified.yml`: SHOS-style Certified Evidence Bundle with tests, lint, release binaries, privacy/localization gates, checksums and dependency evidence
 - `.github/workflows/applab.yml`: pinned AppLab FULL trusted-runtime gate for PRs, covering emulator launch, visual/runtime checks, persistence, lifecycle stress, process death, background/Doze and storage integrity where supported
 
@@ -44,4 +44,4 @@ See:
 - `AGENTS.txt`
 
 ## External release configuration
-Live Google Sign-In, Premium monthly/annual purchases and Play publication require their corresponding OAuth / Play Console / signing credentials. Public release defaults to notification-direct media plus explicit SAF rather than broad gallery access. The app remains local-first and usable without Google identity.
+Live Google Sign-In, Premium monthly/annual purchases and Play publication require their corresponding OAuth / Play Console / persistent signing credentials. STEP 27C binds distribution to the immutable STEP 27A certified source SHA and fails closed for real distribution when signing identity is missing or mismatched. Public release defaults to notification-direct media plus explicit SAF rather than broad gallery access. Physical/OEM and Play-installed live behavior remain separate required evidence before final V1.0 certification.

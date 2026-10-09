@@ -1,6 +1,6 @@
-NOTIFICATION CONTROL — ROADMAP v1.11.0
+NOTIFICATION CONTROL — ROADMAP v1.12.0
 Date: 2026-10-09
-Status: CORE V1 + DEEP HARDENING MERGED / V1.0 RC1 AUTOMATED CERTIFICATION
+Status: V1.0 RC1 AUTOMATED CERTIFIED / RELEASE REALITY PREPARATION
 
 PHASE 0 — DONOR AUDIT & BASELINE
 COMPLETED / MERGED
@@ -442,66 +442,76 @@ STEP 27 — V1.0 RELEASE CANDIDATE CERTIFICATION
 IN PROGRESS
 
 STEP 27A — RC1 FREEZE & AUTOMATED CERTIFICATION
-IMPLEMENTED / AUTOMATED VALIDATION IN PROGRESS
+COMPLETED / MERGED
+Certified source SHA: 3ff070fc3bb2b2122a2982c0eb449e3bd0eb7cb2
+Merge baseline: 48a180d3b7c7246542ba2c700e629cf60ab45139
 - canonical RC identity: notification-control-v1.0.0-rc1
 - Android versionName: 1.0.0-rc1
 - Android versionCode: 1000001
-- release/RC.properties is the single source of truth for RC identity
-- Gradle reads RC identity fail-closed; CI environment overrides remain available only when explicitly supplied
-- Android CI verifies RC identity and records source/artifact hashes
-- Certified QA verifies release APK metadata, release APK/AAB checksums, signing state, source SHA and provenance
-- AppLab FULL is gated by the same canonical RC identity and exact source SHA
-- acceptance invariant: Android CI + Certified QA + AppLab FULL must all be green on one unchanged RC source SHA
-- AppLab exercises qaPremium because unsigned public release output is not falsely treated as installable
-- unsigned release validation may pass 27A source certification but remains release_publishable=false
+- Android CI run 37911862397: PASS
+- Certified QA run 37911862389: PASS
+- AppLab FULL run 37911863392: PASS
+- all mandatory automated gates passed on the exact same certified source SHA
+- Certified Evidence Bundle preserves release APK/AAB provenance, checksums and signing truth
+- RC release artifact remains UNSIGNED_VALIDATION until persistent release signing credentials are provided
+- post-merge Android CI run 37919022709: PASS
 - protocol: docs/STEP_27A_RC1_AUTOMATED_CERTIFICATION.md
 
 STEP 27B — PHYSICAL/OEM CERTIFICATION
-PLANNED / MANUAL_REQUIRED
-- Xiaomi/HyperOS + Samsung/One UI + Android 14+ physical matrix
-- real Notification Listener, WhatsApp/media, reboot/process death/Doze/burst and long-run battery/memory evidence
-- final Free + Premium native regression including TalkBack/font-scale where applicable
+DEFERRED BY OWNER / MANUAL_REQUIRED
+- intentionally postponed because a physical phone is not currently available
+- Xiaomi/HyperOS + Samsung/One UI + Android 14+ physical matrix remains mandatory before final CERTIFIED
+- real Notification Listener, WhatsApp/media, reboot/process death/Doze/burst and long-run battery/memory evidence remains NOT VERIFIED
+- final Free + Premium native regression including TalkBack/font-scale remains NOT VERIFIED
+- deferred != waived and does not block repository/release-preparation work
 
 STEP 27C — PLAY INTERNAL TESTING & RELEASE REALITY
-PLANNED / EXTERNAL_REQUIRED
-- intended production signing / Play App Signing identity
-- signed AAB provenance and checksums
-- Google OAuth Android client matched to release/Play SHA-1
-- notification_control_premium monthly/annual products active
-- live purchase/restore and Google profile verified
-- Play Internal Testing installation/update verified
-- privacy/data-safety/store disclosures matched to actual release permissions/features
+IMPLEMENTED / AUTOMATED STATIC VALIDATION IN PROGRESS
+- control-plane certification record binds RC1 identity to certified source SHA 3ff070fc...
+- release workflow builds the exact certified source from a separate checkout instead of silently publishing current main
+- build-once / hash / distribute-same-bytes rule applied to release APK/AAB
+- real distribution requires persistent Android signing credentials
+- Google Play Internal upload additionally requires service account credentials and EXPECTED_UPLOAD_CERT_SHA256
+- release provenance records control-plane SHA, certified source SHA, package/variant, artifact hashes and signing certificate SHA-256
+- GitHub RC prerelease, when requested, targets the certified source SHA
+- Play upload uses the exact AAB already hashed into release-output
+- static verifier checks RC identity, package ID, least-privilege release media policy and canonical Billing product/base-plan IDs
+- release public path remains notification-direct media + explicit SAF; broad MediaStore permissions removed from release
+- successful Play API upload is DISTRIBUTION_SUBMITTED, not DISTRIBUTION_VERIFIED
+- Internal Testing installation/update, live Billing and live Google profile remain MANUAL_REQUIRED
+- Play App Signing certificate/OAuth match and product activation remain EXTERNAL_REQUIRED
+- protocol: docs/STEP_27C_PLAY_RELEASE_REALITY.md
 
 FINAL STEP 27 VERDICT RULE:
 CERTIFIED only when 27A + 27B + 27C all have real evidence.
-No automated/AppLab result may substitute for device/store/external evidence.
+No automated/AppLab/Play-upload result may substitute for device/store/runtime evidence.
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
-- Android OAuth client/package signing configuration must match the intended signed build
-- Google Play/release Android OAuth client must match Play App Signing/release SHA-1
+- configure persistent Android signing secrets in GitHub
+- register EXPECTED_UPLOAD_CERT_SHA256 for the intended upload key
+- record Google Play App Signing certificate fingerprint
+- create/match Android OAuth client to Play App Signing SHA-1
 - activate notification_control_premium with monthly/annual base plans in Play Console
-- Play signing/service credentials for automatic Internal Testing publication
+- configure PLAY_SERVICE_ACCOUNT_JSON for Internal Testing publication
 - verify live purchase, restore and Google profile on signed Play/Internal Testing build
-- broad MediaStore recovery in public release is OPTIONAL and remains disabled unless a future Play-policy decision explicitly approves it
+- broad MediaStore recovery in public release remains disabled unless a future Play-policy decision explicitly approves it
 - repository branch protection/ruleset: configure required checks on main if not already enforced
 
 CURRENT RELEASE VERDICT:
-AUTOMATED CORE (main baseline abfa5700): PASS
-STEP 26 AUTOMATION (main baseline abfa5700): PASS
-STEP 27A RC1 IMPLEMENTATION: READY_FOR_AUTOMATED_GATES
-STEP 27A ANDROID CI: PENDING
-STEP 27A CERTIFIED QA: PENDING
-STEP 27A APPLAB FULL: PENDING
-PHYSICAL DEVICE / STEP 27B: MANUAL_REQUIRED
-LIVE GOOGLE/PLAY / STEP 27C: REQUIRED
-BRANCH GOVERNANCE: MANUAL_REQUIRED
-FINAL INTENDED-RELEASE VERDICT: BLOCKED until 27A + device/store/governance gates are completed
+AUTOMATED CORE: PASS
+STEP 26 AUTOMATION: PASS
+STEP 27A AUTOMATED RC1: PASS
+STEP 27B PHYSICAL DEVICE: DEFERRED / MANUAL_REQUIRED
+STEP 27C STATIC RELEASE READINESS: VALIDATION_IN_PROGRESS
+STEP 27C PLAY/OAUTH/BILLING EXTERNAL: REQUIRED
+FINAL INTENDED-RELEASE VERDICT: BLOCKED by physical + external/store evidence, not by known application code failure
 
 IMMEDIATE NEXT ACTION:
-1. Open the STEP 27A PR from the frozen RC1 branch.
-2. Require Android CI + Certified QA + AppLab FULL to pass on the exact same PR head SHA.
-3. Fix any deterministic build/test/evidence failure and invalidate/re-run all affected gates on the new SHA.
-4. Freeze the successful RC1 source SHA and preserve its Certified Evidence Bundle.
-5. Proceed to STEP 27B physical/OEM certification; do not label V1.0 CERTIFIED before 27C also passes.
+1. Validate and merge STEP 27C release-reality preparation only if Android CI + Certified QA + AppLab remain green.
+2. Configure persistent signing/upload certificate evidence when available.
+3. Configure Play service account, App Signing/OAuth and Premium products.
+4. Run the hardened release workflow to produce the signed exact RC1 AAB and optionally submit it to Internal Testing.
+5. Return to STEP 27B physical/OEM validation when a phone is available.
+6. Verify Internal Testing install/update + live purchase/restore/Google profile before final V1.0 CERTIFIED.
 
-END ROADMAP v1.11.0
+END ROADMAP v1.12.0

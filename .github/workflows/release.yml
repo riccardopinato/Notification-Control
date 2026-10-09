@@ -1,21 +1,15 @@
-name: Android Release
+name: Android Release / Play Internal
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
-      version_name:
-        description: 'Version name (example: 1.0.0)'
-        required: true
-        type: string
-      version_code:
-        description: 'Android versionCode'
-        required: true
-        type: number
       publish_play_internal:
-        description: 'Upload AAB to Google Play Internal Testing when credentials exist'
+        description: 'Upload the exact certified AAB to Google Play Internal Testing'
+        required: true
+        default: false
+        type: boolean
+      create_github_prerelease:
+        description: 'Create/update the GitHub prerelease for the certified RC'
         required: true
         default: false
         type: boolean
@@ -23,19 +17,37 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: notification-control-release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 50
     env:
       SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
       GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID || '72691779013-hci9cr313a5ado5skdghs6h7a5pg84md.apps.googleusercontent.com' }}
+      EXPECTED_UPLOAD_CERT_SHA256: ${{ secrets.EXPECTED_UPLOAD_CERT_SHA256 || vars.EXPECTED_UPLOAD_CERT_SHA256 }}
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Require current release control plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]] || {
+            echo "Release workflow must be dispatched from main." >&2
+            exit 1
+          }
+
+      - name: Checkout release control plane
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          path: control
+          ref: ${{ github.sha }}
 
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
         with:
@@ -46,40 +58,44 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Verify canonical RC identity
-        run: python3 scripts/verify_rc_identity.py
-
-      - name: Resolve release version from canonical RC
+      - name: Load certified RC binding
+        id: cert
         shell: bash
         run: |
           set -euo pipefail
-          source release/RC.properties
-          canonical_name="$VERSION_NAME"
-          canonical_code="$VERSION_CODE"
-          canonical_id="$RC_ID"
+          source control/release/RC_CERTIFICATION.env
+          echo "rc_id=$RC_ID" >> "$GITHUB_OUTPUT"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$CERTIFIED_SOURCE_SHA" >> "$GITHUB_OUTPUT"
+          echo "RC_ID=$RC_ID" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$VERSION_CODE" >> "$GITHUB_ENV"
+          echo "CERTIFIED_SOURCE_SHA=$CERTIFIED_SOURCE_SHA" >> "$GITHUB_ENV"
 
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            requested_name="${{ inputs.version_name }}"
-            requested_code="${{ inputs.version_code }}"
-            [[ "$requested_name" == "$canonical_name" ]] || {
-              echo "Requested version_name $requested_name does not match canonical RC $canonical_name" >&2
-              exit 1
-            }
-            [[ "$requested_code" == "$canonical_code" ]] || {
-              echo "Requested version_code $requested_code does not match canonical RC $canonical_code" >&2
-              exit 1
-            }
-          else
-            tag_version="${GITHUB_REF_NAME#v}"
-            [[ "$tag_version" == "$canonical_name" ]] || {
-              echo "Tag $GITHUB_REF_NAME does not match canonical RC version $canonical_name" >&2
-              exit 1
-            }
-          fi
+      - name: Checkout exact certified application source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ steps.cert.outputs.source_sha }}
+          path: source
 
-          echo "VERSION_NAME=$canonical_name" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=$canonical_code" >> "$GITHUB_ENV"
-          echo "RC_ID=$canonical_id" >> "$GITHUB_ENV"
+      - name: Verify exact certified source binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          resolved="$(git -C source rev-parse HEAD)"
+          [[ "$resolved" == "$CERTIFIED_SOURCE_SHA" ]] || {
+            echo "Certified source mismatch: $resolved != $CERTIFIED_SOURCE_SHA" >&2
+            exit 1
+          }
+          mkdir -p release-output
+          python3 control/scripts/verify_play_release_readiness.py \
+            --control-root control \
+            --source-root source \
+            --output release-output/PLAY_STATIC_READINESS.txt
+          python3 source/scripts/verify_rc_identity.py \
+            --properties source/release/RC.properties \
+            --output release-output/RC_IDENTITY.txt
 
       - name: Prepare Android signing
         id: signing
@@ -88,90 +104,231 @@ jobs:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           set -euo pipefail
-          if [[ -n "${KEYSTORE_BASE64}" && -n "${SIGNING_STORE_PASSWORD}" && -n "${SIGNING_KEY_ALIAS}" && -n "${SIGNING_KEY_PASSWORD}" ]]; then
-            echo "$KEYSTORE_BASE64" | base64 --decode > "$GITHUB_WORKSPACE/app/release.keystore"
-            echo "SIGNING_STORE_FILE=$GITHUB_WORKSPACE/app/release.keystore" >> "$GITHUB_ENV"
+          if [[ -n "${KEYSTORE_BASE64:-}" && -n "${SIGNING_STORE_PASSWORD:-}" && -n "${SIGNING_KEY_ALIAS:-}" && -n "${SIGNING_KEY_PASSWORD:-}" ]]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$GITHUB_WORKSPACE/source/app/release.keystore"
+            echo "SIGNING_STORE_FILE=$GITHUB_WORKSPACE/source/app/release.keystore" >> "$GITHUB_ENV"
             echo "SIGNING_READY=true" >> "$GITHUB_ENV"
+            echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "SIGNING_READY=false" >> "$GITHUB_ENV"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Release signing gate
+      - name: Distribution preflight
         shell: bash
         run: |
           set -euo pipefail
+          real_distribution=false
+          if [[ "${{ inputs.publish_play_internal }}" == "true" || "${{ inputs.create_github_prerelease }}" == "true" ]]; then
+            real_distribution=true
+          fi
 
-          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${SIGNING_READY}" != "true" ]]; then
-            echo "Tagged releases require Android signing credentials." >&2
+          if [[ "$real_distribution" == "true" && "$SIGNING_READY" != "true" ]]; then
+            echo "Real distribution requires persistent Android signing credentials." >&2
             exit 1
           fi
 
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.publish_play_internal }}" == "true" && "${SIGNING_READY}" != "true" ]]; then
-            echo "Google Play publication requires Android signing credentials." >&2
-            exit 1
+          if [[ "${{ inputs.publish_play_internal }}" == "true" ]]; then
+            [[ -n "${PLAY_SERVICE_ACCOUNT_JSON:-}" ]] || {
+              echo "PLAY_SERVICE_ACCOUNT_JSON is required for Play Internal Testing." >&2
+              exit 1
+            }
+            [[ -n "${EXPECTED_UPLOAD_CERT_SHA256:-}" ]] || {
+              echo "EXPECTED_UPLOAD_CERT_SHA256 is required before Play upload." >&2
+              exit 1
+            }
           fi
 
-          if [[ "${SIGNING_READY}" == "true" ]]; then
-            echo "RELEASE_KIND=signed" >> "$GITHUB_ENV"
-          else
-            echo "RELEASE_KIND=unsigned-validation" >> "$GITHUB_ENV"
-          fi
-
-      - name: Unit tests
+      - name: Unit tests on certified source
+        working-directory: source
         run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
 
-      - name: Release lint
+      - name: Release lint on certified source
+        working-directory: source
         run: gradle :app:lintRelease --stacktrace --no-daemon
 
-      - name: Build release APK and AAB
+      - name: Build exact release APK and AAB once
+        working-directory: source
         run: gradle :app:assembleRelease :app:bundleRelease --stacktrace --no-daemon
 
-      - name: Collect release outputs
+      - name: Verify release identity, signing and exact artifacts
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release-output
-          find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -exec cp {} release-output/ \;
-          find app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -exec cp {} release-output/ \;
-          if [[ -f app/build/outputs/mapping/release/mapping.txt ]]; then
-            cp app/build/outputs/mapping/release/mapping.txt release-output/mapping.txt
+          metadata="source/app/build/outputs/apk/release/output-metadata.json"
+          apk="$(find source/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          aab="$(find source/app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' | head -n 1)"
+          test -f "$apk"
+          test -f "$aab"
+
+          python3 source/scripts/verify_rc_identity.py \
+            --properties source/release/RC.properties \
+            --metadata "$metadata" \
+            --output release-output/RC_RELEASE_IDENTITY.txt
+
+          cp "$apk" "release-output/${RC_ID}.apk"
+          cp "$aab" "release-output/${RC_ID}.aab"
+          cp "$metadata" release-output/release-output-metadata.json
+          if [[ -f source/app/build/outputs/mapping/release/mapping.txt ]]; then
+            cp source/app/build/outputs/mapping/release/mapping.txt release-output/mapping.txt
           fi
+
+          signing_status="UNSIGNED_VALIDATION"
+          release_publishable=false
+          cert_sha256="NOT_AVAILABLE"
+
+          sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          apksigner=""
+          if [[ -n "$sdk_root" && -d "$sdk_root/build-tools" ]]; then
+            apksigner="$(find "$sdk_root/build-tools" -type f -name apksigner | sort -V | tail -n 1 || true)"
+          fi
+
+          if [[ "$SIGNING_READY" == "true" ]]; then
+            [[ -n "$apksigner" ]] || {
+              echo "apksigner not available." >&2
+              exit 1
+            }
+            "$apksigner" verify "release-output/${RC_ID}.apk"
+            jarsigner -verify -strict "release-output/${RC_ID}.aab" >/dev/null
+            cert_sha256="$("$apksigner" verify --print-certs "release-output/${RC_ID}.apk" 2>/dev/null \
+              | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)"
+            [[ -n "$cert_sha256" ]] || {
+              echo "Unable to resolve release certificate SHA-256." >&2
+              exit 1
+            }
+            signing_status="SIGNED"
+            release_publishable=true
+
+            if [[ -n "${EXPECTED_UPLOAD_CERT_SHA256:-}" ]]; then
+              actual_norm="$(printf '%s' "$cert_sha256" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+              expected_norm="$(printf '%s' "$EXPECTED_UPLOAD_CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
+              [[ "$actual_norm" == "$expected_norm" ]] || {
+                echo "Signing certificate mismatch." >&2
+                echo "Expected upload cert SHA-256: $EXPECTED_UPLOAD_CERT_SHA256" >&2
+                echo "Actual upload cert SHA-256: $cert_sha256" >&2
+                exit 1
+              }
+            fi
+          fi
+
           {
-            echo "release_kind=${RELEASE_KIND}"
-            echo "signing_ready=${SIGNING_READY}"
-            echo "version_name=${VERSION_NAME}"
-            echo "version_code=${VERSION_CODE}"
-            echo "commit=${GITHUB_SHA}"
+            echo "RC_ID=$RC_ID"
+            echo "VERSION_NAME=$VERSION_NAME"
+            echo "VERSION_CODE=$VERSION_CODE"
+            echo "CONTROL_PLANE_SHA=$GITHUB_SHA"
+            echo "CERTIFIED_SOURCE_SHA=$CERTIFIED_SOURCE_SHA"
+            echo "RESOLVED_SOURCE_SHA=$(git -C source rev-parse HEAD)"
+            echo "PACKAGE_ID=com.riccardopinato.notificationcontrol"
+            echo "VARIANT=release"
+            echo "RELEASE_BINARY_STATUS=$signing_status"
+            echo "RELEASE_PUBLISHABLE=$release_publishable"
+            echo "UPLOAD_CERT_SHA256=$cert_sha256"
+            echo "APK_SHA256=$(sha256sum "release-output/${RC_ID}.apk" | awk '{print $1}')"
+            echo "AAB_SHA256=$(sha256sum "release-output/${RC_ID}.aab" | awk '{print $1}')"
+            echo "WORKFLOW_RUN_ID=$GITHUB_RUN_ID"
           } > release-output/RELEASE_PROVENANCE.txt
-          sha256sum release-output/* > release-output/SHA256SUMS.txt
-          ls -lh release-output
 
-      - name: Upload release build artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: notification-control-release-${{ env.VERSION_NAME }}-${{ env.RELEASE_KIND }}
-          path: release-output/
-          if-no-files-found: error
+          echo "RELEASE_BINARY_STATUS=$signing_status" >> "$GITHUB_ENV"
+          echo "RELEASE_PUBLISHABLE=$release_publishable" >> "$GITHUB_ENV"
+          echo "UPLOAD_CERT_SHA256=$cert_sha256" >> "$GITHUB_ENV"
 
-      - name: Create GitHub Release from tag
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Create or update GitHub RC prerelease
+        if: inputs.create_github_prerelease == true
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
-            gh release create "$GITHUB_REF_NAME" \
-              --title "Notification Control $GITHUB_REF_NAME" \
-              --generate-notes
-          gh release upload "$GITHUB_REF_NAME" release-output/* --clobber
+          tag="rc-v$VERSION_NAME"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            tag_object_type="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.type')"
+            tag_object_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" --jq '.object.sha')"
+            if [[ "$tag_object_type" == "tag" ]]; then
+              tag_target_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_object_sha" --jq '.object.sha')"
+            else
+              tag_target_sha="$tag_object_sha"
+            fi
+            [[ "$tag_target_sha" == "$CERTIFIED_SOURCE_SHA" ]] || {
+              echo "Existing prerelease tag $tag points to $tag_target_sha, expected $CERTIFIED_SOURCE_SHA" >&2
+              exit 1
+            }
 
-      - name: Upload to Google Play Internal Testing
-        if: env.SIGNING_READY == 'true' && env.PLAY_SERVICE_ACCOUNT_JSON != '' && (github.event_name == 'push' || inputs.publish_play_internal == true)
+            is_prerelease="$(gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq '.isPrerelease')"
+            [[ "$is_prerelease" == "true" ]] || {
+              echo "Existing release $tag is not marked as prerelease." >&2
+              exit 1
+            }
+
+            gh release upload "$tag" release-output/${RC_ID}.apk release-output/${RC_ID}.aab --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$tag" \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$CERTIFIED_SOURCE_SHA" \
+              --title "Notification Control $VERSION_NAME" \
+              --prerelease \
+              --generate-notes \
+              release-output/${RC_ID}.apk \
+              release-output/${RC_ID}.aab
+          fi
+
+      - name: Upload exact certified AAB to Google Play Internal Testing
+        id: play_upload
+        if: inputs.publish_play_internal == true
         uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.riccardopinato.notificationcontrol
-          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          releaseFiles: release-output/${{ steps.cert.outputs.rc_id }}.aab
           track: internal
           status: completed
+
+      - name: Finalize release-reality evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          play_upload="NOT_REQUESTED"
+          if [[ "${{ inputs.publish_play_internal }}" == "true" ]]; then
+            play_upload="SUBMITTED"
+          fi
+
+          github_prerelease="NOT_REQUESTED"
+          if [[ "${{ inputs.create_github_prerelease }}" == "true" ]]; then
+            github_prerelease="CREATED_OR_UPDATED"
+          fi
+
+          {
+            echo "step27a_automated=PASS"
+            echo "step27b_physical_oem=MANUAL_REQUIRED"
+            echo "step27c_static_readiness=PASS"
+            echo "production_signing=$RELEASE_BINARY_STATUS"
+            echo "release_publishable=$RELEASE_PUBLISHABLE"
+            echo "upload_cert_sha256=$UPLOAD_CERT_SHA256"
+            echo "github_prerelease=$github_prerelease"
+            echo "play_internal_upload=$play_upload"
+            echo "play_internal_install_update=MANUAL_REQUIRED"
+            echo "play_app_signing_fingerprint=EXTERNAL_REQUIRED"
+            echo "google_oauth_release_match=EXTERNAL_REQUIRED"
+            echo "play_products_activation=EXTERNAL_REQUIRED"
+            echo "live_purchase_restore=MANUAL_REQUIRED"
+            echo "live_google_profile=MANUAL_REQUIRED"
+            echo "distribution_verified=MANUAL_REQUIRED"
+            echo "final_v1_certification=BLOCKED_27B_27C_EXTERNAL"
+          } > release-output/RELEASE_REALITY_VERDICT.txt
+
+          find release-output -maxdepth 1 -type f ! -name SHA256SUMS.txt -print0 \
+            | sort -z | xargs -0 sha256sum > release-output/SHA256SUMS.txt
+          du -ah release-output | sort -h > release-output/SIZES.txt
+          ls -lh release-output
+
+      - name: Upload release-reality evidence and exact artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ steps.cert.outputs.rc_id }}-release-reality
+          path: release-output/
+          if-no-files-found: error
+
+      - name: Remove temporary keystore
+        if: always()
+        shell: bash
+        run: rm -f source/app/release.keystore
