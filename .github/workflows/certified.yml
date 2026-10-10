@@ -142,12 +142,16 @@ jobs:
             signing_lane="PRODUCTION"
 
             if [[ -n "${EXPECTED_UPLOAD_CERT_SHA256:-}" ]]; then
-              actual_norm="$(printf '%s' "$cert_sha256" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-              expected_norm="$(printf '%s' "$EXPECTED_UPLOAD_CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-              [[ "$actual_norm" == "$expected_norm" ]] || {
+              actual_norm="$(printf '%s' "$cert_sha256" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+              expected_norm="$(printf '%s' "$EXPECTED_UPLOAD_CERT_SHA256" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+              if [[ "$actual_norm" != "$expected_norm" ]]; then
                 echo "Certified signing certificate mismatch." >&2
+                echo "Actual APK certificate SHA-256: $cert_sha256" >&2
+                echo "Actual normalized length: ${#actual_norm}" >&2
+                echo "Expected normalized length: ${#expected_norm}" >&2
                 exit 1
-              }
+              fi
+              echo "Certified signing certificate match: PASS"
               signing_identity_match="VERIFIED"
               publishable="true"
             fi
