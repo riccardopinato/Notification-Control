@@ -40,8 +40,9 @@ See:
 - `docs/PRODUCT_BIBLE.txt`
 - `docs/ROADMAP.txt`
 - `docs/RELEASE_CERTIFIED_QA.md`
+- `docs/STEP_27E_SIGNING_VERIFICATION.md`
 - `PROJECT_RULES.txt`
 - `AGENTS.txt`
 
 ## External release configuration
-Live Google Sign-In, Premium monthly/annual purchases and Play publication require their corresponding OAuth / Play Console / persistent signing credentials. STEP 27C binds distribution to the immutable STEP 27A certified source SHA and fails closed for real distribution when signing identity is missing or mismatched. Public release defaults to notification-direct media plus explicit SAF rather than broad gallery access. Physical/OEM and Play-installed live behavior remain separate required evidence before final V1.0 certification.
+Persistent Android signing for the exact STEP 27A RC1 source is verified: GitHub reconstructs the canonical upload keystore, the APK/AAB signatures pass, and the upload certificate matches `EXPECTED_UPLOAD_CERT_SHA256`. Remaining release configuration is Play-specific: `PLAY_SERVICE_ACCOUNT_JSON`, Play App Signing certificate capture, Android OAuth bound to the Play signing SHA-1, activation of `notification_control_premium` (`monthly` + `annual`) and real Internal Testing. STEP 27C binds distribution to the immutable STEP 27A certified source SHA. Public release defaults to notification-direct media plus explicit SAF rather than broad gallery access. Physical/OEM and Play-installed live behavior remain separate required evidence before final V1.0 certification.
