@@ -106,6 +106,8 @@ jobs:
 
       - name: Verify certificate, identity and artifacts
         shell: bash
+        env:
+          CANONICAL_UPLOAD_CERT_SHA256: 'AA:9A:47:C3:99:32:87:CC:32:A3:A2:B0:69:E6:B1:A2:A9:57:BB:EB:9E:A5:BD:BF:EB:D3:44:B3:8C:38:FA:3A'
         run: |
           set -euo pipefail
           apk="$(find source/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
@@ -118,24 +120,57 @@ jobs:
             --properties source/release/RC.properties \
             --metadata "$metadata" \
             --output evidence/RC_RELEASE_IDENTITY.txt
+          echo "RC release identity: PASS"
 
           sdk_root="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           apksigner="$(find "$sdk_root/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          test -n "$apksigner"
-
-          "$apksigner" verify "$apk"
-          jarsigner -verify -verbose -certs "$aab" >/dev/null
-
-          cert_sha256="$("$apksigner" verify --print-certs "$apk" 2>/dev/null \
-            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)"
-          test -n "$cert_sha256"
-
-          actual_norm="$(printf '%s' "$cert_sha256" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-          expected_norm="$(printf '%s' "$EXPECTED_UPLOAD_CERT_SHA256" | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-          [[ "$actual_norm" == "$expected_norm" ]] || {
-            echo "Signing certificate mismatch." >&2
+          [[ -n "$apksigner" ]] || {
+            echo "apksigner not found" >&2
             exit 1
           }
+
+          "$apksigner" verify "$apk"
+          echo "APK signature verification: PASS"
+
+          if ! jarsigner -verify -verbose -certs "$aab" > evidence/AAB_JARSIGNER.txt 2>&1; then
+            echo "AAB signature verification: FAIL" >&2
+            tail -n 40 evidence/AAB_JARSIGNER.txt >&2
+            exit 1
+          fi
+          if grep -Fqi "jar is unsigned" evidence/AAB_JARSIGNER.txt || ! grep -Fqi "jar verified" evidence/AAB_JARSIGNER.txt; then
+            echo "AAB signature verification: FAIL (not verifiably signed)" >&2
+            tail -n 40 evidence/AAB_JARSIGNER.txt >&2
+            exit 1
+          fi
+          echo "AAB signature verification: PASS"
+
+          "$apksigner" verify --print-certs "$apk" > evidence/APK_CERT_INFO.txt
+          cert_sha256="$(awk -F': ' '/certificate SHA-256 digest:/ {print $2; exit}' evidence/APK_CERT_INFO.txt)"
+          [[ -n "$cert_sha256" ]] || {
+            echo "Could not extract APK signing SHA-256" >&2
+            cat evidence/APK_CERT_INFO.txt >&2
+            exit 1
+          }
+
+          normalize() {
+            printf '%s' "$1" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]'
+          }
+
+          actual_norm="$(normalize "$cert_sha256")"
+          canonical_norm="$(normalize "$CANONICAL_UPLOAD_CERT_SHA256")"
+          secret_norm="$(normalize "$EXPECTED_UPLOAD_CERT_SHA256")"
+
+          [[ "$actual_norm" == "$canonical_norm" ]] || {
+            echo "Actual APK signing certificate does not match canonical upload certificate." >&2
+            exit 1
+          }
+          echo "Actual APK certificate = canonical upload certificate: PASS"
+
+          [[ "$secret_norm" == "$canonical_norm" ]] || {
+            echo "EXPECTED_UPLOAD_CERT_SHA256 secret does not match canonical upload certificate." >&2
+            exit 1
+          }
+          echo "EXPECTED_UPLOAD_CERT_SHA256 secret = canonical upload certificate: PASS"
 
           mkdir -p signed-output
           cp "$apk" signed-output/notification-control-v1.0.0-rc1.apk
