@@ -33,7 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -879,7 +881,16 @@ private fun AddCriticalRow(
             singleLine = true,
             label = { Text(label) }
         )
-        Button(onClick = onAdd, enabled = value.isNotBlank()) {
+        val addEnabled = value.isNotBlank()
+        Button(
+            onClick = onAdd,
+            enabled = addEnabled,
+            modifier = if (addEnabled) {
+                Modifier
+            } else {
+                Modifier.clearAndSetSemantics { disabled() }
+            }
+        ) {
             Text("+")
         }
     }
@@ -906,7 +917,16 @@ private fun AppPatternPicker(
                 onSelected = onSelected
             )
         }
-        Button(onClick = onAdd, enabled = selected != null) {
+        val addEnabled = selected != null
+        Button(
+            onClick = onAdd,
+            enabled = addEnabled,
+            modifier = if (addEnabled) {
+                Modifier
+            } else {
+                Modifier.clearAndSetSemantics { disabled() }
+            }
+        ) {
             Text("+")
         }
     }
