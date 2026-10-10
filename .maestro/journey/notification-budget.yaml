@@ -6,4 +6,5 @@ appId: com.riccardopinato.notificationcontrol
       text: "Notification Budget"
     direction: DOWN
     timeout: 15000
+    centerElement: true
 - assertVisible: "Notification Budget"
