@@ -32,7 +32,7 @@ Android notification-control utility built around **Single Capture / Single Vaul
 
 ## Release and QA
 - `.github/workflows/android.yml`: standard PR/main CI plus debug/perfTest APKs and benchmark compile gate
-- `.github/workflows/release.yml`: release-reality pipeline that checks out the exact certified RC source, builds once, records signing/artifact provenance, can create an RC prerelease and can submit the same hashed AAB to Play Internal Testing
+- `.github/workflows/release.yml`: release-reality pipeline that checks out the exact certified RC source, builds once, records signing/artifact provenance, validates the Play service-account JSON fail-closed, can create an RC prerelease and can submit the same hashed AAB to Play Internal Testing
 - `.github/workflows/certified.yml`: SHOS-style Certified Evidence Bundle with tests, lint, release binaries, privacy/localization gates, checksums and dependency evidence
 - `.github/workflows/applab.yml`: pinned AppLab FULL trusted-runtime gate for PRs, covering emulator launch, visual/runtime checks, persistence, lifecycle stress, process death, background/Doze and storage integrity where supported
 
@@ -41,6 +41,7 @@ See:
 - `docs/ROADMAP.txt`
 - `docs/RELEASE_CERTIFIED_QA.md`
 - `docs/STEP_27E_SIGNING_VERIFICATION.md`
+- `docs/STEP_27F_PLAY_INTERNAL_SETUP.md`
 - `PROJECT_RULES.txt`
 - `AGENTS.txt`
 
