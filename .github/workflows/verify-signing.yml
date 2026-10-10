@@ -194,18 +194,9 @@ jobs:
 
           "$apksigner" verify --print-certs "$apk" > evidence/APK_CERT_INFO.txt
           cat evidence/APK_CERT_INFO.txt
-          cert_sha256="$(python3 - evidence/APK_CERT_INFO.txt <<'PY'
-import re
-import sys
-from pathlib import Path
-
-text = Path(sys.argv[1]).read_text(encoding="utf-8", errors="replace")
-match = re.search(r"certificate SHA-256 digest:\\s*([0-9A-Fa-f:]{64,95})", text)
-if not match:
-    raise SystemExit(1)
-print(match.group(1))
-PY
-)"
+          cert_sha256="$(grep -i 'certificate SHA-256 digest:' evidence/APK_CERT_INFO.txt \
+            | head -n 1 \
+            | sed -E 's/^.*certificate SHA-256 digest:[[:space:]]*//I')"
           echo "APK certificate SHA-256 parsed successfully"
           [[ -n "$cert_sha256" ]] || {
             echo "Could not extract APK signing SHA-256" >&2
