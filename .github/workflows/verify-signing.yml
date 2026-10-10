@@ -121,6 +121,17 @@ jobs:
           echo "canonical_keystore_file_match=$file_match"
           echo "canonical_upload_certificate_match=$cert_match"
 
+          secret_norm="$(normalize "$EXPECTED_UPLOAD_CERT_SHA256")"
+          canonical_secret_norm="$(normalize "$CANONICAL_UPLOAD_CERT_SHA256")"
+          expected_secret_match=false
+          [[ "$secret_norm" == "$canonical_secret_norm" ]] && expected_secret_match=true
+          echo "expected_upload_cert_secret_match=$expected_secret_match"
+
+          if [[ "$expected_secret_match" != "true" ]]; then
+            echo "EXPECTED_UPLOAD_CERT_SHA256 is present but does not contain the canonical Notification Control SHA-256 certificate fingerprint." >&2
+            exit 1
+          fi
+
           if [[ "$file_match" != "true" ]]; then
             echo "ANDROID_KEYSTORE_BASE64 reconstructs a different .jks than the canonical Notification Control upload key." >&2
             exit 1
@@ -141,7 +152,7 @@ jobs:
 
       - name: Build signed exact RC1 APK and AAB
         working-directory: source
-        run: gradle :app:assembleRelease :app:bundleRelease --stacktrace --no-daemon
+        run: gradle :app:clean :app:assembleRelease :app:bundleRelease --stacktrace --no-daemon --no-build-cache --rerun-tasks
 
       - name: Verify certificate, identity and artifacts
         shell: bash
@@ -185,6 +196,7 @@ jobs:
 
           "$apksigner" verify --print-certs "$apk" > evidence/APK_CERT_INFO.txt
           cert_sha256="$(awk -F': ' '/certificate SHA-256 digest:/ {print $2; exit}' evidence/APK_CERT_INFO.txt)"
+          echo "APK certificate SHA-256 (may be masked if equal to repository secret): $cert_sha256"
           [[ -n "$cert_sha256" ]] || {
             echo "Could not extract APK signing SHA-256" >&2
             cat evidence/APK_CERT_INFO.txt >&2
