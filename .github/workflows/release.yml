@@ -152,6 +152,70 @@ jobs:
             }
           fi
 
+      - name: Validate Play service account JSON
+        if: inputs.publish_play_internal == true
+        shell: bash
+        env:
+          PLAY_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+          raw = os.environ.get("PLAY_JSON", "")
+          try:
+              data = json.loads(raw)
+          except Exception as exc:
+              print(f"PLAY_SERVICE_ACCOUNT_JSON is not valid JSON: {exc}", file=sys.stderr)
+              raise SystemExit(1)
+
+          required = {
+              "type": str,
+              "project_id": str,
+              "private_key_id": str,
+              "private_key": str,
+              "client_email": str,
+              "client_id": str,
+              "token_uri": str,
+          }
+
+          missing = []
+          for key, expected_type in required.items():
+              value = data.get(key)
+              if not isinstance(value, expected_type) or not value.strip():
+                  missing.append(key)
+
+          if missing:
+              print(
+                  "PLAY_SERVICE_ACCOUNT_JSON is missing required non-empty fields: "
+                  + ", ".join(sorted(missing)),
+                  file=sys.stderr,
+              )
+              raise SystemExit(1)
+
+          if data["type"] != "service_account":
+              print("PLAY_SERVICE_ACCOUNT_JSON type must be service_account.", file=sys.stderr)
+              raise SystemExit(1)
+
+          if not data["client_email"].endswith(".gserviceaccount.com"):
+              print("PLAY_SERVICE_ACCOUNT_JSON client_email is not a service-account address.", file=sys.stderr)
+              raise SystemExit(1)
+
+          if "BEGIN PRIVATE KEY" not in data["private_key"] or "END PRIVATE KEY" not in data["private_key"]:
+              print("PLAY_SERVICE_ACCOUNT_JSON private_key is not a PEM private key.", file=sys.stderr)
+              raise SystemExit(1)
+
+          if data["token_uri"] != "https://oauth2.googleapis.com/token":
+              print("PLAY_SERVICE_ACCOUNT_JSON token_uri is unexpected.", file=sys.stderr)
+              raise SystemExit(1)
+
+          print("Play service account JSON structure: PASS")
+          print("No secret values were emitted.")
+          PY
+          echo "PLAY_SERVICE_ACCOUNT_PREFLIGHT=PASS" >> "$GITHUB_ENV"
+
       - name: Unit tests on certified source
         working-directory: source
         run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
@@ -349,6 +413,7 @@ jobs:
             echo "factory_alignment=PASS"
             echo "github_prerelease=$github_prerelease"
             echo "play_internal_upload=$play_upload"
+            echo "play_service_account_preflight=${PLAY_SERVICE_ACCOUNT_PREFLIGHT:-NOT_REQUESTED}"
             echo "play_internal_install_update=MANUAL_REQUIRED"
             echo "play_app_signing_fingerprint=EXTERNAL_REQUIRED"
             echo "google_oauth_release_match=EXTERNAL_REQUIRED"

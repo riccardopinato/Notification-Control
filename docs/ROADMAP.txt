@@ -1,6 +1,6 @@
-NOTIFICATION CONTROL — ROADMAP v1.14.0
-Date: 2026-10-10
-Status: V1.0 RC1 SIGNING VERIFIED / FACTORY v25.1 RELEASE HARDENING
+NOTIFICATION CONTROL — ROADMAP v1.15.0
+Date: 2026-10-11
+Status: V1.0 RC1 PLAY INTERNAL PREFLIGHT HARDENED / EXTERNAL PLAY CONFIG REQUIRED
 
 PHASE 0 — DONOR AUDIT & BASELINE
 COMPLETED / MERGED
@@ -536,6 +536,19 @@ Control-plane SHA: a233476455c48df06ef52f1eb02c28833369e344
 - verification artifact: notification-control-rc1-signed-verification
 - protocol: docs/STEP_27E_SIGNING_VERIFICATION.md
 
+
+STEP 27F — PLAY INTERNAL RELEASE SETUP & SERVICE-ACCOUNT PREFLIGHT
+REPOSITORY PREPARED / EXTERNAL ACTION REQUIRED
+- release workflow validates PLAY_SERVICE_ACCOUNT_JSON structure before any Play upload
+- malformed/non-service-account JSON fails closed without printing secret values
+- required JSON fields: type, project_id, private_key_id, private_key, client_email, client_id, token_uri
+- release evidence records play_service_account_preflight=PASS when Internal Testing publication is requested
+- canonical package remains com.riccardopinato.notificationcontrol
+- canonical Play subscription contract remains notification_control_premium + monthly + annual
+- protocol documents minimum Play service-account permissions, Play App Signing fingerprints, OAuth binding and Internal Testing evidence
+- repository-side preparation is complete; real Google Cloud/Play Console configuration remains external
+- protocol: docs/STEP_27F_PLAY_INTERNAL_SETUP.md
+
 FINAL STEP 27 VERDICT RULE:
 CERTIFIED only when 27A + 27B + 27C all have real evidence.
 27D strengthens release governance but does not replace any physical/store gate.
@@ -561,13 +574,15 @@ STEP 27C AUTOMATED/CONTROL-PLANE: PASS
 STEP 27C PLAY/OAUTH/BILLING EXTERNAL: REQUIRED
 STEP 27D FACTORY v25.1 HARDENING: PASS
 STEP 27E PERSISTENT SIGNING IDENTITY: PASS
+STEP 27F PLAY INTERNAL PREFLIGHT: REPOSITORY READY / EXTERNAL ACTION REQUIRED
 FINAL INTENDED-RELEASE VERDICT: BLOCKED by physical + remaining external/store evidence, not by known application code failure
 
 IMMEDIATE NEXT ACTION:
-1. Configure Play service account, Play App Signing/OAuth and Premium products.
-2. Run the hardened release workflow and submit the exact signed RC1 AAB to Internal Testing when PLAY_SERVICE_ACCOUNT_JSON is available.
-3. Record Play App Signing SHA-1/SHA-256 and bind the Android OAuth client to the Play signing identity.
-4. Return to STEP 27B physical/OEM validation when a phone is available.
-5. Verify Internal Testing install/update + live purchase/restore/Google profile before final V1.0 CERTIFIED.
+1. Create/enable the Google Play Developer API service account and add the entire JSON key as GitHub secret PLAY_SERVICE_ACCOUNT_JSON.
+2. Grant the service account app access for Notification Control with at least view-app information + release-to-testing-tracks permissions.
+3. Configure/record Play App Signing fingerprints and bind production Android OAuth to the Play signing SHA-1 fingerprint(s).
+4. Activate notification_control_premium with monthly + annual base plans.
+5. Dispatch Android Release / Play Internal from main with publish_play_internal=true and create_github_prerelease=true.
+6. Verify Play-installed app + purchase/restore + Google profile, then return to STEP 27B physical/OEM validation.
 
-END ROADMAP v1.14.0
+END ROADMAP v1.15.0
