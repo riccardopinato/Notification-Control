@@ -92,6 +92,45 @@ jobs:
           chmod 600 "$GITHUB_WORKSPACE/source/app/release.keystore"
           echo "SIGNING_STORE_FILE=$GITHUB_WORKSPACE/source/app/release.keystore" >> "$GITHUB_ENV"
 
+      - name: Verify reconstructed GitHub keystore identity
+        shell: bash
+        env:
+          CANONICAL_KEYSTORE_FILE_SHA256: 'dc0418e6fc5c0409e072b48f728e52ebf8827f225e40438b86ec6de1e8b8b290'
+          CANONICAL_UPLOAD_CERT_SHA256: 'AA:9A:47:C3:99:32:87:CC:32:A3:A2:B0:69:E6:B1:A2:A9:57:BB:EB:9E:A5:BD:BF:EB:D3:44:B3:8C:38:FA:3A'
+        run: |
+          set -euo pipefail
+          keystore="$GITHUB_WORKSPACE/source/app/release.keystore"
+          actual_file_sha256="$(sha256sum "$keystore" | awk '{print $1}')"
+
+          cert_output="$(keytool -list -v \
+            -keystore "$keystore" \
+            -alias "$SIGNING_KEY_ALIAS" \
+            -storepass "$SIGNING_STORE_PASSWORD" 2>&1)"
+          actual_cert_sha256="$(printf '%s\n' "$cert_output" | sed -n 's/^[[:space:]]*SHA256: //p' | head -n 1)"
+
+          normalize() {
+            printf '%s' "$1" | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]'
+          }
+
+          file_match=false
+          cert_match=false
+          [[ "$actual_file_sha256" == "$CANONICAL_KEYSTORE_FILE_SHA256" ]] && file_match=true
+          [[ "$(normalize "$actual_cert_sha256")" == "$(normalize "$CANONICAL_UPLOAD_CERT_SHA256")" ]] && cert_match=true
+
+          echo "decoded_keystore_file_sha256=$actual_file_sha256"
+          echo "canonical_keystore_file_match=$file_match"
+          echo "canonical_upload_certificate_match=$cert_match"
+
+          if [[ "$file_match" != "true" ]]; then
+            echo "ANDROID_KEYSTORE_BASE64 reconstructs a different .jks than the canonical Notification Control upload key." >&2
+            exit 1
+          fi
+
+          if [[ "$cert_match" != "true" ]]; then
+            echo "The alias selected in the reconstructed keystore does not match the canonical Notification Control upload certificate." >&2
+            exit 1
+          fi
+
       - name: Unit tests
         working-directory: source
         run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
