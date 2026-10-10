@@ -215,8 +215,11 @@ jobs:
               echo "AAB is not verifiably signed." >&2
               exit 1
             fi
-            cert_sha256="$("$apksigner" verify --print-certs "release-output/${RC_ID}.apk" 2>/dev/null \
-              | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1)"
+            cert_info="$("$apksigner" verify --print-certs "release-output/${RC_ID}.apk" 2>/dev/null)"
+            cert_sha256="$(printf '%s\n' "$cert_info" \
+              | grep -i 'certificate SHA-256 digest:' \
+              | head -n 1 \
+              | sed -E 's/^.*certificate SHA-256 digest:[[:space:]]*//I')"
             [[ -n "$cert_sha256" ]] || {
               echo "Unable to resolve release certificate SHA-256." >&2
               exit 1

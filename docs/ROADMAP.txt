@@ -1,6 +1,6 @@
-NOTIFICATION CONTROL — ROADMAP v1.13.1
-Date: 2026-10-09
-Status: V1.0 RC1 AUTOMATED CERTIFIED / FACTORY v25.1 RELEASE HARDENING
+NOTIFICATION CONTROL — ROADMAP v1.14.0
+Date: 2026-10-10
+Status: V1.0 RC1 SIGNING VERIFIED / FACTORY v25.1 RELEASE HARDENING
 
 PHASE 0 — DONOR AUDIT & BASELINE
 COMPLETED / MERGED
@@ -453,7 +453,7 @@ Merge baseline: 48a180d3b7c7246542ba2c700e629cf60ab45139
 - AppLab FULL run 37911863392: PASS
 - all mandatory automated gates passed on the exact same certified source SHA
 - Certified Evidence Bundle preserves release APK/AAB provenance, checksums and signing truth
-- RC release artifact remains UNSIGNED_VALIDATION until persistent release signing credentials are provided
+- original STEP 27A evidence artifact was UNSIGNED_VALIDATION; persistent production signing was subsequently verified in STEP 27E against the same certified source SHA
 - post-merge Android CI run 37919022709: PASS
 - protocol: docs/STEP_27A_RC1_AUTOMATED_CERTIFICATION.md
 
@@ -512,14 +512,38 @@ Merge baseline: 0566a760fab511f5456edf39f6af96607a4f6f12
 - provider-sensitive Goldens marked NEEDS_REVIEW are used only as architecture/process guidance, not provider certification
 - protocol: docs/STEP_27D_FACTORY_V25_1_ALIGNMENT.md
 
+
+STEP 27E — PERSISTENT SIGNING IDENTITY VERIFICATION
+COMPLETED / VERIFIED
+Verification date: 2026-10-10
+Verification run: 38057014909
+Verification head: b93d8ba01ec0a88d4a4c1c95a89690fee245243d
+Certified source SHA: 3ff070fc3bb2b2122a2982c0eb449e3bd0eb7cb2
+Control-plane SHA: a233476455c48df06ef52f1eb02c28833369e344
+- all five signing secrets are present and usable by GitHub Actions
+- reconstructed GitHub keystore matches the canonical Notification Control upload .jks
+- upload certificate SHA-256 matches EXPECTED_UPLOAD_CERT_SHA256
+- exact certified RC1 APK and AAB build successfully with persistent release signing
+- APK signature verification: PASS
+- AAB signature verification: PASS
+- signing lane: PRODUCTION
+- signing identity match: VERIFIED
+- release publishable from signing perspective: true
+- upload certificate SHA-256: AA:9A:47:C3:99:32:87:CC:32:A3:A2:B0:69:E6:B1:A2:A9:57:BB:EB:9E:A5:BD:BF:EB:D3:44:B3:8C:38:FA:3A
+- upload certificate SHA-1: 26:BD:10:CA:4E:0C:37:AB:CC:A6:66:D5:03:6F:8D:D0:88:DD:3D:2E
+- signed RC1 APK SHA-256: f881a1494cd0daf29a766dfbaa7393fc52c62d01b71f3849d5bc097397236726
+- signed RC1 AAB SHA-256: acd9a7370cc5b15842cc9fd5b00a3d53ac0b9ae1ef1fca6e63b77df861b5938d
+- verification artifact: notification-control-rc1-signed-verification
+- protocol: docs/STEP_27E_SIGNING_VERIFICATION.md
+
 FINAL STEP 27 VERDICT RULE:
 CERTIFIED only when 27A + 27B + 27C all have real evidence.
 27D strengthens release governance but does not replace any physical/store gate.
 No automated/AppLab/Play-upload result may substitute for device/store/runtime evidence.
 
 EXTERNAL CONFIGURATION STILL REQUIRED:
-- configure persistent Android signing secrets in GitHub
-- register EXPECTED_UPLOAD_CERT_SHA256 for the intended upload key
+- persistent Android signing secrets in GitHub: VERIFIED / COMPLETE
+- EXPECTED_UPLOAD_CERT_SHA256: VERIFIED / COMPLETE
 - record Google Play App Signing certificate fingerprint
 - create/match Android OAuth client to Play App Signing SHA-1
 - activate notification_control_premium with monthly/annual base plans in Play Console
@@ -536,13 +560,14 @@ STEP 27B PHYSICAL DEVICE: DEFERRED / MANUAL_REQUIRED
 STEP 27C AUTOMATED/CONTROL-PLANE: PASS
 STEP 27C PLAY/OAUTH/BILLING EXTERNAL: REQUIRED
 STEP 27D FACTORY v25.1 HARDENING: PASS
-FINAL INTENDED-RELEASE VERDICT: BLOCKED by physical + external/store evidence, not by known application code failure
+STEP 27E PERSISTENT SIGNING IDENTITY: PASS
+FINAL INTENDED-RELEASE VERDICT: BLOCKED by physical + remaining external/store evidence, not by known application code failure
 
 IMMEDIATE NEXT ACTION:
-1. Configure persistent signing/upload certificate evidence when available.
-2. Configure Play service account, App Signing/OAuth and Premium products.
-3. Run the hardened release workflow to produce the signed exact RC1 AAB and optionally submit it to Internal Testing.
+1. Configure Play service account, Play App Signing/OAuth and Premium products.
+2. Run the hardened release workflow and submit the exact signed RC1 AAB to Internal Testing when PLAY_SERVICE_ACCOUNT_JSON is available.
+3. Record Play App Signing SHA-1/SHA-256 and bind the Android OAuth client to the Play signing identity.
 4. Return to STEP 27B physical/OEM validation when a phone is available.
 5. Verify Internal Testing install/update + live purchase/restore/Google profile before final V1.0 CERTIFIED.
 
-END ROADMAP v1.13.1
+END ROADMAP v1.14.0
